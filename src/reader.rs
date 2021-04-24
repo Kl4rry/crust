@@ -9,7 +9,7 @@ pub struct Reader<R> {
 }
 
 impl<R: Read> Reader<R> {
-    pub fn new(inner: R) -> Reader<R> {
+    pub fn _new(inner: R) -> Reader<R> {
         Reader { inner }
     }
 }
