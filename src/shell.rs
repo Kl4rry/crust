@@ -67,7 +67,7 @@ impl Shell {
             match readline {
                 Ok(line) => {
                     editor.add_history_entry(line.as_str());
-
+                    
                     let mut parts = line.trim().split_whitespace();
                     let command = if let Some(cmd) = parts.next() {
                         cmd

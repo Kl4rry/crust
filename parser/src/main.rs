@@ -15,5 +15,7 @@ fn main() {
             break;
         }
     }
-    println!("{:?}", tokens);
+    for token in tokens {
+        println!("{:?}", token);
+    }
 }

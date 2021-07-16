@@ -31,42 +31,60 @@ impl Lexer {
         }
     }
 
+    #[inline(always)]
     fn advance_with(&mut self, token: Token) -> Token {
         self.advance();
         token
     }
 
-    fn skip_whitespace(&mut self) {
-        while (self.current.is_ascii_whitespace()
-            || self.current == '\n'
-            || self.current == 10 as char)
-            && !self.eof
-        {
+    fn parse_whitespace(&mut self) -> Option<Token> {
+        let mut new_line = false;
+        let mut advanced = false;
+        while self.current.is_ascii_whitespace() && !self.eof {
+            advanced = true;
+            if self.current == '\n' || self.current == '\r' {
+                new_line = true;
+            }
             self.advance();
+        }
+
+        if advanced {
+            if new_line {
+                Some(Token::NewLine)
+            } else {
+                Some(Token::Space)
+            }
+        } else {
+            None
         }
     }
 
     fn skip_comment(&mut self) {
-        while self.current != '\n' && !self.eof {
+        while (self.current != '\n' && self.current != '\r') && !self.eof {
             self.advance();
         }
     }
 
     pub fn next_token(&mut self) -> Token {
         if !self.eof {
-            self.skip_whitespace();
+            if let Some(token) = self.parse_whitespace() {
+                return token;
+            }
 
             if self.current.is_ascii_digit() {
                 return self.parse_number();
             }
 
-            if self.current.is_alphabetic() {
-                return self.parse_id();
-            }
-
             match self.current {
-                '#' if self.index == 0 || self.peek(-1) == '\n' => self.skip_comment(),
-                '$' if self.peek(1).is_alphanumeric() => return self.parse_variable(),
+                '#' => {
+                    self.skip_comment();
+                    return Token::NewLine;
+                }
+                '$' if self.peek(1).is_alphabetic() => return self.parse_variable(),
+                '=' if self.peek(1) == '=' && self.index + 1 < self.src.len() => {
+                    self.advance();
+                    return self.advance_with(Token::Equality);
+                }
                 '"' => return self.parse_string(),
                 ')' => return self.advance_with(Token::RightParen),
                 '(' => return self.advance_with(Token::LeftParen),
@@ -75,30 +93,27 @@ impl Lexer {
                 '|' => return self.advance_with(Token::Pipe),
                 '<' => return self.advance_with(Token::LessThen),
                 '>' => return self.advance_with(Token::GreaterThen),
-                '=' => return self.advance_with(Token::Equals),
                 ':' => return self.advance_with(Token::Colon),
                 ';' => return self.advance_with(Token::SemiColon),
-                '+' => return self.advance_with(Token::Plus),
-                '-' => return self.advance_with(Token::Minus),
-                '*' => return self.advance_with(Token::Mul),
-                '^' => return self.advance_with(Token::Pow),
                 _ => (),
             };
-
-            return self.parse_until_disallowed();
+            return self.parse_arg();
         }
         Token::EOF
     }
 
-    fn parse_until_disallowed(&mut self) -> Token {
-        const DISALLOWED: &str = "\0#$\"(){}|<>=:;+-*^";
-        self.advance();
+    fn parse_arg(&mut self) -> Token {
+        const DISALLOWED: &str = "\0#$\"(){}|;";
         let mut value = String::new();
         while !DISALLOWED.contains(self.current) && !self.current.is_whitespace() && !self.eof {
             value.push(self.current);
             self.advance();
         }
-        Token::Variable(value)
+        if value.contains('*') {
+            Token::Glob(value)
+        } else {
+            Token::Argument(value)
+        }
     }
 
     fn parse_variable(&mut self) -> Token {
@@ -134,14 +149,5 @@ impl Lexer {
             self.advance();
         }
         Token::Number(value.parse().unwrap())
-    }
-
-    fn parse_id(&mut self) -> Token {
-        let mut value = String::new();
-        while self.current.is_alphanumeric() || self.current == '_' && !self.eof {
-            value.push(self.current);
-            self.advance();
-        }
-        Token::Identifier(value)
     }
 }
