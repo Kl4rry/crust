@@ -1,0 +1,23 @@
+#[derive(PartialEq, Debug)]
+pub enum Token {
+    Identifier(String),
+    Variable(String),
+    Rest(String),
+    String(String),
+    Number(f64),
+    Pipe,
+    LessThen,
+    GreaterThen,
+    Equals,
+    RightBrace,
+    LeftBrace,
+    RightParen,
+    LeftParen,
+    Colon,
+    SemiColon,
+    Plus,
+    Minus,
+    Mul,
+    Pow,
+    EOF,
+}
