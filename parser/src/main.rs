@@ -1,21 +1,13 @@
 use std::fs::read_to_string;
 
 pub mod token;
-use token::Token;
 pub mod lexer;
+pub mod parser;
 
 fn main() {
     let src = read_to_string("test.crust").unwrap();
-    let mut lexer = lexer::Lexer::new(src);
-    let mut tokens = Vec::new();
-    loop {
-        let token = lexer.next_token();
-        tokens.push(token);
-        if *tokens.last().unwrap() == Token::EOF {
-            break;
-        }
-    }
-    for token in tokens {
-        println!("{:?}", token);
+    let lexer = lexer::Lexer::new(src);
+    for token in lexer {
+        println!("{:?}", token.token_type);
     }
 }
