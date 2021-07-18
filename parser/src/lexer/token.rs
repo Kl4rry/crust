@@ -1,4 +1,3 @@
-
 #[derive(PartialEq, Debug, Clone)]
 pub struct Token {
     pub token_type: TokenType,
@@ -18,6 +17,7 @@ pub enum TokenType {
     NewLine,
     Space,
     Equality,
+    Assignment,
     Pipe,
     LessThen,
     GreaterThen,

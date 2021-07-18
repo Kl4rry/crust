@@ -1,4 +1,5 @@
-use super::token::{Token, TokenType};
+pub mod token;
+use token::{Token, TokenType};
 
 pub struct Lexer {
     src: Vec<char>,
@@ -19,7 +20,6 @@ impl Lexer {
             eof: false,
             row: 0,
             column: 0,
-
         }
     }
 
@@ -116,7 +116,7 @@ impl Lexer {
         let c_start = self.column;
         let r_start = self.row;
 
-        const DISALLOWED: &str = "\0#$\"(){}|;";
+        const DISALLOWED: &str = "\0#$\"(){}|;&";
         let mut value = String::new();
         while !DISALLOWED.contains(self.current) && !self.current.is_whitespace() && !self.eof {
             value.push(self.current);
@@ -226,11 +226,19 @@ impl Iterator for Lexer {
             let token = match self.current {
                 '#' => {
                     self.skip_comment();
-                    self.parse_newline().unwrap()
+                    if let Some(token) = self.parse_newline() {
+                        token
+                    } else {
+                        return None;
+                    }
                 }
                 '$' if self.peek(1).is_alphabetic() => self.parse_variable(),
-                '=' if self.peek(1) == '=' && self.index + 1 < self.src.len() => {
-                    self.advance_with(TokenType::Equality, 2)
+                '=' => {
+                    if self.peek(1) == '=' && self.index + 1 < self.src.len() {
+                        self.advance_with(TokenType::Equality, 2)
+                    } else {
+                        self.advance_with(TokenType::Assignment, 1)
+                    }
                 }
                 '"' => self.parse_string(),
                 ')' => self.advance_with(TokenType::RightParen, 1),
