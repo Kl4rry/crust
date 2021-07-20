@@ -11,8 +11,8 @@ pub enum Compound {
 
 #[derive(Debug)]
 pub enum Identifier {
-    Variable(Variable), // should be expaned to variable value
-    Glob(String),       // should be glob expanded
+    Variable(Variable), // Should be expaned to variable value. Must be done before glob.
+    Glob(String),       // Should be glob expanded.
     Text(String),
 }
 
@@ -31,7 +31,6 @@ pub enum Expression {
 
 #[derive(Debug)]
 pub struct Call {
-    // first has to be a combination of all identifiers and variables and stuff. Should evaluate to something callable.
     pub args: Vec<Argument>,
 }
 
