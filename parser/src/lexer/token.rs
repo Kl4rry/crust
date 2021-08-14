@@ -9,13 +9,14 @@ pub struct Token {
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum TokenType {
-    Argument(String),
+    Symbol(String),
     Variable(String),
-    Glob(String),
     String(String),
+    ExpandString(String),
     Number(f64),
     NewLine,
     Space,
+    Exec,
     Equality,
     Assignment,
     Pipe,
@@ -28,4 +29,19 @@ pub enum TokenType {
     Colon,
     SemiColon,
     QuestionMark,
+}
+
+impl TokenType {
+    pub fn is_space(&self) -> bool {
+        match *self {
+            Self::Space => true,
+            _ => false,
+        }
+    }
+}
+
+impl Token {
+    pub fn is_space(&self) -> bool {
+        self.token_type.is_space()
+    }
 }

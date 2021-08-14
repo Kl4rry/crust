@@ -2,12 +2,12 @@ use super::lexer::token::Token;
 use std::{error::Error, fmt};
 
 #[derive(Debug)]
-pub enum ParseError {
+pub enum SyntaxError {
     UnexpectedToken(Token),
     MissingToken,
 }
 
-impl fmt::Display for ParseError {
+impl fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &Self::UnexpectedToken(ref token) => write!(f, "unexpected token: {:?}", token),
@@ -16,4 +16,4 @@ impl fmt::Display for ParseError {
     }
 }
 
-impl Error for ParseError {}
+impl Error for SyntaxError {}

@@ -122,22 +122,13 @@ impl Lexer {
             value.push(self.current);
             self.advance();
         }
-        if value.contains('*') {
-            Token {
-                token_type: TokenType::Glob(value),
-                c_start,
-                r_start,
-                c_end: self.column,
-                r_end: self.row,
-            }
-        } else {
-            Token {
-                token_type: TokenType::Argument(value),
-                c_start,
-                r_start,
-                c_end: self.column,
-                r_end: self.row,
-            }
+
+        Token {
+            token_type: TokenType::Symbol(value),
+            c_start,
+            r_start,
+            c_end: self.column,
+            r_end: self.row,
         }
     }
 
@@ -161,7 +152,7 @@ impl Lexer {
         }
     }
 
-    fn parse_string(&mut self) -> Token {
+    fn parse_expand_string(&mut self) -> Token {
         let c_start = self.column;
         let r_start = self.row;
 
@@ -169,6 +160,30 @@ impl Lexer {
         let mut value = String::new();
         while !self.eof {
             if self.current == '"' {
+                self.advance();
+                break;
+            }
+            value.push(self.current);
+            self.advance();
+        }
+
+        Token {
+            token_type: TokenType::ExpandString(value),
+            c_start,
+            r_start,
+            c_end: self.column,
+            r_end: self.row,
+        }
+    }
+
+    fn parse_string(&mut self) -> Token {
+        let c_start = self.column;
+        let r_start = self.row;
+
+        self.advance();
+        let mut value = String::new();
+        while !self.eof {
+            if self.current == '\'' {
                 self.advance();
                 break;
             }
@@ -190,8 +205,9 @@ impl Lexer {
         let r_start = self.row;
 
         let mut value = String::new();
-        while self.current.is_ascii_digit()
-            || (self.current == '.' && self.peek(1).is_ascii_digit()) && !self.eof
+        while (self.current.is_ascii_digit()
+            || (self.current == '.' && self.peek(1).is_ascii_digit()))
+            && !self.eof
         {
             value.push(self.current);
             self.advance();
@@ -234,13 +250,15 @@ impl Iterator for Lexer {
                 }
                 '$' if self.peek(1).is_alphabetic() => self.parse_variable(),
                 '=' => {
-                    if self.peek(1) == '=' && self.index + 1 < self.src.len() {
+                    if self.index + 1 < self.src.len() && self.peek(1) == '=' {
                         self.advance_with(TokenType::Equality, 2)
                     } else {
                         self.advance_with(TokenType::Assignment, 1)
                     }
                 }
-                '"' => self.parse_string(),
+                '"' => self.parse_expand_string(),
+                '\'' => self.parse_string(),
+                '&' => self.advance_with(TokenType::Exec, 1),
                 ')' => self.advance_with(TokenType::RightParen, 1),
                 '(' => self.advance_with(TokenType::LeftParen, 1),
                 '}' => self.advance_with(TokenType::RightBrace, 1),
