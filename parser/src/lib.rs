@@ -7,9 +7,7 @@ use lexer::{
 };
 
 mod ast;
-use ast::{
-    Argument, Ast, Command, Compound, Expression, Identifier, Statement, Variable,
-};
+use ast::{Argument, Ast, Command, Compound, Expr, Identifier, Statement, Variable};
 
 mod error;
 use error::SyntaxError;
@@ -22,38 +20,45 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(src: String) -> Self {
+        let lexer = Lexer::new(src);
         Self {
-            tokens: Lexer::new(src).collect(),
+            tokens: lexer.collect(),
         }
     }
 
     #[inline(always)]
-    fn token(&self) -> Option<&Token> {
-        self.tokens.front()
+    fn token(&self) -> Result<&Token> {
+        match self.tokens.front() {
+            Some(token) => Ok(token),
+            None => Err(SyntaxError::ExpectedToken),
+        }
     }
 
     #[inline(always)]
-    fn eat(&mut self) -> Option<Token> {
-        self.tokens.pop_front()
+    fn eat(&mut self) -> Result<Token> {
+        match self.tokens.pop_front() {
+            Some(token) => Ok(token),
+            None => Err(SyntaxError::ExpectedToken),
+        }
     }
 
     #[inline(always)]
-    fn peek(&self, offset: usize) -> Option<&Token> {
+    fn _peek(&self, offset: usize) -> Result<&Token> {
         if offset < self.tokens.len() {
-            Some(&self.tokens[offset])
+            Ok(&self.tokens[offset])
         } else {
-            None
+            Err(SyntaxError::ExpectedToken)
         }
     }
 
     pub fn skip_space(&mut self) -> Result<()> {
-        while let Some(token) = self.token() {
+        while let Ok(token) = self.token() {
             if !token.is_space() {
                 return Ok(());
             }
-            self.eat();
+            self.eat()?;
         }
-        return Err(SyntaxError::MissingToken);
+        return Err(SyntaxError::ExpectedToken);
     }
 
     pub fn parse(&mut self) -> Result<Ast> {
@@ -66,8 +71,8 @@ impl Parser {
         let mut sequence = Vec::new();
         loop {
             let token = match self.token() {
-                Some(token) => token,
-                None => return Ok(sequence),
+                Ok(token) => token,
+                Err(_) => return Ok(sequence),
             };
             match token.token_type {
                 TokenType::Exec
@@ -75,8 +80,7 @@ impl Parser {
                 | TokenType::Symbol(_)
                 | TokenType::ExpandString(_)
                 | TokenType::String(_) => sequence.push(self.parse_compound()?),
-                TokenType::Space => drop(self.eat()),
-                TokenType::NewLine => drop(self.eat()),
+                TokenType::Space | TokenType::NewLine => drop(self.eat()),
                 _ => return Err(SyntaxError::UnexpectedToken(self.eat().unwrap())),
             };
         }
@@ -89,18 +93,21 @@ impl Parser {
             //parse ifs and loops and fn and other statements here
             TokenType::Variable(_) => {
                 let var: Variable = self.eat().unwrap().try_into()?;
-                while let Some(token) = self.eat() {
+                while let Ok(token) = self.eat() {
                     match token.token_type {
                         TokenType::Assignment => {
-                            self.eat();
+                            self.eat()?;
                             self.skip_space()?;
-                            return Ok(Compound::Statement(Statement::Assignment(var, self.parse_expression()?)));
+                            return Ok(Compound::Statement(Statement::Assignment(
+                                var,
+                                self.parse_expr()?,
+                            )));
                         }
                         TokenType::Space => continue,
                         _ => (),
                     }
                 }
-                Ok(Compound::Expression(Expression::Variable(var)))
+                Ok(Compound::Expr(Expr::Variable(var)))
             }
             TokenType::Symbol(symbol) => match symbol.as_str() {
                 "fn" => todo!("functions not implemented"),
@@ -108,60 +115,74 @@ impl Parser {
                 "for" => todo!("for not implemented"),
                 "while" => todo!("while not implemented"),
                 "if" => todo!("if not implemented"),
-                _ => Ok(Compound::Expression(self.parse_expression()?)),
+                "let" => Ok(Compound::Statement(self.parse_declaration()?)),
+                _ => Ok(Compound::Expr(self.parse_expr()?)),
             },
             TokenType::Exec | TokenType::String(_) | TokenType::ExpandString(_) => {
-                Ok(Compound::Expression(self.parse_expression()?))
+                Ok(Compound::Expr(self.parse_expr()?))
             }
             _ => Err(SyntaxError::UnexpectedToken(self.eat().unwrap())),
         }
     }
 
-    /*fn parse_assignment(&mut self) -> Result<Assignment> {
-        let token = self.eat().unwrap();
-        let variable = match token.token_type {
-            TokenType::Variable(variable) => variable,
-            _ => return Err(ParseError::UnexpectedToken(token)),
+    fn parse_declaration(&mut self) -> Result<Statement> {
+        self.eat()?;
+        self.skip_space()?;
+
+        let token = self.eat()?;
+        let variable: Variable = match token.token_type {
+            TokenType::Variable(_) => token.try_into()?,
+            _ => return Err(SyntaxError::UnexpectedToken(self.eat().unwrap())),
         };
 
-        while self.token().unwrap().is_space() {
-            self.eat();
+        let _ = self.skip_space();
+        let token = match self.eat() {
+            Ok(token) => token,
+            Err(_) => return Ok(Statement::Declaration(variable, None)),
+        };
+
+        match token.token_type {
+            TokenType::Assignment => {
+                let _ = self.skip_space();
+                let expr = self.parse_expr()?;
+                return Ok(Statement::Declaration(variable, Some(expr)));
+            }
+            TokenType::SemiColon | TokenType::NewLine => {
+                return Ok(Statement::Declaration(variable, None))
+            }
+            _ => return Err(SyntaxError::UnexpectedToken(token)),
         }
-        let expression = self.parse_expression()?;
-        Ok(Assignment { variable: Variable{ name: variable }, expression})
     }
 
-    fn parse_statement(&mut self) -> Result<Statement> {
-        todo!()
-    }*/
-
-    fn parse_expression(&mut self) -> Result<Expression> {
+    fn parse_expr(&mut self) -> Result<Expr> {
         match self.token().unwrap().token_type {
             TokenType::Variable(_) => {
                 let var: Variable = self.eat().unwrap().try_into()?;
-                // try for other expressions here
-                Ok(Expression::Variable(var))
-            },
+                // try for other Exprs here
+                Ok(Expr::Variable(var))
+            }
             TokenType::Symbol(_) => Ok(self.parse_call()?),
             TokenType::Exec => {
-                self.eat();
+                self.eat()?;
                 self.skip_space()?;
                 Ok(self.parse_call()?)
             }
-            TokenType::String(_) | TokenType::ExpandString(_) => {
+            TokenType::String(_) => {
                 todo!("oofers my dude")
-                //Ok(self.parse_call()?)
+            }
+            TokenType::ExpandString(_) => {
+                todo!("oofers my dude")
             }
             _ => Err(SyntaxError::UnexpectedToken(self.eat().unwrap())),
         }
     }
 
-    fn parse_call(&mut self) -> Result<Expression> {
+    fn parse_call(&mut self) -> Result<Expr> {
         let command = self.parse_command()?;
         let mut args = Vec::new();
 
         loop {
-            if let Some(token) = self.token() {
+            if let Ok(token) = self.token() {
                 match token.token_type {
                     TokenType::Symbol(_)
                     | TokenType::Variable(_)
@@ -169,12 +190,12 @@ impl Parser {
                     | TokenType::Number(_)
                     | TokenType::String(_) => args.push(self.parse_argument()?),
                     TokenType::Space => {
-                        self.eat();
+                        self.eat()?;
                     }
-                    _ => return Ok(Expression::Call(command, args)),
+                    _ => return Ok(Expr::Call(command, args)),
                 }
             } else {
-                return Ok(Expression::Call(command, args));
+                return Ok(Expr::Call(command, args));
             }
         }
     }
@@ -182,9 +203,9 @@ impl Parser {
     fn parse_command(&mut self) -> Result<Command> {
         let token = self.eat().unwrap();
         match token.token_type {
-            TokenType::ExpandString(text) => Ok(Command::Expand(text)),
-            TokenType::String(text) => Ok(Command::Text(text)),
-            TokenType::Symbol(text) => Ok(Command::Text(text)),
+            TokenType::ExpandString(text) => Ok(Command::Expand(text.to_string())),
+            TokenType::String(text) => Ok(Command::Text(text.to_string())),
+            TokenType::Symbol(text) => Ok(Command::Text(text.to_string())),
             _ => Err(SyntaxError::UnexpectedToken(token)),
         }
     }
@@ -194,7 +215,7 @@ impl Parser {
         let id = self.parse_identifier()?;
         ids.push(id);
         loop {
-            if let Some(token) = self.token() {
+            if let Ok(token) = self.token() {
                 match token.token_type {
                     TokenType::Symbol(_)
                     | TokenType::Variable(_)
@@ -212,10 +233,12 @@ impl Parser {
     fn parse_identifier(&mut self) -> Result<Identifier> {
         let token = self.eat().unwrap();
         match token.token_type {
-            TokenType::String(text) => Ok(Identifier::Text(text)),
-            TokenType::Symbol(text) => Ok(Identifier::Text(text)),
-            TokenType::ExpandString(text) => Ok(Identifier::Expand(text)),
-            TokenType::Variable(name) => Ok(Identifier::Variable(Variable { name })),
+            TokenType::String(text) => Ok(Identifier::Text(text.to_string())),
+            TokenType::Symbol(text) => Ok(Identifier::Text(text.to_string())),
+            TokenType::ExpandString(text) => Ok(Identifier::Expand(text.to_string())),
+            TokenType::Variable(name) => Ok(Identifier::Variable(Variable {
+                name: name.to_string(),
+            })),
             TokenType::Number(number) => Ok(Identifier::Text(number.to_string())),
             _ => Err(SyntaxError::UnexpectedToken(token)),
         }
