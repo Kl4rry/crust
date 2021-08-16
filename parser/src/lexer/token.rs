@@ -1,5 +1,8 @@
 pub mod span;
+use std::convert::TryInto;
+
 use span::Span;
+use crate::error::SyntaxError;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Token {
@@ -53,6 +56,13 @@ pub enum TokenType {
     Or,
     // Unary operators
     Not,
+}
+
+impl TryInto<String> for TokenType {
+    type Error = SyntaxError;
+    fn try_into(self) -> Result<String, Self::Error> {
+        todo!();
+    }
 }
 
 impl TokenType {

@@ -1,5 +1,5 @@
-use super::error::SyntaxError;
-use super::lexer::token::{Token, TokenType};
+use crate::error::SyntaxError;
+use crate::lexer::token::{Token, TokenType};
 use std::convert::TryFrom;
 
 #[derive(Debug)]

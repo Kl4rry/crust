@@ -1,4 +1,4 @@
-use super::lexer::token::Token;
+use crate::lexer::token::Token;
 use std::{error::Error, fmt};
 
 #[derive(Debug)]
