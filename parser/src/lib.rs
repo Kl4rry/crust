@@ -1,15 +1,15 @@
 use std::{collections::VecDeque, convert::TryInto};
 
-mod lexer;
+pub mod lexer;
 use lexer::{
     token::{Token, TokenType},
     Lexer,
 };
 
-mod ast;
+pub mod ast;
 use ast::{Argument, Ast, BinOp, Command, Compound, Expr, Identifier, Statement, Variable};
 
-mod error;
+pub mod error;
 use error::SyntaxError;
 
 type Result<T> = std::result::Result<T, SyntaxError>;

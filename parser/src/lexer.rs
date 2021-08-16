@@ -246,6 +246,7 @@ impl Iterator for Lexer {
                 b'*' => self.advance_with(TokenType::Mul, 1),
                 b'/' => self.advance_with(TokenType::Div, 1),
                 b'%' => self.advance_with(TokenType::Mod, 1),
+                b'^' => self.advance_with(TokenType::Expo, 1),
 
                 b'<' => {
                     if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
