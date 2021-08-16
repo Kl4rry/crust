@@ -190,7 +190,6 @@ impl Lexer {
                 span: Span::new(start, end),
             }
         }
-        
     }
 }
 
@@ -214,11 +213,7 @@ impl Iterator for Lexer {
             let token = match self.current {
                 b'#' => {
                     self.skip_comment();
-                    if let Some(token) = self.parse_newline() {
-                        token
-                    } else {
-                        return None;
-                    }
+                    self.parse_newline()?
                 }
                 b'$' if self.peek(1).is_ascii_alphabetic() => self.parse_variable(),
                 b'|' => self.advance_with(TokenType::Pipe, 1),
@@ -234,7 +229,7 @@ impl Iterator for Lexer {
                 // binary operators
                 b'=' => {
                     if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
-                        self.advance_with(TokenType::Equality, 2)
+                        self.advance_with(TokenType::Eq, 2)
                     } else {
                         self.advance_with(TokenType::Assignment, 1)
                     }

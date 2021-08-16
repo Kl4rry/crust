@@ -7,7 +7,7 @@ use lexer::{
 };
 
 mod ast;
-use ast::{Argument, Ast, Command, Compound, Expr, Identifier, Statement, Variable};
+use ast::{Argument, Ast, BinOp, Command, Compound, Expr, Identifier, Statement, Variable};
 
 mod error;
 use error::SyntaxError;
@@ -58,7 +58,16 @@ impl Parser {
             }
             self.eat()?;
         }
-        return Err(SyntaxError::ExpectedToken);
+        Err(SyntaxError::ExpectedToken)
+    }
+
+    pub fn skip_optional_space(&mut self) {
+        while let Ok(token) = self.token() {
+            if !token.is_space() {
+                break;
+            }
+            let _ = self.eat();
+        }
     }
 
     pub fn parse(&mut self) -> Result<Ast> {
@@ -82,12 +91,12 @@ impl Parser {
     }
 
     fn parse_compound(&mut self) -> Result<Compound> {
-        let token_type = &self.token().unwrap().token_type;
+        let token_type = &self.token()?.token_type;
 
         match token_type {
             //parse ifs and loops and fn and other statements here
             TokenType::Variable(_) => {
-                let var: Variable = self.eat().unwrap().try_into()?;
+                let var: Variable = self.eat()?.try_into()?;
                 while let Ok(token) = self.eat() {
                     match token.token_type {
                         TokenType::Assignment => {
@@ -110,6 +119,19 @@ impl Parser {
                 "for" => todo!("for not implemented"),
                 "while" => todo!("while not implemented"),
                 "if" => todo!("if not implemented"),
+                "break" => {
+                    self.eat()?;
+                    self.skip_optional_space();
+                    match self.eat() {
+                        Ok(token) => match token.token_type {
+                            TokenType::NewLine | TokenType::SemiColon => {
+                                Ok(Compound::Statement(Statement::Break))
+                            }
+                            _ => Err(SyntaxError::UnexpectedToken(token)),
+                        },
+                        Err(_) => Ok(Compound::Statement(Statement::Break)),
+                    }
+                }
                 "let" => Ok(Compound::Statement(self.parse_declaration()?)),
                 _ => Ok(Compound::Expr(self.parse_expr()?)),
             },
@@ -140,68 +162,98 @@ impl Parser {
             TokenType::Assignment => {
                 let _ = self.skip_space();
                 let expr = self.parse_expr()?;
-                return Ok(Statement::Declaration(variable, Some(expr)));
+                Ok(Statement::Declaration(variable, Some(expr)))
             }
-            TokenType::SemiColon | TokenType::NewLine => {
-                return Ok(Statement::Declaration(variable, None))
-            }
-            _ => return Err(SyntaxError::UnexpectedToken(token)),
+            TokenType::SemiColon | TokenType::NewLine => Ok(Statement::Declaration(variable, None)),
+            _ => Err(SyntaxError::UnexpectedToken(token)),
         }
     }
 
     fn parse_expr(&mut self) -> Result<Expr> {
-        match self.token().unwrap().token_type {
+        match &self.token()?.token_type {
             TokenType::Variable(_) => {
-                let var: Variable = self.eat().unwrap().try_into()?;
+                let var: Variable = self.eat()?.try_into()?;
                 // try for other Exprs here
                 Ok(Expr::Variable(var))
             }
-            TokenType::Symbol(_) => Ok(self.parse_call()?),
+            TokenType::Symbol(text) => {
+                // function call parsing needs to happen here too
+                // just look for starting parentheses
+
+                match text.as_str() {
+                    "true" | "false" => {
+                        let literal = Expr::Literal(self.eat()?.try_into()?);
+                        self.skip_optional_space();
+                        if let Ok(token) = self.token() {
+                            if token.is_binop() {
+                                return self.parse_binop(literal);
+                            }
+                        }
+                        return Ok(literal);
+                    }
+                    _ => (),
+                };
+
+                Ok(self.parse_call()?)
+            }
             TokenType::Exec => {
                 self.eat()?;
                 self.skip_space()?;
                 Ok(self.parse_call()?)
             }
-            TokenType::String(_) => {
-                todo!("oofers my dude")
-            }
-            TokenType::ExpandString(_) => {
-                todo!("oofers my dude")
+            TokenType::String(_)
+            | TokenType::Int(_, _)
+            | TokenType::Float(_, _)
+            | TokenType::ExpandString(_) => {
+                let literal = Expr::Literal(self.eat()?.try_into()?);
+                self.skip_optional_space();
+                if let Ok(token) = self.token() {
+                    if token.is_binop() {
+                        return self.parse_binop(literal);
+                    }
+                }
+                Ok(literal)
             }
             _ => Err(SyntaxError::UnexpectedToken(self.eat().unwrap())),
         }
+    }
+
+    // we need precedence rules and parentheses
+    fn parse_binop(&mut self, lhs: Expr) -> Result<Expr> {
+        let token = self.eat()?;
+        let op: BinOp = token.try_into().unwrap();
+        self.skip_space()?;
+        Ok(Expr::Binary(
+            op,
+            Box::new(lhs),
+            Box::new(self.parse_expr()?),
+        ))
     }
 
     fn parse_call(&mut self) -> Result<Expr> {
         let command = self.parse_command()?;
         let mut args = Vec::new();
 
-        loop {
-            if let Ok(token) = self.token() {
-                match token.token_type {
-                    TokenType::Symbol(_)
-                    | TokenType::Variable(_)
-                    | TokenType::ExpandString(_)
-                    | TokenType::Int(_, _)
-                    | TokenType::Float(_, _)
-                    | TokenType::String(_) => args.push(self.parse_argument()?),
-                    TokenType::Space => {
-                        self.eat()?;
-                    }
-                    _ => return Ok(Expr::Call(command, args)),
+        while let Ok(token) = self.token() {
+            match token.token_type {
+                TokenType::Space => {
+                    self.eat()?;
                 }
-            } else {
-                return Ok(Expr::Call(command, args));
+                _ => match self.parse_argument() {
+                    Ok(arg) => args.push(arg),
+                    Err(_) => return Ok(Expr::Call(command, args)),
+                },
             }
         }
+        Ok(Expr::Call(command, args))
     }
 
     fn parse_command(&mut self) -> Result<Command> {
-        let token = self.eat().unwrap();
+        let token = self.eat()?;
         match token.token_type {
-            TokenType::ExpandString(text) => Ok(Command::Expand(text.to_string())),
-            TokenType::String(text) => Ok(Command::String(text.to_string())),
-            TokenType::Symbol(text) => Ok(Command::String(text.to_string())),
+            TokenType::ExpandString(text) => Ok(Command::Expand(text)),
+            TokenType::String(text) => Ok(Command::String(text)),
+            TokenType::Symbol(text) => Ok(Command::String(text)),
             _ => Err(SyntaxError::UnexpectedToken(token)),
         }
     }
@@ -211,18 +263,12 @@ impl Parser {
         let id = self.parse_identifier()?;
         ids.push(id);
         loop {
-            if let Ok(token) = self.token() {
-                match token.token_type {
-                    TokenType::Symbol(_)
-                    | TokenType::Variable(_)
-                    | TokenType::ExpandString(_)
-                    | TokenType::Int(_, _)
-                    | TokenType::Float(_, _)
-                    | TokenType::String(_) => ids.push(self.parse_identifier()?),
-                    _ => return Ok(Argument { parts: ids }),
-                };
-            } else {
-                return Ok(Argument { parts: ids });
+            match self.token() {
+                Ok(_) => match self.parse_identifier() {
+                    Ok(id) => ids.push(id),
+                    Err(_) => return Ok(Argument { parts: ids }),
+                },
+                Err(_) => return Ok(Argument { parts: ids }),
             }
         }
     }
@@ -231,15 +277,13 @@ impl Parser {
     fn parse_identifier(&mut self) -> Result<Identifier> {
         let token = self.eat().unwrap();
         match token.token_type {
-            TokenType::String(text) => Ok(Identifier::Text(text.to_string())),
-            TokenType::Symbol(text) => Ok(Identifier::Text(text.to_string())),
-            TokenType::ExpandString(text) => Ok(Identifier::Expand(text.to_string())),
-            TokenType::Variable(name) => Ok(Identifier::Variable(Variable {
-                name: name.to_string(),
-            })),
+            TokenType::String(text) => Ok(Identifier::Glob(text)),
+            TokenType::Symbol(text) => Ok(Identifier::Glob(text)),
+            TokenType::ExpandString(text) => Ok(Identifier::Expand(text)),
+            TokenType::Variable(_) => Ok(Identifier::Variable(token.try_into()?)),
             TokenType::Int(_, text) => Ok(Identifier::Text(text)),
             TokenType::Float(_, text) => Ok(Identifier::Text(text)),
-            _ => Err(SyntaxError::UnexpectedToken(token)),
+            _ => Ok(Identifier::SmallGlob(token.try_into_arg()?)),
         }
     }
 }

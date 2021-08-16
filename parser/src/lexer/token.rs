@@ -1,8 +1,8 @@
 pub mod span;
-use std::convert::TryInto;
+use smallstr::SmallString;
 
-use span::Span;
 use crate::error::SyntaxError;
+use span::Span;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Token {
@@ -21,7 +21,6 @@ pub enum TokenType {
     NewLine,
     Space,
     Exec,
-    Equality,
     Assignment,
     Pipe,
     LessThen,
@@ -58,44 +57,61 @@ pub enum TokenType {
     Not,
 }
 
-impl TryInto<String> for TokenType {
-    type Error = SyntaxError;
-    fn try_into(self) -> Result<String, Self::Error> {
-        todo!();
-    }
-}
-
 impl TokenType {
     pub fn is_space(&self) -> bool {
-        match *self {
-            Self::Space => true,
-            _ => false,
-        }
+        matches!(*self, Self::Space)
     }
 
     pub fn is_binop(&self) -> bool {
-        match *self {
-            Self::Add
-            | Self::Sub
-            | Self::Mul
-            | Self::Div
-            | Self::Expo
-            | Self::Mod
-            | Self::Eq
-            | Self::Lt
-            | Self::Le
-            | Self::Ne
-            | Self::Ge
-            | Self::Gt
-            | Self::And
-            | Self::Or => true,
-            _ => false,
-        }
+        matches!(
+            *self,
+            Self::Space
+                | Self::Add
+                | Self::Sub
+                | Self::Mul
+                | Self::Div
+                | Self::Expo
+                | Self::Mod
+                | Self::Eq
+                | Self::Lt
+                | Self::Le
+                | Self::Ne
+                | Self::Ge
+                | Self::Gt
+                | Self::And
+                | Self::Or
+        )
     }
 }
 
 impl Token {
     pub fn is_space(&self) -> bool {
         self.token_type.is_space()
+    }
+
+    pub fn is_binop(&self) -> bool {
+        self.token_type.is_binop()
+    }
+
+    pub fn try_into_arg(self) -> Result<SmallString<[u8; 5]>, SyntaxError> {
+        Ok(SmallString::from(match self.token_type {
+            TokenType::Assignment => "=",
+            TokenType::Colon => ":",
+            TokenType::QuestionMark => "?",
+            TokenType::Add => "+",
+            TokenType::Sub => "-",
+            TokenType::Mul => "*",
+            TokenType::Div => "/",
+            TokenType::Expo => "^",
+            TokenType::Mod => "%",
+            TokenType::Eq => "==",
+            TokenType::Lt => "<",
+            TokenType::Le => "<=",
+            TokenType::Ne => "-",
+            TokenType::Ge => ">=",
+            TokenType::Gt => ">",
+            TokenType::Not => "!",
+            _ => return Err(SyntaxError::UnexpectedToken(self)),
+        }))
     }
 }

@@ -1,5 +1,6 @@
 use crate::error::SyntaxError;
 use crate::lexer::token::{Token, TokenType};
+use smallstr::SmallString;
 use std::convert::TryFrom;
 
 #[derive(Debug)]
@@ -17,8 +18,9 @@ pub enum Compound {
 pub enum Identifier {
     Variable(Variable), // Should be expaned to variable value. Must be done before glob.
     Expand(String),     // Should be glob and variable expanded.
+    Glob(String),
+    SmallGlob(SmallString<[u8; 5]>),
     Text(String),
-    Char(char),
 }
 
 #[derive(Debug)]
@@ -32,13 +34,15 @@ pub enum Expr {
     Variable(Variable),
     Binary(BinOp, Box<Expr>, Box<Expr>),
     Unary(UnOp, Box<Expr>),
+    Literal(Literal),
 }
 
 #[derive(Debug)]
 pub enum Literal {
     String(String),
     Expand(String),
-    Number(f64),
+    Float(f64),
+    Int(u128),
     Bool(bool),
 }
 
@@ -97,12 +101,14 @@ pub struct Redirect {
 
 #[derive(Debug)]
 pub enum Statement {
+    Export(Variable, Option<Expr>),
     Declaration(Variable, Option<Expr>),
     Assignment(Variable, Expr),
     If(Expr, Block),
     Fn(ArgumentList, Block),
     Loop(Block),
     While(Expr, Block),
+    Break,
 }
 
 #[derive(Debug)]
@@ -117,9 +123,21 @@ impl TryFrom<Token> for Variable {
     type Error = SyntaxError;
     fn try_from(token: Token) -> Result<Self, Self::Error> {
         match token.token_type {
-            TokenType::Variable(name) => Ok(Variable {
-                name: name.to_string(),
-            }),
+            TokenType::Variable(name) => Ok(Variable { name }),
+            _ => Err(SyntaxError::UnexpectedToken(token)),
+        }
+    }
+}
+
+impl TryFrom<Token> for Literal {
+    type Error = SyntaxError;
+    fn try_from(token: Token) -> Result<Self, Self::Error> {
+        match token.token_type {
+            TokenType::String(text) => Ok(Literal::String(text)),
+            TokenType::ExpandString(text) => Ok(Literal::Expand(text)),
+            TokenType::Float(number, _) => Ok(Literal::Float(number)),
+            TokenType::Int(number, _) => Ok(Literal::Int(number)),
+            TokenType::Symbol(text) => Ok(Literal::Bool(text.parse().unwrap())),
             _ => Err(SyntaxError::UnexpectedToken(token)),
         }
     }
@@ -129,6 +147,11 @@ impl TryFrom<Token> for BinOp {
     type Error = SyntaxError;
     fn try_from(token: Token) -> Result<Self, Self::Error> {
         match token.token_type {
+            TokenType::Add => Ok(BinOp::Add),
+            TokenType::Sub => Ok(BinOp::Sub),
+            TokenType::Mul => Ok(BinOp::Mul),
+            TokenType::Div => Ok(BinOp::Div),
+            TokenType::Expo => Ok(BinOp::Expo),
             TokenType::Mod => Ok(BinOp::Mod),
             TokenType::Eq => Ok(BinOp::Eq),
             TokenType::Lt => Ok(BinOp::Lt),
