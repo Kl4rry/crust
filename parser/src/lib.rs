@@ -75,13 +75,8 @@ impl Parser {
                 Err(_) => return Ok(sequence),
             };
             match token.token_type {
-                TokenType::Exec
-                | TokenType::Variable(_)
-                | TokenType::Symbol(_)
-                | TokenType::ExpandString(_)
-                | TokenType::String(_) => sequence.push(self.parse_compound()?),
                 TokenType::Space | TokenType::NewLine => drop(self.eat()),
-                _ => return Err(SyntaxError::UnexpectedToken(self.eat().unwrap())),
+                _ => sequence.push(self.parse_compound()?),
             };
         }
     }
@@ -187,7 +182,8 @@ impl Parser {
                     TokenType::Symbol(_)
                     | TokenType::Variable(_)
                     | TokenType::ExpandString(_)
-                    | TokenType::Number(_)
+                    | TokenType::Int(_, _)
+                    | TokenType::Float(_, _)
                     | TokenType::String(_) => args.push(self.parse_argument()?),
                     TokenType::Space => {
                         self.eat()?;
@@ -204,8 +200,8 @@ impl Parser {
         let token = self.eat().unwrap();
         match token.token_type {
             TokenType::ExpandString(text) => Ok(Command::Expand(text.to_string())),
-            TokenType::String(text) => Ok(Command::Text(text.to_string())),
-            TokenType::Symbol(text) => Ok(Command::Text(text.to_string())),
+            TokenType::String(text) => Ok(Command::String(text.to_string())),
+            TokenType::Symbol(text) => Ok(Command::String(text.to_string())),
             _ => Err(SyntaxError::UnexpectedToken(token)),
         }
     }
@@ -220,7 +216,8 @@ impl Parser {
                     TokenType::Symbol(_)
                     | TokenType::Variable(_)
                     | TokenType::ExpandString(_)
-                    | TokenType::Number(_)
+                    | TokenType::Int(_, _)
+                    | TokenType::Float(_, _)
                     | TokenType::String(_) => ids.push(self.parse_identifier()?),
                     _ => return Ok(Argument { parts: ids }),
                 };
@@ -230,6 +227,7 @@ impl Parser {
         }
     }
 
+    //todo convert all the right tokens back to strings like * + /
     fn parse_identifier(&mut self) -> Result<Identifier> {
         let token = self.eat().unwrap();
         match token.token_type {
@@ -239,7 +237,8 @@ impl Parser {
             TokenType::Variable(name) => Ok(Identifier::Variable(Variable {
                 name: name.to_string(),
             })),
-            TokenType::Number(number) => Ok(Identifier::Text(number.to_string())),
+            TokenType::Int(_, text) => Ok(Identifier::Text(text)),
+            TokenType::Float(_, text) => Ok(Identifier::Text(text)),
             _ => Err(SyntaxError::UnexpectedToken(token)),
         }
     }

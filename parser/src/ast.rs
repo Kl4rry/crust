@@ -31,8 +31,15 @@ pub enum Expr {
     Call(Command, Vec<Argument>),
     Variable(Variable),
     Binary(BinOp, Box<Expr>, Box<Expr>),
-    Unary(UnOp, Box<Expr>), //Redirect, // ?
-                            //Pipe
+    Unary(UnOp, Box<Expr>),
+}
+
+#[derive(Debug)]
+pub enum Literal {
+    String(String),
+    Expand(String),
+    Number(f64),
+    Bool(bool),
 }
 
 #[derive(Debug)]
@@ -68,7 +75,7 @@ pub enum BinOp {
 #[derive(Debug)]
 pub enum Command {
     Expand(String),
-    Text(String),
+    String(String),
 }
 
 #[derive(Debug)]

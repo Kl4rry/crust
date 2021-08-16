@@ -160,19 +160,37 @@ impl Lexer {
 
     fn parse_number(&mut self) -> Token {
         let start = self.index;
+        let mut float = false;
+        let mut value = Vec::new();
         while (self.current.is_ascii_digit()
+            || self.current == b'_'
             || (self.current == b'.' && self.peek(1).is_ascii_digit()))
             && !self.eof
         {
+            if self.current == b'.' {
+                float = true;
+            }
+            if self.current != b'_' {
+                value.push(self.current);
+            }
             self.advance();
         }
         let end = self.index;
-        let value = &self.src[start..end].to_string();
+        let value = String::from_utf8(value).unwrap();
+        let string = self.src[start..end].to_string();
 
-        Token {
-            token_type: TokenType::Number(value.parse().unwrap()),
-            span: Span::new(start, end),
+        if float {
+            Token {
+                token_type: TokenType::Float(value.parse().unwrap(), string),
+                span: Span::new(start, end),
+            }
+        } else {
+            Token {
+                token_type: TokenType::Int(value.parse().unwrap(), string),
+                span: Span::new(start, end),
+            }
         }
+        
     }
 }
 
