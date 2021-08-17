@@ -1,6 +1,6 @@
 use crate::error::SyntaxError;
 use crate::lexer::token::{Token, TokenType};
-use smallstr::SmallString;
+use crate::Small;
 use std::convert::TryFrom;
 
 #[derive(Debug)]
@@ -17,10 +17,9 @@ pub enum Compound {
 #[derive(Debug)]
 pub enum Identifier {
     Variable(Variable), // Should be expaned to variable value. Must be done before glob.
-    Expand(String),     // Should be glob and variable expanded.
-    Glob(String),
-    SmallGlob(SmallString<[u8; 5]>),
-    Text(String),
+    Expand(Small),     // Should be glob and variable expanded.
+    Glob(Small),
+    Text(Small),
 }
 
 #[derive(Debug)]
@@ -46,19 +45,22 @@ pub enum Literal {
     Bool(bool),
 }
 
+#[repr(u8)]
 #[derive(Debug)]
 pub enum UnOp {
-    Neg,
-    Not,
+    Neg = 0,
+    Not = 1,
 }
 
-#[derive(Debug)]
+#[repr(u8)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum BinOp {
+    Expo = 2,
     Add,
     Sub,
     Mul,
     Div,
-    Expo,
+    
     Mod,
     /// The == operator (equality)
     Eq,
@@ -161,6 +163,17 @@ impl TryFrom<Token> for BinOp {
             TokenType::Gt => Ok(BinOp::Gt),
             TokenType::And => Ok(BinOp::And),
             TokenType::Or => Ok(BinOp::Or),
+            _ => Err(SyntaxError::UnexpectedToken(token)),
+        }
+    }
+}
+
+impl TryFrom<Token> for UnOp {
+    type Error = SyntaxError;
+    fn try_from(token: Token) -> Result<Self, Self::Error> {
+        match token.token_type {
+            TokenType::Add => Ok(UnOp::Not),
+            TokenType::Sub => Ok(UnOp::Neg),
             _ => Err(SyntaxError::UnexpectedToken(token)),
         }
     }

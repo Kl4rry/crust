@@ -62,6 +62,14 @@ impl TokenType {
         matches!(*self, Self::Space)
     }
 
+    pub fn is_unop(&self) -> bool {
+        matches!(
+            *self,
+            Self::Not
+                | Self::Sub
+        )
+    }
+
     pub fn is_binop(&self) -> bool {
         matches!(
             *self,
@@ -93,7 +101,7 @@ impl Token {
         self.token_type.is_binop()
     }
 
-    pub fn try_into_arg(self) -> Result<SmallString<[u8; 5]>, SyntaxError> {
+    pub fn try_into_arg(self) -> Result<SmallString<[u8; 10]>, SyntaxError> {
         Ok(SmallString::from(match self.token_type {
             TokenType::Assignment => "=",
             TokenType::Colon => ":",

@@ -12,7 +12,8 @@ use ast::{Argument, Ast, BinOp, Command, Compound, Expr, Identifier, Statement, 
 pub mod error;
 use error::SyntaxError;
 
-type Result<T> = std::result::Result<T, SyntaxError>;
+pub type Result<T> = std::result::Result<T, SyntaxError>;
+pub type Small = smallstr::SmallString<[u8; 10]>;
 
 pub struct Parser {
     tokens: VecDeque<Token>,
@@ -172,9 +173,15 @@ impl Parser {
     fn parse_expr(&mut self) -> Result<Expr> {
         match &self.token()?.token_type {
             TokenType::Variable(_) => {
-                let var: Variable = self.eat()?.try_into()?;
+                let var = Expr::Variable(self.eat()?.try_into()?);
+                self.skip_optional_space();
+                if let Ok(token) = self.token() {
+                    if token.is_binop() {
+                        return self.parse_binop(var);
+                    }
+                }
                 // try for other Exprs here
-                Ok(Expr::Variable(var))
+                Ok(var)
             }
             TokenType::Symbol(text) => {
                 // function call parsing needs to happen here too
@@ -220,8 +227,10 @@ impl Parser {
 
     // we need precedence rules and parentheses
     fn parse_binop(&mut self, lhs: Expr) -> Result<Expr> {
-        let token = self.eat()?;
-        let op: BinOp = token.try_into().unwrap();
+        let op: BinOp = self.eat()?.try_into().unwrap();
+
+        // check precedence of lhs
+
         self.skip_space()?;
         Ok(Expr::Binary(
             op,
@@ -273,17 +282,16 @@ impl Parser {
         }
     }
 
-    //todo convert all the right tokens back to strings like * + /
     fn parse_identifier(&mut self) -> Result<Identifier> {
         let token = self.eat().unwrap();
         match token.token_type {
-            TokenType::String(text) => Ok(Identifier::Glob(text)),
-            TokenType::Symbol(text) => Ok(Identifier::Glob(text)),
-            TokenType::ExpandString(text) => Ok(Identifier::Expand(text)),
+            TokenType::String(text) => Ok(Identifier::Text(text.into())),
+            TokenType::Symbol(text) => Ok(Identifier::Glob(text.into())),
+            TokenType::ExpandString(text) => Ok(Identifier::Expand(text.into())),
             TokenType::Variable(_) => Ok(Identifier::Variable(token.try_into()?)),
-            TokenType::Int(_, text) => Ok(Identifier::Text(text)),
-            TokenType::Float(_, text) => Ok(Identifier::Text(text)),
-            _ => Ok(Identifier::SmallGlob(token.try_into_arg()?)),
+            TokenType::Int(_, text) => Ok(Identifier::Text(text.into())),
+            TokenType::Float(_, text) => Ok(Identifier::Text(text.into())),
+            _ => Ok(Identifier::Glob(token.try_into_arg()?)),
         }
     }
 }
