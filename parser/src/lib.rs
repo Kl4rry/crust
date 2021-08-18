@@ -7,7 +7,7 @@ use lexer::{
 };
 
 pub mod ast;
-use ast::{Argument, Ast, BinOp, Command, Compound, Expr, Identifier, Statement, Variable};
+use ast::{Argument, Ast, Command, Compound, Expr, Identifier, Statement, Variable, binop::BinOp, unop::UnOp};
 
 pub mod error;
 use error::SyntaxError;
@@ -221,13 +221,16 @@ impl Parser {
                 }
                 Ok(literal)
             }
+            TokenType::Sub | TokenType::Not => {
+                self.parse_unop()
+            }
             _ => Err(SyntaxError::UnexpectedToken(self.eat().unwrap())),
         }
     }
 
     // we need precedence rules and parentheses
     fn parse_binop(&mut self, lhs: Expr) -> Result<Expr> {
-        let op: BinOp = self.eat()?.try_into().unwrap();
+        let op = self.eat()?.try_into().unwrap();
 
         // check precedence of lhs
 
@@ -238,6 +241,16 @@ impl Parser {
             Box::new(self.parse_expr()?),
         ))
     }
+
+    fn parse_unop(&mut self) -> Result<Expr> {
+        let op = self.eat()?.try_into()?;
+
+        self.skip_optional_space();
+        Ok(Expr::Unary(
+            op,
+            Box::new(self.parse_expr()?),
+        ))
+    } 
 
     fn parse_call(&mut self) -> Result<Expr> {
         let command = self.parse_command()?;
@@ -298,8 +311,9 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::fs::read_to_string;
+
+    use super::*;
 
     #[test]
     fn parser_test() {

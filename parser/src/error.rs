@@ -1,5 +1,6 @@
-use crate::lexer::token::Token;
 use std::{error::Error, fmt};
+
+use crate::lexer::token::Token;
 
 #[derive(Debug)]
 pub enum SyntaxError {

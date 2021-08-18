@@ -1,8 +1,8 @@
 pub mod span;
 use smallstr::SmallString;
-
-use crate::error::SyntaxError;
 use span::Span;
+
+use crate::{error::SyntaxError, Small};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Token {
@@ -63,11 +63,7 @@ impl TokenType {
     }
 
     pub fn is_unop(&self) -> bool {
-        matches!(
-            *self,
-            Self::Not
-                | Self::Sub
-        )
+        matches!(*self, Self::Not | Self::Sub)
     }
 
     pub fn is_binop(&self) -> bool {
@@ -101,7 +97,11 @@ impl Token {
         self.token_type.is_binop()
     }
 
-    pub fn try_into_arg(self) -> Result<SmallString<[u8; 10]>, SyntaxError> {
+    pub fn is_unop(&self) -> bool {
+        self.token_type.is_unop()
+    }
+
+    pub fn try_into_arg(self) -> Result<Small, SyntaxError> {
         Ok(SmallString::from(match self.token_type {
             TokenType::Assignment => "=",
             TokenType::Colon => ":",
