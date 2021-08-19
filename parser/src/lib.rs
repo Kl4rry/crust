@@ -179,17 +179,6 @@ impl Parser {
 
     fn parse_expr(&mut self) -> Result<Expr> {
         match &self.token()?.token_type {
-            TokenType::Variable(_) => {
-                let var = Expr::Variable(self.eat()?.try_into()?);
-                self.skip_optional_space();
-                if let Ok(token) = self.token() {
-                    if token.is_binop() {
-                        return self.parse_binop(var);
-                    }
-                }
-                // try for other Exprs here
-                Ok(var)
-            }
             TokenType::Symbol(text) => {
                 // function call parsing needs to happen here too
                 // just look for starting parentheses
@@ -214,6 +203,29 @@ impl Parser {
                 self.eat()?;
                 self.skip_space()?;
                 Ok(self.parse_call()?)
+            }
+            TokenType::LeftParen => {
+                self.eat()?;
+                self.skip_optional_space();
+                let expr = self.parse_expr()?;
+                self.skip_optional_space();
+                let right = self.eat()?.token_type;
+
+                match right {
+                    TokenType::RightParen => Ok(Expr::Paren(Box::new(expr))),
+                    _ => Err(SyntaxError::ExpectedToken),
+                }
+            }
+            TokenType::Variable(_) => {
+                let var = Expr::Variable(self.eat()?.try_into()?);
+                self.skip_optional_space();
+                if let Ok(token) = self.token() {
+                    if token.is_binop() {
+                        return self.parse_binop(var);
+                    }
+                }
+                // try for other Exprs here
+                Ok(var)
             }
             TokenType::String(_)
             | TokenType::Int(_, _)
@@ -326,6 +338,7 @@ impl Parser {
             TokenType::ExpandString(text) => Ok(Command::Expand(text)),
             TokenType::String(text) => Ok(Command::String(text)),
             TokenType::Symbol(text) => Ok(Command::String(text)),
+            TokenType::Variable(_) => Ok(Command::Variable(token.try_into()?)),
             _ => Err(SyntaxError::UnexpectedToken(token)),
         }
     }

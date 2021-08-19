@@ -44,6 +44,7 @@ pub enum Expr {
     Call(Command, Vec<Argument>),
     Variable(Variable),
     Binary(BinOp, Box<Expr>, Box<Expr>),
+    Paren(Box<Expr>),
     Unary(UnOp, Box<Expr>),
     Literal(Literal),
 }
@@ -52,6 +53,7 @@ pub enum Expr {
 pub enum Command {
     Expand(String),
     String(String),
+    Variable(Variable),
 }
 
 #[derive(Debug)]
