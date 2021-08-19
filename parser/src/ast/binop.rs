@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 
 use crate::{ast::Precedence, SyntaxError, Token, TokenType};
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum BinOp {
     Expo,
     Add,

@@ -235,14 +235,14 @@ impl Parser {
 
     // we need precedence rules and parentheses
     fn parse_binop(&mut self, mut lhs: Expr) -> Result<Expr> {
-        let mut op: BinOp = self.eat()?.try_into()?;
+        let mut outer: BinOp = self.eat()?.try_into()?;
         self.skip_space()?;
 
         let mut rhs = self.parse_expr()?;
 
         match rhs {
-            Expr::Binary(ref mut bin_op, ref mut l, ref mut r) => {
-                if bin_op.precedence() < op.precedence() {
+            Expr::Binary(ref mut inner, ref mut rhs_l, ref mut rhs_r) => {
+                if outer.precedence() > inner.precedence() {
                     // this madness corrects operator precedence
                     // this is an example of how to swaps correct the tree
                     //
@@ -253,21 +253,21 @@ impl Parser {
                     //     x   +
                     //        / \
                     //       z   y
-                    std::mem::swap(&mut op, bin_op);
+                    std::mem::swap(&mut outer, inner);
                     // step 1 swap operators
                     //       +
                     //      / \
                     //     x   *
                     //        / \
                     //       z   y
-                    std::mem::swap(&mut **r, &mut lhs);
+                    std::mem::swap(&mut **rhs_r, &mut lhs);
                     // step 2 swap y and x
                     //       +
                     //      / \
                     //     y   *
                     //        / \
                     //       z   x
-                    std::mem::swap(r, l);
+                    std::mem::swap(rhs_r, rhs_l);
                     // step 3 swap x and z
                     //       +
                     //      / \
@@ -286,7 +286,7 @@ impl Parser {
             _ => (),
         }
 
-        Ok(Expr::Binary(op, Box::new(lhs), Box::new(rhs)))
+        Ok(Expr::Binary(outer, Box::new(lhs), Box::new(rhs)))
     }
 
     fn parse_unop(&mut self) -> Result<Expr> {
