@@ -246,6 +246,12 @@ impl Parser {
                     // this madness corrects operator precedence
                     // this is an example of how to swaps correct the tree
                     //
+                    // lhs = x
+                    // rhs_l = z
+                    // rhs_r = y
+                    // outer = *
+                    // inner = +
+                    //
                     // x * z + y intital is parsed as below
                     //
                     //       *
