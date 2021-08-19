@@ -7,7 +7,10 @@ use lexer::{
 };
 
 pub mod ast;
-use ast::{Argument, Ast, Command, Compound, Expr, Identifier, Statement, Variable, binop::BinOp, unop::UnOp};
+use ast::{
+    binop::BinOp, Argument, Ast, Command, Compound, Expr, Identifier, Precedence, Statement,
+    Variable,
+};
 
 pub mod error;
 use error::SyntaxError;
@@ -85,7 +88,7 @@ impl Parser {
                 Err(_) => return Ok(sequence),
             };
             match token.token_type {
-                TokenType::Space | TokenType::NewLine => drop(self.eat()),
+                TokenType::Space | TokenType::NewLine | TokenType::SemiColon => drop(self.eat()),
                 _ => sequence.push(self.parse_compound()?),
             };
         }
@@ -119,6 +122,7 @@ impl Parser {
                 "loop" => todo!("loop not implemented"),
                 "for" => todo!("for not implemented"),
                 "while" => todo!("while not implemented"),
+                "until" => todo!("until not implemented"),
                 "if" => todo!("if not implemented"),
                 "break" => {
                     self.eat()?;
@@ -133,12 +137,15 @@ impl Parser {
                         Err(_) => Ok(Compound::Statement(Statement::Break)),
                     }
                 }
+                "export" => todo!("export not implemented"),
                 "let" => Ok(Compound::Statement(self.parse_declaration()?)),
                 _ => Ok(Compound::Expr(self.parse_expr()?)),
             },
-            TokenType::Exec | TokenType::String(_) | TokenType::ExpandString(_) => {
-                Ok(Compound::Expr(self.parse_expr()?))
-            }
+            TokenType::Exec
+            | TokenType::String(_)
+            | TokenType::ExpandString(_)
+            | TokenType::Sub
+            | TokenType::Not => Ok(Compound::Expr(self.parse_expr()?)),
             _ => Err(SyntaxError::UnexpectedToken(self.eat().unwrap())),
         }
     }
@@ -221,36 +228,73 @@ impl Parser {
                 }
                 Ok(literal)
             }
-            TokenType::Sub | TokenType::Not => {
-                self.parse_unop()
-            }
+            TokenType::Sub | TokenType::Not => self.parse_unop(),
             _ => Err(SyntaxError::UnexpectedToken(self.eat().unwrap())),
         }
     }
 
     // we need precedence rules and parentheses
-    fn parse_binop(&mut self, lhs: Expr) -> Result<Expr> {
-        let op = self.eat()?.try_into().unwrap();
-
-        // check precedence of lhs
-
+    fn parse_binop(&mut self, mut lhs: Expr) -> Result<Expr> {
+        let mut op: BinOp = self.eat()?.try_into()?;
         self.skip_space()?;
-        Ok(Expr::Binary(
-            op,
-            Box::new(lhs),
-            Box::new(self.parse_expr()?),
-        ))
+
+        let mut rhs = self.parse_expr()?;
+
+        match rhs {
+            Expr::Binary(ref mut bin_op, ref mut l, ref mut r) => {
+                if bin_op.precedence() < op.precedence() {
+                    // this madness corrects operator precedence
+                    // this is an example of how to swaps correct the tree
+                    //
+                    // x * z + y intital is parsed as below
+                    //
+                    //       *
+                    //      / \
+                    //     x   +
+                    //        / \
+                    //       z   y
+                    std::mem::swap(&mut op, bin_op);
+                    // step 1 swap operators
+                    //       +
+                    //      / \
+                    //     x   *
+                    //        / \
+                    //       z   y
+                    std::mem::swap(&mut **r, &mut lhs);
+                    // step 2 swap y and x
+                    //       +
+                    //      / \
+                    //     y   *
+                    //        / \
+                    //       z   x
+                    std::mem::swap(r, l);
+                    // step 3 swap x and z
+                    //       +
+                    //      / \
+                    //     y   *
+                    //        / \
+                    //       x   z
+                    std::mem::swap(&mut rhs, &mut lhs);
+                    // step 4 swap rhs and lhs
+                    //       +
+                    //      / \
+                    //     *   y
+                    //    / \
+                    //   x   z
+                }
+            }
+            _ => (),
+        }
+
+        Ok(Expr::Binary(op, Box::new(lhs), Box::new(rhs)))
     }
 
     fn parse_unop(&mut self) -> Result<Expr> {
         let op = self.eat()?.try_into()?;
 
         self.skip_optional_space();
-        Ok(Expr::Unary(
-            op,
-            Box::new(self.parse_expr()?),
-        ))
-    } 
+        Ok(Expr::Unary(op, Box::new(self.parse_expr()?)))
+    }
 
     fn parse_call(&mut self) -> Result<Expr> {
         let command = self.parse_command()?;

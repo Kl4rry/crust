@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 
 use crate::{ast::Precedence, SyntaxError, Token, TokenType};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum UnOp {
     Neg,
     Not,
@@ -12,7 +12,7 @@ impl TryFrom<Token> for UnOp {
     type Error = SyntaxError;
     fn try_from(token: Token) -> Result<Self, Self::Error> {
         match token.token_type {
-            TokenType::Add => Ok(UnOp::Not),
+            TokenType::Not => Ok(UnOp::Not),
             TokenType::Sub => Ok(UnOp::Neg),
             _ => Err(SyntaxError::UnexpectedToken(token)),
         }
