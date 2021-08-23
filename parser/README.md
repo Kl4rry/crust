@@ -1,0 +1,24 @@
+# Features
+* Literals ✅
+* Binary operators ✅
+* Unary operators ✅
+* Commands ✅
+* Function calls ❌
+* Blocks ❌
+* Function Declarations ❌
+* Control flow ❌
+* Assignment ✅
+* Variable declaration ✅
+* export ❌
+* Alias ❌
+* Lists ❌
+* Maps ❌
+* Pipes ❌
+* Redirects ❌
+* Glob ✅
+* Questionmark / single char glob ❌
+* Bracket globing char ❌
+
+# Builtin thoughts
+There needs to be a function that returns the type of an expression.  
+The type function should return a special type id.
