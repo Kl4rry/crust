@@ -8,8 +8,8 @@ use lexer::{
 
 pub mod ast;
 use ast::{
-    binop::BinOp, Argument, Ast, Command, Compound, Expr, Identifier, Precedence, Statement,
-    Variable,
+    binop::BinOp, unop::UnOp, Argument, Ast, Command, Compound, Expr, Identifier, Precedence,
+    Statement, Variable,
 };
 
 pub mod error;
@@ -17,6 +17,7 @@ use error::SyntaxError;
 
 pub type Result<T> = std::result::Result<T, SyntaxError>;
 pub type Small = smallstr::SmallString<[u8; 10]>;
+pub type P<T> = Box<T>;
 
 pub struct Parser {
     tokens: VecDeque<Token>,
@@ -108,7 +109,7 @@ impl Parser {
                             self.skip_space()?;
                             return Ok(Compound::Statement(Statement::Assignment(
                                 var,
-                                self.parse_expr()?,
+                                self.parse_expr(None)?,
                             )));
                         }
                         TokenType::Space => continue,
@@ -139,13 +140,14 @@ impl Parser {
                 }
                 "export" => todo!("export not implemented"),
                 "let" => Ok(Compound::Statement(self.parse_declaration()?)),
-                _ => Ok(Compound::Expr(self.parse_expr()?)),
+                _ => Ok(Compound::Expr(self.parse_expr(None)?)),
             },
             TokenType::Exec
             | TokenType::String(_)
             | TokenType::ExpandString(_)
             | TokenType::Sub
-            | TokenType::Not => Ok(Compound::Expr(self.parse_expr()?)),
+            | TokenType::LeftParen
+            | TokenType::Not => Ok(Compound::Expr(self.parse_expr(None)?)),
             _ => Err(SyntaxError::UnexpectedToken(self.eat().unwrap())),
         }
     }
@@ -169,7 +171,7 @@ impl Parser {
         match token.token_type {
             TokenType::Assignment => {
                 let _ = self.skip_space();
-                let expr = self.parse_expr()?;
+                let expr = self.parse_expr(None)?;
                 Ok(Statement::Declaration(variable, Some(expr)))
             }
             TokenType::SemiColon | TokenType::NewLine => Ok(Statement::Declaration(variable, None)),
@@ -177,7 +179,7 @@ impl Parser {
         }
     }
 
-    fn parse_expr(&mut self) -> Result<Expr> {
+    fn parse_expr(&mut self, unop: Option<UnOp>) -> Result<Expr> {
         match &self.token()?.token_type {
             TokenType::Symbol(text) => {
                 // function call parsing needs to happen here too
@@ -192,12 +194,19 @@ impl Parser {
                                 return self.parse_binop(literal);
                             }
                         }
-                        return Ok(literal);
+
+                        match unop {
+                            Some(unop) => return Ok(Expr::Unary(unop, P::new(literal))),
+                            None => return Ok(literal),
+                        }
                     }
                     _ => (),
                 };
 
-                Ok(self.parse_call()?)
+                match unop {
+                    Some(unop) => return Ok(Expr::Unary(unop, P::new(self.parse_call()?))),
+                    None => return Ok(self.parse_call()?),
+                }
             }
             TokenType::Exec => {
                 self.eat()?;
@@ -207,17 +216,26 @@ impl Parser {
             TokenType::LeftParen => {
                 self.eat()?;
                 self.skip_optional_space();
-                let expr = self.parse_expr()?;
+                let expr = self.parse_expr(None)?;
                 self.skip_optional_space();
                 let right = self.eat()?.token_type;
 
                 match right {
-                    TokenType::RightParen => Ok(Expr::Paren(Box::new(expr))),
+                    TokenType::RightParen => match unop {
+                        Some(unop) => Ok(Expr::Unary(unop, P::new(Expr::Paren(P::new(expr))))),
+                        None => Ok(Expr::Paren(P::new(expr))),
+                    },
                     _ => Err(SyntaxError::ExpectedToken),
                 }
             }
             TokenType::Variable(_) => {
-                let var = Expr::Variable(self.eat()?.try_into()?);
+                let var = match unop {
+                    Some(unop) => {
+                        Expr::Unary(unop, P::new(Expr::Variable(self.eat()?.try_into()?)))
+                    }
+                    None => Expr::Variable(self.eat()?.try_into()?),
+                };
+
                 self.skip_optional_space();
                 if let Ok(token) = self.token() {
                     if token.is_binop() {
@@ -231,7 +249,11 @@ impl Parser {
             | TokenType::Int(_, _)
             | TokenType::Float(_, _)
             | TokenType::ExpandString(_) => {
-                let literal = Expr::Literal(self.eat()?.try_into()?);
+                let literal = match unop {
+                    Some(unop) => Expr::Unary(unop, P::new(Expr::Literal(self.eat()?.try_into()?))),
+                    None => Expr::Literal(self.eat()?.try_into()?),
+                };
+
                 self.skip_optional_space();
                 if let Ok(token) = self.token() {
                     if token.is_binop() {
@@ -240,7 +262,13 @@ impl Parser {
                 }
                 Ok(literal)
             }
-            TokenType::Sub | TokenType::Not => self.parse_unop(),
+            TokenType::Sub | TokenType::Not => {
+                let inner = self.parse_unop()?;
+                match unop {
+                    Some(outer ) => Ok(Expr::Unary(outer, P::new(self.parse_expr(Some(inner))?))),
+                    None => self.parse_expr(Some(inner)),
+                }
+            }
             _ => Err(SyntaxError::UnexpectedToken(self.eat().unwrap())),
         }
     }
@@ -250,7 +278,7 @@ impl Parser {
         let mut outer: BinOp = self.eat()?.try_into()?;
         self.skip_space()?;
 
-        let mut rhs = self.parse_expr()?;
+        let mut rhs = self.parse_expr(None)?;
 
         match rhs {
             Expr::Binary(ref mut inner, ref mut rhs_l, ref mut rhs_r) => {
@@ -304,14 +332,11 @@ impl Parser {
             _ => (),
         }
 
-        Ok(Expr::Binary(outer, Box::new(lhs), Box::new(rhs)))
+        Ok(Expr::Binary(outer, P::new(lhs), P::new(rhs)))
     }
 
-    fn parse_unop(&mut self) -> Result<Expr> {
-        let op = self.eat()?.try_into()?;
-
-        self.skip_optional_space();
-        Ok(Expr::Unary(op, Box::new(self.parse_expr()?)))
+    fn parse_unop(&mut self) -> Result<UnOp> {
+        self.eat()?.try_into()
     }
 
     fn parse_call(&mut self) -> Result<Expr> {
