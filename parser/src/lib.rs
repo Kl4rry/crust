@@ -1,5 +1,4 @@
-#![feature(asm)]
-use std::{collections::VecDeque, convert::TryInto};
+use std::convert::TryInto;
 
 pub mod lexer;
 use lexer::{
@@ -21,28 +20,30 @@ pub type Small = smallstr::SmallString<[u8; 10]>;
 pub type P<T> = Box<T>;
 
 pub struct Parser {
-    tokens: VecDeque<Token>,
+    token: Option<Token>,
+    lexer: Lexer,
 }
 
 impl Parser {
     pub fn new(src: String) -> Self {
-        let lexer = Lexer::new(src);
-        Self {
-            tokens: lexer.collect(),
-        }
+        let mut lexer = Lexer::new(src);
+        let token = lexer.next();
+        Self { lexer, token }
     }
 
     #[inline(always)]
     fn token(&self) -> Result<&Token> {
-        match self.tokens.front() {
-            Some(token) => Ok(token),
+        match self.token {
+            Some(ref token) => Ok(token),
             None => Err(SyntaxError::ExpectedToken),
         }
     }
 
     #[inline(always)]
     fn eat(&mut self) -> Result<Token> {
-        match self.tokens.pop_front() {
+        let token = self.token.take();
+        self.token = self.lexer.next();
+        match token {
             Some(token) => Ok(token),
             None => Err(SyntaxError::ExpectedToken),
         }
@@ -230,9 +231,6 @@ impl Parser {
     fn parse_expr(&mut self, unop: Option<UnOp>) -> Result<Expr> {
         match &self.token()?.token_type {
             TokenType::Symbol(text) => {
-                // function call parsing needs to happen here too
-                // just look for starting parentheses
-
                 match text.as_str() {
                     "true" | "false" => {
                         let literal = Expr::Literal(self.eat()?.try_into()?);

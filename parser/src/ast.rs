@@ -76,10 +76,10 @@ pub enum Statement {
     Assignment(Variable, Expr),
     If(Expr, Block),
     Fn(ArgumentList, Block),
+    Return(Expr),
     Loop(Block),
     While(Expr, Block),
     Break,
-    Return,
 }
 
 #[derive(Debug)]
