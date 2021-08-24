@@ -1,3 +1,4 @@
+#![feature(asm)]
 use std::{collections::VecDeque, convert::TryInto};
 
 pub mod lexer;
@@ -8,8 +9,8 @@ use lexer::{
 
 pub mod ast;
 use ast::{
-    binop::BinOp, unop::UnOp, Argument, Ast, Command, Compound, Expr, Identifier, Precedence,
-    Statement, Variable,
+    binop::BinOp, unop::UnOp, Argument, Ast, Block, Command, Compound, Expr, Identifier,
+    Precedence, Statement, Variable,
 };
 
 pub mod error;
@@ -48,14 +49,6 @@ impl Parser {
     }
 
     #[inline(always)]
-    fn _peek(&self, offset: usize) -> Result<&Token> {
-        if offset < self.tokens.len() {
-            Ok(&self.tokens[offset])
-        } else {
-            Err(SyntaxError::ExpectedToken)
-        }
-    }
-
     pub fn skip_space(&mut self) -> Result<()> {
         while let Ok(token) = self.token() {
             if !token.is_space() {
@@ -66,6 +59,7 @@ impl Parser {
         Err(SyntaxError::ExpectedToken)
     }
 
+    #[inline(always)]
     pub fn skip_optional_space(&mut self) {
         while let Ok(token) = self.token() {
             if !token.is_space() {
@@ -75,13 +69,37 @@ impl Parser {
         }
     }
 
+    #[inline(always)]
+    pub fn skip_whitespace(&mut self) {
+        while let Ok(token) = self.token() {
+            match token.token_type {
+                TokenType::Space | TokenType::NewLine => {
+                    let _ = self.eat();
+                }
+                _ => break,
+            }
+        }
+    }
+
+    #[inline(always)]
+    pub fn skip_whitespace_and_semi(&mut self) {
+        while let Ok(token) = self.token() {
+            match token.token_type {
+                TokenType::Space | TokenType::NewLine | TokenType::SemiColon => {
+                    let _ = self.eat();
+                }
+                _ => break,
+            }
+        }
+    }
+
     pub fn parse(&mut self) -> Result<Ast> {
         Ok(Ast {
-            sequence: self.parse_sequence()?,
+            sequence: self.parse_sequence(false)?,
         })
     }
 
-    fn parse_sequence(&mut self) -> Result<Vec<Compound>> {
+    fn parse_sequence(&mut self, block: bool) -> Result<Vec<Compound>> {
         let mut sequence = Vec::new();
         loop {
             let token = match self.token() {
@@ -90,22 +108,33 @@ impl Parser {
             };
             match token.token_type {
                 TokenType::Space | TokenType::NewLine | TokenType::SemiColon => drop(self.eat()),
+                TokenType::RightBrace if block => return Ok(sequence),
                 _ => sequence.push(self.parse_compound()?),
             };
         }
+    }
+
+    fn parse_block(&mut self) -> Result<Block> {
+        self.eat()?.expect(TokenType::LeftBrace)?;
+        let sequence = self.parse_sequence(true)?;
+        self.skip_whitespace_and_semi();
+        self.eat()?.expect(TokenType::RightBrace)?;
+        Ok(Block { sequence })
     }
 
     fn parse_compound(&mut self) -> Result<Compound> {
         let token_type = &self.token()?.token_type;
 
         match token_type {
+            TokenType::LeftBrace => Ok(Compound::Block(self.parse_block()?)),
+
             //parse ifs and loops and fn and other statements here
             TokenType::Variable(_) => {
                 let var: Variable = self.eat()?.try_into()?;
                 while let Ok(token) = self.eat() {
                     match token.token_type {
                         TokenType::Assignment => {
-                            self.eat()?;
+                            self.eat()?.expect(TokenType::Assignment)?;
                             self.skip_space()?;
                             return Ok(Compound::Statement(Statement::Assignment(
                                 var,
@@ -120,11 +149,30 @@ impl Parser {
             }
             TokenType::Symbol(symbol) => match symbol.as_str() {
                 "fn" => todo!("functions not implemented"),
-                "loop" => todo!("loop not implemented"),
+                "loop" => {
+                    self.eat()?;
+                    self.skip_whitespace();
+                    let block = self.parse_block()?;
+                    Ok(Compound::Statement(Statement::Loop(block)))
+                }
                 "for" => todo!("for not implemented"),
-                "while" => todo!("while not implemented"),
-                "until" => todo!("until not implemented"),
-                "if" => todo!("if not implemented"),
+                "while" => {
+                    self.eat()?;
+                    self.skip_whitespace();
+                    let expr = self.parse_expr(None)?;
+                    self.skip_whitespace();
+                    let block = self.parse_block()?;
+                    Ok(Compound::Statement(Statement::While(expr, block)))
+                }
+                "if" => {
+                    // else if and else not impl
+                    self.eat()?;
+                    self.skip_whitespace();
+                    let expr = self.parse_expr(None)?;
+                    self.skip_whitespace();
+                    let block = self.parse_block()?;
+                    Ok(Compound::Statement(Statement::If(expr, block)))
+                }
                 "break" => {
                     self.eat()?;
                     self.skip_optional_space();
@@ -140,9 +188,12 @@ impl Parser {
                 }
                 "export" => todo!("export not implemented"),
                 "let" => Ok(Compound::Statement(self.parse_declaration()?)),
+                "const" => todo!("const vars not implemented"),
                 _ => Ok(Compound::Expr(self.parse_expr(None)?)),
             },
             TokenType::Exec
+            | TokenType::Int(_, _)
+            | TokenType::Float(_, _)
             | TokenType::String(_)
             | TokenType::ExpandString(_)
             | TokenType::Sub
@@ -157,12 +208,9 @@ impl Parser {
         self.skip_space()?;
 
         let token = self.eat()?;
-        let variable: Variable = match token.token_type {
-            TokenType::Variable(_) => token.try_into()?,
-            _ => return Err(SyntaxError::UnexpectedToken(self.eat().unwrap())),
-        };
+        let variable: Variable = token.try_into()?;
 
-        let _ = self.skip_space();
+        self.skip_optional_space();
         let token = match self.eat() {
             Ok(token) => token,
             Err(_) => return Ok(Statement::Declaration(variable, None)),
@@ -209,23 +257,20 @@ impl Parser {
                 }
             }
             TokenType::Exec => {
-                self.eat()?;
-                self.skip_space()?;
+                self.eat()?.expect(TokenType::Exec)?;
+                self.skip_optional_space();
                 Ok(self.parse_call()?)
             }
             TokenType::LeftParen => {
-                self.eat()?;
+                self.eat()?.expect(TokenType::LeftParen)?;
                 self.skip_optional_space();
                 let expr = self.parse_expr(None)?;
                 self.skip_optional_space();
-                let right = self.eat()?.token_type;
+                self.eat()?.expect(TokenType::RightParen)?;
 
-                match right {
-                    TokenType::RightParen => match unop {
-                        Some(unop) => Ok(Expr::Unary(unop, P::new(Expr::Paren(P::new(expr))))),
-                        None => Ok(Expr::Paren(P::new(expr))),
-                    },
-                    _ => Err(SyntaxError::ExpectedToken),
+                match unop {
+                    Some(unop) => Ok(Expr::Unary(unop, P::new(Expr::Paren(P::new(expr))))),
+                    None => Ok(Expr::Paren(P::new(expr))),
                 }
             }
             TokenType::Variable(_) => {
@@ -265,7 +310,7 @@ impl Parser {
             TokenType::Sub | TokenType::Not => {
                 let inner = self.parse_unop()?;
                 match unop {
-                    Some(outer ) => Ok(Expr::Unary(outer, P::new(self.parse_expr(Some(inner))?))),
+                    Some(outer) => Ok(Expr::Unary(outer, P::new(self.parse_expr(Some(inner))?))),
                     None => self.parse_expr(Some(inner)),
                 }
             }
@@ -273,7 +318,6 @@ impl Parser {
         }
     }
 
-    // we need precedence rules and parentheses
     fn parse_binop(&mut self, mut lhs: Expr) -> Result<Expr> {
         let mut outer: BinOp = self.eat()?.try_into()?;
         self.skip_space()?;
@@ -348,10 +392,13 @@ impl Parser {
                 TokenType::Space => {
                     self.eat()?;
                 }
-                _ => match self.parse_argument() {
-                    Ok(arg) => args.push(arg),
-                    Err(_) => return Ok(Expr::Call(command, args)),
-                },
+                _ => {
+                    if token.is_valid_arg() {
+                        args.push(self.parse_argument()?);
+                    } else {
+                        return Ok(Expr::Call(command, args));
+                    }
+                }
             }
         }
         Ok(Expr::Call(command, args))
@@ -363,6 +410,8 @@ impl Parser {
             TokenType::ExpandString(text) => Ok(Command::Expand(text)),
             TokenType::String(text) => Ok(Command::String(text)),
             TokenType::Symbol(text) => Ok(Command::String(text)),
+            TokenType::Int(_, text) => Ok(Command::String(text)),
+            TokenType::Float(_, text) => Ok(Command::String(text)),
             TokenType::Variable(_) => Ok(Command::Variable(token.try_into()?)),
             _ => Err(SyntaxError::UnexpectedToken(token)),
         }
@@ -374,17 +423,20 @@ impl Parser {
         ids.push(id);
         loop {
             match self.token() {
-                Ok(_) => match self.parse_identifier() {
-                    Ok(id) => ids.push(id),
-                    Err(_) => return Ok(Argument { parts: ids }),
-                },
+                Ok(token) => {
+                    if token.is_valid_arg() {
+                        ids.push(self.parse_identifier()?);
+                    } else {
+                        return Ok(Argument { parts: ids });
+                    }
+                }
                 Err(_) => return Ok(Argument { parts: ids }),
             }
         }
     }
 
     fn parse_identifier(&mut self) -> Result<Identifier> {
-        let token = self.eat().unwrap();
+        let token = self.eat()?;
         match token.token_type {
             TokenType::String(text) => Ok(Identifier::Text(text.into())),
             TokenType::Symbol(text) => Ok(Identifier::Glob(text.into())),

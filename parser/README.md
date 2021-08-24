@@ -4,12 +4,16 @@
 * Unary operators ✅
 * Commands ✅
 * Function calls ❌
-* Blocks ❌
+* Blocks ✅
 * Function Declarations ❌
 * Control flow ❌
+* Break ✅
+* Continue
+* Return ❌
 * Assignment ✅
 * Variable declaration ✅
-* export ❌
+* Const variables ❌
+* Export ❌
 * Alias ❌
 * Lists ❌
 * Maps ❌
@@ -21,4 +25,6 @@
 
 # Builtin thoughts
 There needs to be a function that returns the type of an expression.  
-The type function should return a special type id.
+The type function should return a special type id.  
+  
+$(command) syntax to be considered

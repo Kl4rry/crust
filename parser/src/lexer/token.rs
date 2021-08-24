@@ -1,8 +1,11 @@
 pub mod span;
+
+use std::mem;
+
 use smallstr::SmallString;
 use span::Span;
 
-use crate::{error::SyntaxError, Small};
+use crate::{error::SyntaxError, Result, Small};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Token {
@@ -29,9 +32,8 @@ pub enum TokenType {
     LeftBrace,
     RightParen,
     LeftParen,
-    Colon,
+    //Colon,
     SemiColon,
-    QuestionMark,
     // Binary operators
     Add,
     Sub,
@@ -86,9 +88,44 @@ impl TokenType {
                 | Self::Or
         )
     }
+
+    pub fn is_valid_arg(&self) -> bool {
+        matches!(
+            *self,
+            TokenType::Assignment |
+            //TokenType::Colon |
+            TokenType::Add |
+            TokenType::Sub |
+            TokenType::Mul |
+            TokenType::Div |
+            TokenType::Expo |
+            TokenType::Mod |
+            TokenType::Eq  |
+            TokenType::Lt |
+            TokenType::Le  |
+            TokenType::Ne |
+            TokenType::Ge  |
+            TokenType::Gt |
+            TokenType::Not |
+            TokenType::Symbol(_) |
+            TokenType::Variable(_) |
+            TokenType::String(_) |
+            TokenType::ExpandString(_) |
+            TokenType::Float(_, _) |
+            TokenType::Int(_, _)
+        )
+    }
 }
 
 impl Token {
+    pub fn expect(self, token_type: TokenType) -> Result<()> {
+        if mem::discriminant(&self.token_type) == mem::discriminant(&token_type) {
+            Ok(())
+        } else {
+            Err(SyntaxError::UnexpectedToken(self))
+        }
+    }
+
     pub fn is_space(&self) -> bool {
         self.token_type.is_space()
     }
@@ -101,11 +138,14 @@ impl Token {
         self.token_type.is_unop()
     }
 
-    pub fn try_into_arg(self) -> Result<Small, SyntaxError> {
+    pub fn is_valid_arg(&self) -> bool {
+        self.token_type.is_valid_arg()
+    }
+
+    pub fn try_into_arg(self) -> Result<Small> {
         Ok(SmallString::from(match self.token_type {
             TokenType::Assignment => "=",
-            TokenType::Colon => ":",
-            TokenType::QuestionMark => "?",
+            //TokenType::Colon => ":",
             TokenType::Add => "+",
             TokenType::Sub => "-",
             TokenType::Mul => "*",

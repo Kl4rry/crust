@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use crate::{
     error::SyntaxError,
     lexer::token::{Token, TokenType},
-    Small,
+    Small, P,
 };
 
 pub mod binop;
@@ -23,6 +23,7 @@ pub struct Ast {
 #[derive(Debug)]
 pub enum Compound {
     Statement(Statement),
+    Block(Block),
     Expr(Expr),
 }
 
@@ -43,10 +44,11 @@ pub struct Variable {
 pub enum Expr {
     Call(Command, Vec<Argument>),
     Variable(Variable),
-    Binary(BinOp, Box<Expr>, Box<Expr>),
-    Paren(Box<Expr>),
-    Unary(UnOp, Box<Expr>),
+    Binary(BinOp, P<Expr>, P<Expr>),
+    Paren(P<Expr>),
+    Unary(UnOp, P<Expr>),
     Literal(Literal),
+    Pipe { source: P<Expr>, dest: P<Expr> },
 }
 
 #[derive(Debug)]
@@ -54,12 +56,6 @@ pub enum Command {
     Expand(String),
     String(String),
     Variable(Variable),
-}
-
-#[derive(Debug)]
-pub struct Pipe {
-    pub source: Expr,
-    pub destination: Expr,
 }
 
 #[derive(Debug)]
@@ -83,15 +79,18 @@ pub enum Statement {
     Loop(Block),
     While(Expr, Block),
     Break,
+    Return,
 }
 
 #[derive(Debug)]
 pub struct ArgumentList {
-    args: Vec<String>,
+    pub args: Vec<String>,
 }
 
 #[derive(Debug)]
-pub enum Block {}
+pub struct Block {
+    pub sequence: Vec<Compound>,
+}
 
 impl TryFrom<Token> for Variable {
     type Error = SyntaxError;

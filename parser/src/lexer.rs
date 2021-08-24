@@ -223,9 +223,8 @@ impl Iterator for Lexer {
                 b'(' => self.advance_with(TokenType::LeftParen, 1),
                 b'}' => self.advance_with(TokenType::RightBrace, 1),
                 b'{' => self.advance_with(TokenType::LeftBrace, 1),
-                b':' => self.advance_with(TokenType::Colon, 1),
+                //b':' => self.advance_with(TokenType::Colon, 1),
                 b';' => self.advance_with(TokenType::SemiColon, 1),
-                b'?' => self.advance_with(TokenType::QuestionMark, 1),
                 // binary operators
                 b'=' => {
                     if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
@@ -235,7 +234,7 @@ impl Iterator for Lexer {
                     }
                 }
                 b'&' => {
-                    if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
+                    if self.index + 1 < self.src.len() && self.peek(1) == b'&' {
                         self.advance_with(TokenType::And, 2)
                     } else {
                         self.advance_with(TokenType::Exec, 1)
