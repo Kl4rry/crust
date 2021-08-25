@@ -1,11 +1,12 @@
 use std::convert::TryFrom;
 
-use crate::{SyntaxError, Token, TokenType};
+use crate::{SyntaxError, Token, TokenType, ast::Expr};
 
 #[derive(Debug)]
 pub enum Literal {
     String(String),
     Expand(String),
+    List(Vec<Expr>),
     Float(f64),
     Int(u128),
     Bool(bool),

@@ -9,7 +9,6 @@ pub enum BinOp {
     Sub,
     Mul,
     Div,
-
     Mod,
     /// The == operator (equality)
     Eq,

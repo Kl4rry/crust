@@ -127,7 +127,7 @@ impl Parser {
         let token_type = &self.token()?.token_type;
 
         match token_type {
-            TokenType::LeftBrace => Ok(Compound::Block(self.parse_block()?)),
+            TokenType::LeftBrace => Ok(Compound::Statement(Statement::Block(self.parse_block()?))),
 
             //parse ifs and loops and fn and other statements here
             TokenType::Variable(_) => {
@@ -165,15 +165,7 @@ impl Parser {
                     let block = self.parse_block()?;
                     Ok(Compound::Statement(Statement::While(expr, block)))
                 }
-                "if" => {
-                    // else if and else not impl
-                    self.eat()?;
-                    self.skip_whitespace();
-                    let expr = self.parse_expr(None)?;
-                    self.skip_whitespace();
-                    let block = self.parse_block()?;
-                    Ok(Compound::Statement(Statement::If(expr, block)))
-                }
+                "if" => Ok(Compound::Statement(self.parse_if()?)),
                 "break" => {
                     self.eat()?;
                     self.skip_optional_space();
@@ -187,11 +179,24 @@ impl Parser {
                         Err(_) => Ok(Compound::Statement(Statement::Break)),
                     }
                 }
+                "continue" => {
+                    self.eat()?;
+                    self.skip_optional_space();
+                    match self.eat() {
+                        Ok(token) => match token.token_type {
+                            TokenType::NewLine | TokenType::SemiColon => {
+                                Ok(Compound::Statement(Statement::Continue))
+                            }
+                            _ => Err(SyntaxError::UnexpectedToken(token)),
+                        },
+                        Err(_) => Ok(Compound::Statement(Statement::Continue)),
+                    }
+                }
                 "export" => todo!("export not implemented"),
                 "let" => Ok(Compound::Statement(self.parse_declaration()?)),
                 "const" => todo!("const vars not implemented"),
                 _ => Ok(Compound::Expr(self.parse_expr(None)?)),
-            },
+            }
             TokenType::Exec
             | TokenType::Int(_, _)
             | TokenType::Float(_, _)
@@ -202,6 +207,33 @@ impl Parser {
             | TokenType::Not => Ok(Compound::Expr(self.parse_expr(None)?)),
             _ => Err(SyntaxError::UnexpectedToken(self.eat().unwrap())),
         }
+    }
+
+    fn parse_if(&mut self) -> Result<Statement> {
+        self.eat()?;
+        self.skip_whitespace();
+        let expr = self.parse_expr(None)?;
+        self.skip_whitespace();
+        let block = self.parse_block()?;
+        self.skip_whitespace();
+
+        let statement = match self.token() {
+            Ok(token) => match token.token_type {
+                TokenType::Symbol(ref name) if name.as_str() == "else" => {
+                    self.eat()?;
+                    self.skip_whitespace();
+                    match self.token()?.token_type {
+                        TokenType::Symbol(ref text) if text.as_str() == "if" => Some(P::new(self.parse_if()?)),
+                        TokenType::LeftBrace => Some(P::new(Statement::Block(self.parse_block()?))),
+                        _ => return Err(SyntaxError::UnexpectedToken(self.eat()?)),
+                    }
+                }  
+                _ => None,
+            }
+            Err(_) => None,
+        };
+
+        Ok(Statement::If(expr, block, statement))
     }
 
     fn parse_declaration(&mut self) -> Result<Statement> {

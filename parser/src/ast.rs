@@ -23,7 +23,6 @@ pub struct Ast {
 #[derive(Debug)]
 pub enum Compound {
     Statement(Statement),
-    Block(Block),
     Expr(Expr),
 }
 
@@ -74,12 +73,14 @@ pub enum Statement {
     Export(Variable, Option<Expr>),
     Declaration(Variable, Option<Expr>),
     Assignment(Variable, Expr),
-    If(Expr, Block),
+    If(Expr, Block, Option<P<Statement>>),
     Fn(ArgumentList, Block),
     Return(Expr),
     Loop(Block),
     While(Expr, Block),
     Break,
+    Continue,
+    Block(Block),
 }
 
 #[derive(Debug)]
