@@ -1,8 +1,10 @@
 pub mod token;
+use std::rc::Rc;
+
 use token::{span::Span, Token, TokenType};
 
 pub struct Lexer {
-    src: String,
+    src: Rc<String>,
     current: u8,
     index: usize,
     eof: bool,
@@ -13,9 +15,13 @@ impl Lexer {
         Self {
             current: src.as_bytes()[0],
             index: 0,
-            src,
+            src: Rc::new(src),
             eof: false,
         }
+    }
+
+    pub fn src(&self) -> Rc<String> {
+        self.src.clone()
     }
 
     #[inline(always)]

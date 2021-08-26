@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use crate::{ast::Precedence, SyntaxError, Token, TokenType};
+use crate::{ast::Precedence, error::SyntaxErrorKind, Token, TokenType};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum UnOp {
@@ -9,12 +9,12 @@ pub enum UnOp {
 }
 
 impl TryFrom<Token> for UnOp {
-    type Error = SyntaxError;
+    type Error = SyntaxErrorKind;
     fn try_from(token: Token) -> Result<Self, Self::Error> {
         match token.token_type {
             TokenType::Not => Ok(UnOp::Not),
             TokenType::Sub => Ok(UnOp::Neg),
-            _ => Err(SyntaxError::UnexpectedToken(token)),
+            _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
         }
     }
 }

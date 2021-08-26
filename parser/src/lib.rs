@@ -1,21 +1,22 @@
-use std::convert::TryInto;
+use std::{convert::TryInto, rc::Rc};
 
 pub mod lexer;
+
 use lexer::{
     token::{Token, TokenType},
     Lexer,
 };
 
 pub mod ast;
+
 use ast::{
     binop::BinOp, unop::UnOp, Argument, Ast, Block, Command, Compound, Expr, Identifier,
     Precedence, Statement, Variable,
 };
-
 pub mod error;
-use error::SyntaxError;
+use error::{SyntaxError, SyntaxErrorKind};
 
-pub type Result<T> = std::result::Result<T, SyntaxError>;
+pub type Result<T> = std::result::Result<T, SyntaxErrorKind>;
 pub type Small = smallstr::SmallString<[u8; 10]>;
 pub type P<T> = Box<T>;
 
@@ -31,11 +32,15 @@ impl Parser {
         Self { lexer, token }
     }
 
+    fn src(&self) -> Rc<String> {
+        self.lexer.src()
+    }
+
     #[inline(always)]
     fn token(&self) -> Result<&Token> {
         match self.token {
             Some(ref token) => Ok(token),
-            None => Err(SyntaxError::ExpectedToken),
+            None => Err(SyntaxErrorKind::ExpectedToken),
         }
     }
 
@@ -45,7 +50,7 @@ impl Parser {
         self.token = self.lexer.next();
         match token {
             Some(token) => Ok(token),
-            None => Err(SyntaxError::ExpectedToken),
+            None => Err(SyntaxErrorKind::ExpectedToken),
         }
     }
 
@@ -57,7 +62,7 @@ impl Parser {
             }
             self.eat()?;
         }
-        Err(SyntaxError::ExpectedToken)
+        Err(SyntaxErrorKind::ExpectedToken)
     }
 
     #[inline(always)]
@@ -94,10 +99,11 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Ast> {
-        Ok(Ast {
-            sequence: self.parse_sequence(false)?,
-        })
+    pub fn parse(&mut self) -> std::result::Result<Ast, SyntaxError> {
+        match self.parse_sequence(false) {
+            Ok(sequence) => Ok(Ast { sequence }),
+            Err(error) => Err(SyntaxError::new(error, self.src())),
+        }
     }
 
     fn parse_sequence(&mut self, block: bool) -> Result<Vec<Compound>> {
@@ -128,8 +134,6 @@ impl Parser {
 
         match token_type {
             TokenType::LeftBrace => Ok(Compound::Statement(Statement::Block(self.parse_block()?))),
-
-            //parse ifs and loops and fn and other statements here
             TokenType::Variable(_) => {
                 let var: Variable = self.eat()?.try_into()?;
                 while let Ok(token) = self.token() {
@@ -147,11 +151,11 @@ impl Parser {
                         }
                         ref token_type => {
                             if token_type.is_binop() {
-                                return Ok(Compound::Expr(self.parse_binop(Expr::Variable(var))?))
+                                return Ok(Compound::Expr(self.parse_binop(Expr::Variable(var))?));
                             } else {
-                                return Err(SyntaxError::UnexpectedToken(self.eat()?))
+                                return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?));
                             }
-                        },
+                        }
                     }
                 }
                 Ok(Compound::Expr(Expr::Variable(var)))
@@ -163,7 +167,7 @@ impl Parser {
                 let token = self.eat()?;
                 let name = match token.token_type {
                     TokenType::Symbol(name) => name,
-                    _ => return Err(SyntaxError::UnexpectedToken(token)),
+                    _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
                 };
 
                 self.skip_whitespace();
@@ -175,7 +179,7 @@ impl Parser {
                     match token.token_type {
                         TokenType::RightParen => break,
                         TokenType::Variable(_) => vars.push(token.try_into()?),
-                        _ => return Err(SyntaxError::UnexpectedToken(token)),
+                        _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
                     }
 
                     self.skip_whitespace();
@@ -183,7 +187,7 @@ impl Parser {
                     match token.token_type {
                         TokenType::RightParen => break,
                         TokenType::Comma => (),
-                        _ => return Err(SyntaxError::UnexpectedToken(token)),
+                        _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
                     }
                 }
                 self.skip_whitespace();
@@ -258,7 +262,7 @@ impl Parser {
             | TokenType::Sub
             | TokenType::LeftParen
             | TokenType::Not => Ok(Compound::Expr(self.parse_expr(None)?)),
-            _ => Err(SyntaxError::UnexpectedToken(self.eat().unwrap())),
+            _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat().unwrap())),
         }
     }
 
@@ -280,7 +284,7 @@ impl Parser {
                             Some(P::new(self.parse_if()?))
                         }
                         TokenType::LeftBrace => Some(P::new(Statement::Block(self.parse_block()?))),
-                        _ => return Err(SyntaxError::UnexpectedToken(self.eat()?)),
+                        _ => return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
                     }
                 }
                 _ => None,
@@ -311,7 +315,7 @@ impl Parser {
                 Ok(Statement::Declaration(variable, Some(expr)))
             }
             TokenType::SemiColon | TokenType::NewLine => Ok(Statement::Declaration(variable, None)),
-            _ => Err(SyntaxError::UnexpectedToken(token)),
+            _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
         }
     }
 
@@ -399,7 +403,7 @@ impl Parser {
                     None => self.parse_expr(Some(inner)),
                 }
             }
-            _ => Err(SyntaxError::UnexpectedToken(self.eat().unwrap())),
+            _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat().unwrap())),
         }
     }
 
@@ -498,7 +502,7 @@ impl Parser {
             TokenType::Int(_, text) => Ok(Command::String(text)),
             TokenType::Float(_, text) => Ok(Command::String(text)),
             TokenType::Variable(_) => Ok(Command::Variable(token.try_into()?)),
-            _ => Err(SyntaxError::UnexpectedToken(token)),
+            _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
         }
     }
 

@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 use crate::{
-    error::SyntaxError,
+    error::SyntaxErrorKind,
     lexer::token::{Token, TokenType},
     Small, P,
 };
@@ -90,11 +90,11 @@ pub struct Block {
 }
 
 impl TryFrom<Token> for Variable {
-    type Error = SyntaxError;
+    type Error = SyntaxErrorKind;
     fn try_from(token: Token) -> Result<Self, Self::Error> {
         match token.token_type {
             TokenType::Variable(name) => Ok(Variable { name }),
-            _ => Err(SyntaxError::UnexpectedToken(token)),
+            _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
         }
     }
 }

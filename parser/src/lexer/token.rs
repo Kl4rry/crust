@@ -5,7 +5,7 @@ use std::mem;
 use smallstr::SmallString;
 use span::Span;
 
-use crate::{error::SyntaxError, Result, Small};
+use crate::{error::SyntaxErrorKind, Result, Small};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Token {
@@ -141,7 +141,7 @@ impl Token {
         if mem::discriminant(&self.token_type) == mem::discriminant(&token_type) {
             Ok(())
         } else {
-            Err(SyntaxError::UnexpectedToken(self))
+            Err(SyntaxErrorKind::UnexpectedToken(self))
         }
     }
 
@@ -179,7 +179,7 @@ impl Token {
             TokenType::Gt => ">",
             TokenType::Not => "!",
             TokenType::Range => "..",
-            _ => return Err(SyntaxError::UnexpectedToken(self)),
+            _ => return Err(SyntaxErrorKind::UnexpectedToken(self)),
         }))
     }
 }

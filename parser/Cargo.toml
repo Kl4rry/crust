@@ -7,3 +7,5 @@ edition = "2018"
 
 [dependencies]
 smallstr = "0.2.0"
+bytecount = "0.6.2"
+colored = "2.0.0"

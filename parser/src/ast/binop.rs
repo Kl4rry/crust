@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use crate::{ast::Precedence, SyntaxError, Token, TokenType};
+use crate::{ast::Precedence, error::SyntaxErrorKind, Token, TokenType};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum BinOp {
@@ -28,7 +28,7 @@ pub enum BinOp {
 }
 
 impl TryFrom<Token> for BinOp {
-    type Error = SyntaxError;
+    type Error = SyntaxErrorKind;
     fn try_from(token: Token) -> Result<Self, Self::Error> {
         match token.token_type {
             TokenType::Add => Ok(BinOp::Add),
@@ -46,7 +46,7 @@ impl TryFrom<Token> for BinOp {
             TokenType::And => Ok(BinOp::And),
             TokenType::Or => Ok(BinOp::Or),
             TokenType::Range => Ok(BinOp::Range),
-            _ => Err(SyntaxError::UnexpectedToken(token)),
+            _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
         }
     }
 }

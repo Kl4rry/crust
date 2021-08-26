@@ -11,4 +11,16 @@ impl Span {
             end: end as u32,
         }
     }
+
+    pub fn start(&self) -> usize {
+        self.start as usize
+    }
+
+    pub fn end(&self) -> usize {
+        self.end as usize
+    }
+
+    pub fn len(&self) -> usize {
+        (self.end - self.start) as usize
+    }
 }
