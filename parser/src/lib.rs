@@ -132,71 +132,124 @@ impl Parser {
             //parse ifs and loops and fn and other statements here
             TokenType::Variable(_) => {
                 let var: Variable = self.eat()?.try_into()?;
-                while let Ok(token) = self.eat() {
+                while let Ok(token) = self.token() {
                     match token.token_type {
                         TokenType::Assignment => {
                             self.eat()?.expect(TokenType::Assignment)?;
-                            self.skip_space()?;
+                            self.skip_optional_space();
                             return Ok(Compound::Statement(Statement::Assignment(
                                 var,
                                 self.parse_expr(None)?,
                             )));
                         }
-                        TokenType::Space => continue,
-                        _ => (),
+                        TokenType::Space => {
+                            self.eat()?;
+                        }
+                        ref token_type => {
+                            if token_type.is_binop() {
+                                return Ok(Compound::Expr(self.parse_binop(Expr::Variable(var))?))
+                            } else {
+                                return Err(SyntaxError::UnexpectedToken(self.eat()?))
+                            }
+                        },
                     }
                 }
                 Ok(Compound::Expr(Expr::Variable(var)))
             }
+            TokenType::Fn => {
+                self.eat()?;
+                self.skip_whitespace();
+
+                let token = self.eat()?;
+                let name = match token.token_type {
+                    TokenType::Symbol(name) => name,
+                    _ => return Err(SyntaxError::UnexpectedToken(token)),
+                };
+
+                self.skip_whitespace();
+                self.eat()?.expect(TokenType::LeftParen)?;
+                let mut vars: Vec<Variable> = Vec::new();
+                loop {
+                    self.skip_whitespace();
+                    let token = self.eat()?;
+                    match token.token_type {
+                        TokenType::RightParen => break,
+                        TokenType::Variable(_) => vars.push(token.try_into()?),
+                        _ => return Err(SyntaxError::UnexpectedToken(token)),
+                    }
+
+                    self.skip_whitespace();
+                    let token = self.eat()?;
+                    match token.token_type {
+                        TokenType::RightParen => break,
+                        TokenType::Comma => (),
+                        _ => return Err(SyntaxError::UnexpectedToken(token)),
+                    }
+                }
+                self.skip_whitespace();
+                let block = self.parse_block()?;
+                Ok(Compound::Statement(Statement::Fn(name, vars, block)))
+            }
+            TokenType::Loop => {
+                self.eat()?;
+                self.skip_whitespace();
+                let block = self.parse_block()?;
+                Ok(Compound::Statement(Statement::Loop(block)))
+            }
+            TokenType::For => {
+                self.eat()?;
+                self.skip_whitespace();
+                let var: Variable = self.eat()?.try_into()?;
+                self.skip_whitespace();
+                self.eat()?.expect(TokenType::In)?;
+                self.skip_whitespace();
+                let expr = self.parse_expr(None)?;
+                self.skip_whitespace();
+                let block = self.parse_block()?;
+
+                Ok(Compound::Statement(Statement::For(var, expr, block)))
+            }
+            TokenType::While => {
+                self.eat()?;
+                self.skip_whitespace();
+                let expr = self.parse_expr(None)?;
+                self.skip_whitespace();
+                let block = self.parse_block()?;
+                Ok(Compound::Statement(Statement::While(expr, block)))
+            }
+            TokenType::If => Ok(Compound::Statement(self.parse_if()?)),
+            TokenType::Break => {
+                self.eat()?;
+                Ok(Compound::Statement(Statement::Break))
+            }
+            TokenType::Continue => {
+                self.eat()?;
+                Ok(Compound::Statement(Statement::Continue))
+            }
+            TokenType::Return => {
+                self.eat()?;
+                self.skip_optional_space();
+                match self.token() {
+                    Ok(token) => match token.token_type {
+                        TokenType::NewLine | TokenType::SemiColon => {
+                            self.eat()?;
+                            Ok(Compound::Statement(Statement::Return(None)))
+                        }
+                        _ => {
+                            let expr = self.parse_expr(None)?;
+                            Ok(Compound::Statement(Statement::Return(Some(expr))))
+                        }
+                    },
+                    Err(_) => Ok(Compound::Statement(Statement::Return(None))),
+                }
+            }
             TokenType::Symbol(symbol) => match symbol.as_str() {
-                "fn" => todo!("functions not implemented"),
-                "loop" => {
-                    self.eat()?;
-                    self.skip_whitespace();
-                    let block = self.parse_block()?;
-                    Ok(Compound::Statement(Statement::Loop(block)))
-                }
-                "for" => todo!("for not implemented"),
-                "while" => {
-                    self.eat()?;
-                    self.skip_whitespace();
-                    let expr = self.parse_expr(None)?;
-                    self.skip_whitespace();
-                    let block = self.parse_block()?;
-                    Ok(Compound::Statement(Statement::While(expr, block)))
-                }
-                "if" => Ok(Compound::Statement(self.parse_if()?)),
-                "break" => {
-                    self.eat()?;
-                    self.skip_optional_space();
-                    match self.eat() {
-                        Ok(token) => match token.token_type {
-                            TokenType::NewLine | TokenType::SemiColon => {
-                                Ok(Compound::Statement(Statement::Break))
-                            }
-                            _ => Err(SyntaxError::UnexpectedToken(token)),
-                        },
-                        Err(_) => Ok(Compound::Statement(Statement::Break)),
-                    }
-                }
-                "continue" => {
-                    self.eat()?;
-                    self.skip_optional_space();
-                    match self.eat() {
-                        Ok(token) => match token.token_type {
-                            TokenType::NewLine | TokenType::SemiColon => {
-                                Ok(Compound::Statement(Statement::Continue))
-                            }
-                            _ => Err(SyntaxError::UnexpectedToken(token)),
-                        },
-                        Err(_) => Ok(Compound::Statement(Statement::Continue)),
-                    }
-                }
                 "export" => todo!("export not implemented"),
                 "let" => Ok(Compound::Statement(self.parse_declaration()?)),
                 "const" => todo!("const vars not implemented"),
+                "alias" => todo!("alias not implemented"),
                 _ => Ok(Compound::Expr(self.parse_expr(None)?)),
-            }
+            },
             TokenType::Exec
             | TokenType::Int(_, _)
             | TokenType::Float(_, _)
@@ -223,13 +276,15 @@ impl Parser {
                     self.eat()?;
                     self.skip_whitespace();
                     match self.token()?.token_type {
-                        TokenType::Symbol(ref text) if text.as_str() == "if" => Some(P::new(self.parse_if()?)),
+                        TokenType::Symbol(ref text) if text.as_str() == "if" => {
+                            Some(P::new(self.parse_if()?))
+                        }
                         TokenType::LeftBrace => Some(P::new(Statement::Block(self.parse_block()?))),
                         _ => return Err(SyntaxError::UnexpectedToken(self.eat()?)),
                     }
-                }  
+                }
                 _ => None,
-            }
+            },
             Err(_) => None,
         };
 

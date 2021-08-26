@@ -74,18 +74,14 @@ pub enum Statement {
     Declaration(Variable, Option<Expr>),
     Assignment(Variable, Expr),
     If(Expr, Block, Option<P<Statement>>),
-    Fn(ArgumentList, Block),
-    Return(Expr),
+    Fn(String, Vec<Variable>, Block),
+    Return(Option<Expr>),
     Loop(Block),
     While(Expr, Block),
+    For(Variable, Expr, Block),
     Break,
     Continue,
     Block(Block),
-}
-
-#[derive(Debug)]
-pub struct ArgumentList {
-    pub args: Vec<String>,
 }
 
 #[derive(Debug)]

@@ -89,7 +89,7 @@ impl Lexer {
 
     fn parse_arg(&mut self) -> Token {
         let start = self.index;
-        const DISALLOWED: &[u8] = b"\0#$\"(){}|;&";
+        const DISALLOWED: &[u8] = b"\0#$\"(){}[]|;&,";
         while !DISALLOWED.contains(&self.current)
             && !self.current.is_ascii_whitespace()
             && !self.eof
@@ -98,10 +98,30 @@ impl Lexer {
         }
         let end = self.index;
         let value = self.src[start..end].to_string();
+        let span = Span::new(start, end);
+
+        let token_type = match value.as_str() {
+            "if" => TokenType::If,
+            "else" => TokenType::Else,
+            "while" => TokenType::While,
+            "loop" => TokenType::Loop,
+            "for" => TokenType::For,
+            "in" => TokenType::In,
+            "break" => TokenType::Break,
+            "return" => TokenType::Return,
+            "continue" => TokenType::Continue,
+            "fn" => TokenType::Fn,
+            _ => {
+                return Token {
+                    token_type: TokenType::Symbol(value),
+                    span,
+                }
+            }
+        };
 
         Token {
-            token_type: TokenType::Symbol(value),
-            span: Span::new(start, end),
+            token_type: token_type,
+            span,
         }
     }
 
@@ -215,7 +235,18 @@ impl Iterator for Lexer {
                     self.skip_comment();
                     self.parse_newline()?
                 }
-                b'$' if self.peek(1).is_ascii_alphabetic() => self.parse_variable(),
+                b'$' => {
+                    if self.index + 1 < self.src.len() && self.peek(1).is_ascii_alphanumeric() {
+                        self.parse_variable()
+                    } else {
+                        self.advance_with(TokenType::Dollar, 1)
+                    }
+                }
+
+                b'.' if self.index + 1 < self.src.len() && self.peek(1) == b'.' => {
+                    self.advance_with(TokenType::Range, 2)
+                }
+                b',' => self.advance_with(TokenType::Comma, 1),
                 b'|' => self.advance_with(TokenType::Pipe, 1),
                 b'"' => self.parse_expand_string(),
                 b'\'' => self.parse_string(),

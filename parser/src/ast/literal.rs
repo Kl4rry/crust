@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use crate::{SyntaxError, Token, TokenType, ast::Expr};
+use crate::{ast::Expr, SyntaxError, Token, TokenType};
 
 #[derive(Debug)]
 pub enum Literal {

@@ -24,6 +24,7 @@ pub enum BinOp {
     Gt,
     And,
     Or,
+    Range,
 }
 
 impl TryFrom<Token> for BinOp {
@@ -44,6 +45,7 @@ impl TryFrom<Token> for BinOp {
             TokenType::Gt => Ok(BinOp::Gt),
             TokenType::And => Ok(BinOp::And),
             TokenType::Or => Ok(BinOp::Or),
+            TokenType::Range => Ok(BinOp::Range),
             _ => Err(SyntaxError::UnexpectedToken(token)),
         }
     }
@@ -66,6 +68,7 @@ impl Precedence for BinOp {
             Self::Gt => 6,
             Self::And => 5,
             Self::Or => 5,
+            Self::Range => 4,
         }
     }
 }

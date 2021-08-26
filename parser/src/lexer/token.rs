@@ -32,9 +32,14 @@ pub enum TokenType {
     LeftBrace,
     RightParen,
     LeftParen,
+    Comma,
+    /// $
+    Dollar,
     //Colon,
     SemiColon,
     // Binary operators
+    /// The x..y operator (range)
+    Range,
     Add,
     Sub,
     Mul,
@@ -57,6 +62,18 @@ pub enum TokenType {
     Or,
     // Unary operators
     Not,
+
+    // keywords
+    If,
+    Else,
+    While,
+    Loop,
+    For,
+    In,
+    Break,
+    Return,
+    Continue,
+    Fn,
 }
 
 impl TokenType {
@@ -86,6 +103,7 @@ impl TokenType {
                 | Self::Gt
                 | Self::And
                 | Self::Or
+                | Self::Range
         )
     }
 
@@ -94,6 +112,7 @@ impl TokenType {
             *self,
             TokenType::Assignment |
             //TokenType::Colon |
+            TokenType::Range |
             TokenType::Add |
             TokenType::Sub |
             TokenType::Mul |
@@ -159,6 +178,7 @@ impl Token {
             TokenType::Ge => ">=",
             TokenType::Gt => ">",
             TokenType::Not => "!",
+            TokenType::Range => "..",
             _ => return Err(SyntaxError::UnexpectedToken(self)),
         }))
     }
