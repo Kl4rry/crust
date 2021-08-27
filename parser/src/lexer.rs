@@ -117,6 +117,8 @@ impl Lexer {
             "return" => TokenType::Return,
             "continue" => TokenType::Continue,
             "fn" => TokenType::Fn,
+            "true" => TokenType::True,
+            "false" => TokenType::False,
             _ => {
                 return Token {
                     token_type: TokenType::Symbol(value),
@@ -253,13 +255,28 @@ impl Iterator for Lexer {
                     self.advance_with(TokenType::Range, 2)
                 }
                 b',' => self.advance_with(TokenType::Comma, 1),
-                b'|' => self.advance_with(TokenType::Pipe, 1),
+                b'|' => {
+                    if self.index + 1 < self.src.len() && self.peek(1) == b'|' {
+                        self.advance_with(TokenType::Or, 2)
+                    } else {
+                        self.advance_with(TokenType::Pipe, 1)
+                    }
+                }
+                b'&' => {
+                    if self.index + 1 < self.src.len() && self.peek(1) == b'&' {
+                        self.advance_with(TokenType::And, 2)
+                    } else {
+                        self.advance_with(TokenType::Exec, 1)
+                    }
+                }
                 b'"' => self.parse_expand_string(),
                 b'\'' => self.parse_string(),
                 b')' => self.advance_with(TokenType::RightParen, 1),
                 b'(' => self.advance_with(TokenType::LeftParen, 1),
                 b'}' => self.advance_with(TokenType::RightBrace, 1),
                 b'{' => self.advance_with(TokenType::LeftBrace, 1),
+                b']' => self.advance_with(TokenType::RightBracket, 1),
+                b'[' => self.advance_with(TokenType::LeftBracket, 1),
                 //b':' => self.advance_with(TokenType::Colon, 1),
                 b';' => self.advance_with(TokenType::SemiColon, 1),
                 // binary operators
@@ -268,13 +285,6 @@ impl Iterator for Lexer {
                         self.advance_with(TokenType::Eq, 2)
                     } else {
                         self.advance_with(TokenType::Assignment, 1)
-                    }
-                }
-                b'&' => {
-                    if self.index + 1 < self.src.len() && self.peek(1) == b'&' {
-                        self.advance_with(TokenType::And, 2)
-                    } else {
-                        self.advance_with(TokenType::Exec, 1)
                     }
                 }
                 b'+' => self.advance_with(TokenType::Add, 1),

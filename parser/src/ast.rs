@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use crate::{
     error::SyntaxErrorKind,
     lexer::token::{Token, TokenType},
-    Small, P,
+    P,
 };
 
 pub mod binop;
@@ -29,9 +29,9 @@ pub enum Compound {
 #[derive(Debug)]
 pub enum Identifier {
     Variable(Variable), // Should be expaned to variable value. Must be done before glob.
-    Expand(Small),      // Should be glob and variable expanded.
-    Glob(Small),
-    Text(Small),
+    Expand(String),     // Should be variable expanded.
+    Glob(String),
+    String(String),
 }
 
 #[derive(Debug)]
@@ -42,12 +42,12 @@ pub struct Variable {
 #[derive(Debug)]
 pub enum Expr {
     Call(Command, Vec<Argument>),
+    Pipe(P<Expr>, P<Expr>),
     Variable(Variable),
     Binary(BinOp, P<Expr>, P<Expr>),
     Paren(P<Expr>),
     Unary(UnOp, P<Expr>),
     Literal(Literal),
-    Pipe { source: P<Expr>, dest: P<Expr> },
 }
 
 #[derive(Debug)]
@@ -60,12 +60,6 @@ pub enum Command {
 #[derive(Debug)]
 pub struct Argument {
     pub parts: Vec<Identifier>,
-}
-
-#[derive(Debug)]
-pub struct Redirect {
-    pub call: Expr,
-    pub file: Identifier,
 }
 
 #[derive(Debug)]

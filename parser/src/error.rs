@@ -100,10 +100,5 @@ fn get_line_number(src: &str, span: &Span) -> usize {
 }
 
 fn get_string(len: usize, byte: u8) -> String {
-    String::from_utf8(
-        iter::repeat(byte)
-            .take(len)
-            .collect(),
-    )
-    .unwrap()
+    String::from_utf8(iter::repeat(byte).take(len).collect()).unwrap()
 }

@@ -20,7 +20,8 @@ impl TryFrom<Token> for Literal {
             TokenType::ExpandString(text) => Ok(Literal::Expand(text)),
             TokenType::Float(number, _) => Ok(Literal::Float(number)),
             TokenType::Int(number, _) => Ok(Literal::Int(number)),
-            TokenType::Symbol(text) => Ok(Literal::Bool(text.parse().unwrap())),
+            TokenType::True => Ok(Literal::Bool(true)),
+            TokenType::False => Ok(Literal::Bool(false)),
             _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
         }
     }

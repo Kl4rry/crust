@@ -17,7 +17,6 @@ pub mod error;
 use error::{SyntaxError, SyntaxErrorKind};
 
 pub type Result<T> = std::result::Result<T, SyntaxErrorKind>;
-pub type Small = smallstr::SmallString<[u8; 10]>;
 pub type P<T> = Box<T>;
 
 pub struct Parser {
@@ -276,13 +275,11 @@ impl Parser {
 
         let statement = match self.token() {
             Ok(token) => match token.token_type {
-                TokenType::Symbol(ref name) if name.as_str() == "else" => {
+                TokenType::Else => {
                     self.eat()?;
                     self.skip_whitespace();
                     match self.token()?.token_type {
-                        TokenType::Symbol(ref text) if text.as_str() == "if" => {
-                            Some(P::new(self.parse_if()?))
-                        }
+                        TokenType::If => Some(P::new(self.parse_if()?)),
                         TokenType::LeftBrace => Some(P::new(Statement::Block(self.parse_block()?))),
                         _ => return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
                     }
@@ -321,33 +318,26 @@ impl Parser {
 
     fn parse_expr(&mut self, unop: Option<UnOp>) -> Result<Expr> {
         match &self.token()?.token_type {
-            TokenType::Symbol(text) => {
-                match text.as_str() {
-                    "true" | "false" => {
-                        let literal = Expr::Literal(self.eat()?.try_into()?);
-                        self.skip_optional_space();
-                        if let Ok(token) = self.token() {
-                            if token.is_binop() {
-                                return self.parse_binop(literal);
-                            }
-                        }
-
-                        match unop {
-                            Some(unop) => return Ok(Expr::Unary(unop, P::new(literal))),
-                            None => return Ok(literal),
-                        }
+            TokenType::True | TokenType::False => {
+                let literal = Expr::Literal(self.eat()?.try_into()?);
+                self.skip_optional_space();
+                if let Ok(token) = self.token() {
+                    if token.is_binop() {
+                        return self.parse_binop(literal);
                     }
-                    _ => (),
-                };
+                }
 
                 match unop {
-                    Some(unop) => return Ok(Expr::Unary(unop, P::new(self.parse_call()?))),
-                    None => return Ok(self.parse_call()?),
+                    Some(unop) => return Ok(Expr::Unary(unop, P::new(literal))),
+                    None => return Ok(literal),
                 }
             }
+            TokenType::Symbol(_) => match unop {
+                Some(unop) => return Ok(Expr::Unary(unop, P::new(self.parse_call()?))),
+                None => return Ok(self.parse_call()?),
+            },
             TokenType::Exec => {
-                self.eat()?.expect(TokenType::Exec)?;
-                self.skip_optional_space();
+                println!("here");
                 Ok(self.parse_call()?)
             }
             TokenType::LeftParen => {
@@ -482,59 +472,108 @@ impl Parser {
                     self.eat()?;
                 }
                 _ => {
-                    if token.is_valid_arg() {
+                    if token.is_valid_id() {
                         args.push(self.parse_argument()?);
                     } else {
-                        return Ok(Expr::Call(command, args));
+                        break;
                     }
                 }
             }
         }
-        Ok(Expr::Call(command, args))
+        let lhs = Expr::Call(command, args);
+
+        self.skip_whitespace();
+
+        if let Ok(token) = self.token() {
+            match token.token_type {
+                TokenType::Pipe => {
+                    self.eat()?;
+                    self.skip_whitespace();
+                    let rhs = self.parse_call()?;
+                    return Ok(Expr::Pipe(P::new(lhs), P::new(rhs)));
+                }
+                _ => (),
+            }
+        }
+
+        Ok(lhs)
     }
 
     fn parse_command(&mut self) -> Result<Command> {
         let token = self.eat()?;
         match token.token_type {
-            TokenType::ExpandString(text) => Ok(Command::Expand(text)),
-            TokenType::String(text) => Ok(Command::String(text)),
+            TokenType::Exec => {
+                self.skip_optional_space();
+                let token = self.eat()?;
+                match token.token_type {
+                    TokenType::ExpandString(text) => Ok(Command::Expand(text)),
+                    TokenType::String(text) => Ok(Command::String(text)),
+                    TokenType::Symbol(text) => Ok(Command::String(text)),
+                    TokenType::Int(_, text) => Ok(Command::String(text)),
+                    TokenType::Float(_, text) => Ok(Command::String(text)),
+                    TokenType::Variable(_) => Ok(Command::Variable(token.try_into()?)),
+                    _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
+                }
+            }
             TokenType::Symbol(text) => Ok(Command::String(text)),
-            TokenType::Int(_, text) => Ok(Command::String(text)),
-            TokenType::Float(_, text) => Ok(Command::String(text)),
-            TokenType::Variable(_) => Ok(Command::Variable(token.try_into()?)),
             _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
         }
     }
 
     fn parse_argument(&mut self) -> Result<Argument> {
         let mut ids = Vec::new();
-        let id = self.parse_identifier()?;
+        let id = self.eat()?.try_into_id()?;
         ids.push(id);
-        loop {
-            match self.token() {
-                Ok(token) => {
-                    if token.is_valid_arg() {
-                        ids.push(self.parse_identifier()?);
-                    } else {
-                        return Ok(Argument { parts: ids });
+        while let Ok(token) = self.token() {
+            if token.is_valid_id() {
+                let token = self.eat()?;
+                match token.token_type {
+                    TokenType::String(string) => match ids.last_mut() {
+                        Some(Identifier::String(text)) => {
+                            text.push_str(&string);
+                        }
+                        _ => ids.push(Identifier::String(string.into())),
+                    },
+                    TokenType::Symbol(string) => match ids.last_mut() {
+                        Some(Identifier::Glob(text)) => {
+                            text.push_str(&string);
+                        }
+                        _ => ids.push(Identifier::Glob(string.into())),
+                    },
+                    TokenType::ExpandString(string) => match ids.last_mut() {
+                        Some(Identifier::Expand(text)) => {
+                            text.push_str(&string);
+                        }
+                        _ => ids.push(Identifier::Expand(string.into())),
+                    },
+                    TokenType::Variable(_) => ids.push(Identifier::Variable(token.try_into()?)),
+                    TokenType::Int(_, string) => match ids.last_mut() {
+                        Some(Identifier::Glob(text)) => {
+                            text.push_str(&string);
+                        }
+                        _ => ids.push(Identifier::Glob(string.into())),
+                    },
+                    TokenType::Float(_, string) => match ids.last_mut() {
+                        Some(Identifier::Glob(text)) => {
+                            text.push_str(&string);
+                        }
+                        _ => ids.push(Identifier::Glob(string.into())),
+                    },
+                    _ => {
+                        let string = token.try_into_glob_str()?;
+                        match ids.last_mut() {
+                            Some(Identifier::Glob(text)) => {
+                                text.push_str(string);
+                            }
+                            _ => ids.push(Identifier::Glob(string.into())),
+                        }
                     }
                 }
-                Err(_) => return Ok(Argument { parts: ids }),
+            } else {
+                return Ok(Argument { parts: ids });
             }
         }
-    }
-
-    fn parse_identifier(&mut self) -> Result<Identifier> {
-        let token = self.eat()?;
-        match token.token_type {
-            TokenType::String(text) => Ok(Identifier::Text(text.into())),
-            TokenType::Symbol(text) => Ok(Identifier::Glob(text.into())),
-            TokenType::ExpandString(text) => Ok(Identifier::Expand(text.into())),
-            TokenType::Variable(_) => Ok(Identifier::Variable(token.try_into()?)),
-            TokenType::Int(_, text) => Ok(Identifier::Text(text.into())),
-            TokenType::Float(_, text) => Ok(Identifier::Text(text.into())),
-            _ => Ok(Identifier::Glob(token.try_into_arg()?)),
-        }
+        Ok(Argument { parts: ids })
     }
 }
 
@@ -551,7 +590,7 @@ mod tests {
         let ast = parser.parse();
         match &ast {
             Ok(ast) => println!("{:#?}", ast),
-            Err(error) => eprintln!("{}", error),
+            Err(error) => eprintln!("{}", &error),
         }
         assert!(ast.is_ok());
     }

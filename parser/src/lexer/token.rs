@@ -1,11 +1,10 @@
 pub mod span;
 
-use std::mem;
+use std::{convert::TryInto, mem};
 
-use smallstr::SmallString;
 use span::Span;
 
-use crate::{error::SyntaxErrorKind, Result, Small};
+use crate::{ast::Identifier, error::SyntaxErrorKind, Result};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Token {
@@ -32,6 +31,8 @@ pub enum TokenType {
     LeftBrace,
     RightParen,
     LeftParen,
+    RightBracket,
+    LeftBracket,
     Comma,
     /// $
     Dollar,
@@ -74,6 +75,8 @@ pub enum TokenType {
     Return,
     Continue,
     Fn,
+    True,
+    False,
 }
 
 impl TokenType {
@@ -107,11 +110,13 @@ impl TokenType {
         )
     }
 
-    pub fn is_valid_arg(&self) -> bool {
+    pub fn is_valid_id(&self) -> bool {
         matches!(
             *self,
             TokenType::Assignment |
             //TokenType::Colon |
+            TokenType::RightBracket |
+            TokenType::LeftBracket |
             TokenType::Range |
             TokenType::Add |
             TokenType::Sub |
@@ -120,18 +125,18 @@ impl TokenType {
             TokenType::Expo |
             TokenType::Mod |
             TokenType::Eq  |
-            TokenType::Lt |
             TokenType::Le  |
             TokenType::Ne |
             TokenType::Ge  |
-            TokenType::Gt |
             TokenType::Not |
             TokenType::Symbol(_) |
             TokenType::Variable(_) |
             TokenType::String(_) |
             TokenType::ExpandString(_) |
             TokenType::Float(_, _) |
-            TokenType::Int(_, _)
+            TokenType::Int(_, _) |
+            TokenType::True |
+            TokenType::False
         )
     }
 }
@@ -157,29 +162,43 @@ impl Token {
         self.token_type.is_unop()
     }
 
-    pub fn is_valid_arg(&self) -> bool {
-        self.token_type.is_valid_arg()
+    pub fn is_valid_id(&self) -> bool {
+        self.token_type.is_valid_id()
     }
 
-    pub fn try_into_arg(self) -> Result<Small> {
-        Ok(SmallString::from(match self.token_type {
-            TokenType::Assignment => "=",
+    pub fn try_into_id(self) -> Result<Identifier> {
+        match self.token_type {
+            TokenType::String(text) => Ok(Identifier::String(text)),
+            TokenType::Symbol(text) => Ok(Identifier::Glob(text)),
+            TokenType::ExpandString(text) => Ok(Identifier::Expand(text)),
+            TokenType::Variable(_) => Ok(Identifier::Variable(self.try_into()?)),
+            TokenType::Int(_, text) => Ok(Identifier::Glob(text)),
+            TokenType::Float(_, text) => Ok(Identifier::Glob(text)),
+            _ => return Ok(Identifier::Glob(self.try_into_glob_str()?.into())),
+        }
+    }
+
+    pub fn try_into_glob_str(self) -> Result<&'static str> {
+        match self.token_type {
+            TokenType::Assignment => Ok("="),
+            TokenType::RightBracket => Ok("]"),
+            TokenType::LeftBracket => Ok("["),
+            TokenType::Add => Ok("+"),
+            TokenType::Sub => Ok("-"),
+            TokenType::Div => Ok("/"),
+            TokenType::Expo => Ok("^"),
+            TokenType::Mod => Ok("%"),
+            TokenType::Eq => Ok("=="),
+            TokenType::Le => Ok("<="),
+            TokenType::Ne => Ok("-"),
+            TokenType::Ge => Ok(">="),
+            TokenType::Not => Ok("!"),
+            TokenType::Range => Ok(".."),
+            TokenType::True => Ok("true"),
+            TokenType::False => Ok("false"),
+            TokenType::Mul => Ok("*"),
             //TokenType::Colon => ":",
-            TokenType::Add => "+",
-            TokenType::Sub => "-",
-            TokenType::Mul => "*",
-            TokenType::Div => "/",
-            TokenType::Expo => "^",
-            TokenType::Mod => "%",
-            TokenType::Eq => "==",
-            TokenType::Lt => "<",
-            TokenType::Le => "<=",
-            TokenType::Ne => "-",
-            TokenType::Ge => ">=",
-            TokenType::Gt => ">",
-            TokenType::Not => "!",
-            TokenType::Range => "..",
             _ => return Err(SyntaxErrorKind::UnexpectedToken(self)),
-        }))
+        }
     }
 }

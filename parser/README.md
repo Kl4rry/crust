@@ -8,7 +8,7 @@
 * Control flow ✅
 * Loops ✅
 * Break ✅
-* Continue
+* Continue ✅
 * Return ✅
 * Assignment ✅
 * Variable declaration ✅
@@ -18,12 +18,14 @@
 * Lists ❌
 * Indexing ❌
 * Maps ❌
-* Pipes ❌
+* Pipes ✅ (Not |& aka stderr pipe)
 * Redirects ❌
 * Glob ✅
-* Questionmark / single char glob ❌
-* Bracket globing char ❌ (Still not sure about this one)
+* Questionmark / single char glob ✅
+* Bracket globing char ✅
 * $(expr) ❌
+* Assign and modify += *= etc ❌
+* run in background using & ❌
 
 # Builtin thoughts
 There needs to be a function that returns the type of an expression.  
