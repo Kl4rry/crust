@@ -115,15 +115,29 @@ impl Parser {
 
     fn parse_sequence(&mut self, block: bool) -> Result<Vec<Compound>> {
         let mut sequence = Vec::new();
+
         loop {
+            self.skip_whitespace_and_semi();
             let token = match self.token() {
                 Ok(token) => token,
                 Err(_) => return Ok(sequence),
             };
+
             match token.token_type {
-                TokenType::Space | TokenType::NewLine | TokenType::SemiColon => drop(self.eat()),
                 TokenType::RightBrace if block => return Ok(sequence),
                 _ => sequence.push(self.parse_compound()?),
+            };
+
+            self.skip_optional_space();
+
+            let token = match self.token() {
+                Ok(token) => token,
+                Err(_) => return Ok(sequence),
+            };
+
+            match token.token_type {
+                TokenType::NewLine | TokenType::SemiColon => self.skip_whitespace_and_semi(),
+                _ => return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
             };
         }
     }
@@ -153,9 +167,7 @@ impl Parser {
                                 self.parse_expr(None)?,
                             )));
                         }
-                        TokenType::Space => {
-                            self.eat()?;
-                        }
+                        TokenType::Space => drop(self.eat()?),
                         ref token_type => {
                             if token_type.is_binop() {
                                 return Ok(Compound::Expr(self.parse_binop(Expr::Variable(var))?));
@@ -393,7 +405,7 @@ impl Parser {
     fn parse_expr(&mut self, unop: Option<UnOp>) -> Result<Expr> {
         match &self.token()?.token_type {
             TokenType::True | TokenType::False => {
-                let mut literal = Expr::Literal(self.eat()?.try_into()?);
+                let mut literal = Expr::Literal(self.eat()?.try_into()?).wrap(unop);
                 self.skip_optional_space();
                 if let Ok(token) = self.token() {
                     if token.is_binop() {
@@ -401,20 +413,20 @@ impl Parser {
                     }
                 };
 
-                Ok(literal.wrap(unop))
+                Ok(literal)
             }
             TokenType::Symbol(_) => Ok(self.parse_call()?.wrap(unop)),
             TokenType::Exec => Ok(self.parse_call()?),
             TokenType::LeftParen => {
                 self.eat()?.expect(TokenType::LeftParen)?;
-                self.skip_optional_space();
+                self.skip_whitespace();
                 let expr = self.parse_expr(None)?;
-                self.skip_optional_space();
+                self.skip_whitespace();
                 self.eat()?.expect(TokenType::RightParen)?;
                 Ok(Expr::Paren(P::new(expr)).wrap(unop))
             }
             TokenType::Variable(_) => {
-                let var = Expr::Variable(self.eat()?.try_into()?);
+                let var = Expr::Variable(self.eat()?.try_into()?).wrap(unop);
                 self.skip_optional_space();
 
                 if let Ok(token) = self.token() {
@@ -423,7 +435,7 @@ impl Parser {
                     }
                 }
 
-                Ok(var.wrap(unop))
+                Ok(var)
             }
             TokenType::Dollar => Ok(self.parse_expr_expand()?.wrap(unop)),
             TokenType::String(_)
@@ -457,7 +469,7 @@ impl Parser {
 
     fn parse_binop(&mut self, mut lhs: Expr) -> Result<Expr> {
         let mut outer: BinOp = self.eat()?.try_into()?;
-        self.skip_space()?;
+        self.skip_optional_space();
 
         let mut rhs = self.parse_expr(None)?;
 
@@ -536,7 +548,7 @@ impl Parser {
         }
         let mut lhs = Expr::Call(command, args);
 
-        self.skip_whitespace();
+        self.skip_optional_space();
 
         if let Ok(token) = self.token() {
             match token.token_type {
@@ -556,7 +568,7 @@ impl Parser {
             }
         }
 
-        self.skip_whitespace();
+        self.skip_optional_space();
 
         if let Ok(token) = self.token() {
             match token.token_type {
@@ -577,7 +589,7 @@ impl Parser {
         let token = self.eat()?;
         match token.token_type {
             TokenType::Exec => {
-                self.skip_optional_space();
+                self.skip_whitespace();
                 match self.token()?.token_type {
                     TokenType::Quote => Ok(Command::Expand(self.parse_expand()?)),
                     _ => self.eat()?.try_into(),
