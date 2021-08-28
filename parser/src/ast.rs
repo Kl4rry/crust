@@ -40,9 +40,16 @@ pub struct Variable {
 }
 
 #[derive(Debug)]
+pub enum Direction {
+    Left,
+    Right,
+}
+
+#[derive(Debug)]
 pub enum Expr {
     Call(Command, Vec<Argument>),
     Pipe(P<Expr>, P<Expr>),
+    Redirect(Direction, P<Expr>, Argument),
     Variable(Variable),
     Binary(BinOp, P<Expr>, P<Expr>),
     Paren(P<Expr>),
@@ -67,6 +74,7 @@ pub enum Statement {
     Export(Variable, Option<Expr>),
     Declaration(Variable, Option<Expr>),
     Assignment(Variable, Expr),
+    Alias(Argument, Expr),
     If(Expr, Block, Option<P<Statement>>),
     Fn(String, Vec<Variable>, Block),
     Return(Option<Expr>),
@@ -94,7 +102,5 @@ impl TryFrom<Token> for Variable {
 }
 
 pub trait Precedence {
-    fn precedence(&self) -> u8 {
-        0
-    }
+    fn precedence(&self) -> u8;
 }

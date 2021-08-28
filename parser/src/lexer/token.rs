@@ -25,8 +25,6 @@ pub enum TokenType {
     Exec,
     Assignment,
     Pipe,
-    LessThen,
-    GreaterThen,
     RightBrace,
     LeftBrace,
     RightParen,

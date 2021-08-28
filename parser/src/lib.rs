@@ -10,9 +10,10 @@ use lexer::{
 pub mod ast;
 
 use ast::{
-    binop::BinOp, unop::UnOp, Argument, Ast, Block, Command, Compound, Expr, Identifier,
+    binop::BinOp, unop::UnOp, Argument, Ast, Block, Command, Compound, Direction, Expr, Identifier,
     Precedence, Statement, Variable,
 };
+
 pub mod error;
 use error::{SyntaxError, SyntaxErrorKind};
 
@@ -247,10 +248,9 @@ impl Parser {
                 }
             }
             TokenType::Symbol(symbol) => match symbol.as_str() {
-                "export" => todo!("export not implemented"),
-                "let" => Ok(Compound::Statement(self.parse_declaration()?)),
-                "const" => todo!("const vars not implemented"),
-                "alias" => todo!("alias not implemented"),
+                "export" => Ok(Compound::Statement(self.parse_declaration(true)?)),
+                "let" => Ok(Compound::Statement(self.parse_declaration(false)?)),
+                "alias" => Ok(Compound::Statement(self.parse_alias()?)),
                 _ => Ok(Compound::Expr(self.parse_expr(None)?)),
             },
             TokenType::Exec
@@ -292,7 +292,18 @@ impl Parser {
         Ok(Statement::If(expr, block, statement))
     }
 
-    fn parse_declaration(&mut self) -> Result<Statement> {
+    fn parse_alias(&mut self) -> Result<Statement> {
+        self.eat()?;
+        self.skip_space()?;
+        let arg = self.parse_argument()?;
+        self.skip_optional_space();
+        self.eat()?.expect(TokenType::Assignment)?;
+        self.skip_optional_space();
+        let expr = self.parse_expr(None)?;
+        Ok(Statement::Alias(arg, expr))
+    }
+
+    fn parse_declaration(&mut self, export: bool) -> Result<Statement> {
         self.eat()?;
         self.skip_space()?;
 
@@ -302,16 +313,32 @@ impl Parser {
         self.skip_optional_space();
         let token = match self.eat() {
             Ok(token) => token,
-            Err(_) => return Ok(Statement::Declaration(variable, None)),
+            Err(_) => {
+                if export {
+                    return Ok(Statement::Export(variable, None));
+                } else {
+                    return Ok(Statement::Declaration(variable, None));
+                }
+            }
         };
 
         match token.token_type {
             TokenType::Assignment => {
                 let _ = self.skip_space();
                 let expr = self.parse_expr(None)?;
-                Ok(Statement::Declaration(variable, Some(expr)))
+                if export {
+                    return Ok(Statement::Export(variable, Some(expr)));
+                } else {
+                    return Ok(Statement::Declaration(variable, Some(expr)));
+                }
             }
-            TokenType::SemiColon | TokenType::NewLine => Ok(Statement::Declaration(variable, None)),
+            TokenType::SemiColon | TokenType::NewLine => {
+                if export {
+                    return Ok(Statement::Export(variable, None));
+                } else {
+                    return Ok(Statement::Declaration(variable, None));
+                }
+            }
             _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
         }
     }
@@ -336,10 +363,7 @@ impl Parser {
                 Some(unop) => return Ok(Expr::Unary(unop, P::new(self.parse_call()?))),
                 None => return Ok(self.parse_call()?),
             },
-            TokenType::Exec => {
-                println!("here");
-                Ok(self.parse_call()?)
-            }
+            TokenType::Exec => Ok(self.parse_call()?),
             TokenType::LeftParen => {
                 self.eat()?.expect(TokenType::LeftParen)?;
                 self.skip_optional_space();
@@ -387,7 +411,7 @@ impl Parser {
                 Ok(literal)
             }
             TokenType::Sub | TokenType::Not => {
-                let inner = self.parse_unop()?;
+                let inner = self.eat()?.try_into()?;
                 match unop {
                     Some(outer) => Ok(Expr::Unary(outer, P::new(self.parse_expr(Some(inner))?))),
                     None => self.parse_expr(Some(inner)),
@@ -458,10 +482,6 @@ impl Parser {
         Ok(Expr::Binary(outer, P::new(lhs), P::new(rhs)))
     }
 
-    fn parse_unop(&mut self) -> Result<UnOp> {
-        self.eat()?.try_into()
-    }
-
     fn parse_call(&mut self) -> Result<Expr> {
         let command = self.parse_command()?;
         let mut args = Vec::new();
@@ -480,7 +500,27 @@ impl Parser {
                 }
             }
         }
-        let lhs = Expr::Call(command, args);
+        let mut lhs = Expr::Call(command, args);
+
+        self.skip_whitespace();
+
+        if let Ok(token) = self.token() {
+            match token.token_type {
+                TokenType::Lt => {
+                    self.eat()?;
+                    self.skip_whitespace();
+                    let rhs = self.parse_argument()?;
+                    lhs = Expr::Redirect(Direction::Left, P::new(lhs), rhs);
+                }
+                TokenType::Gt => {
+                    self.eat()?;
+                    self.skip_whitespace();
+                    let rhs = self.parse_argument()?;
+                    lhs = Expr::Redirect(Direction::Right, P::new(lhs), rhs);
+                }
+                _ => (),
+            }
+        }
 
         self.skip_whitespace();
 

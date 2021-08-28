@@ -12,14 +12,13 @@
 * Return ✅
 * Assignment ✅
 * Variable declaration ✅
-* Const variables ❌
-* Export ❌
-* Alias ❌
+* Export ✅
+* Alias ✅
 * Lists ❌
 * Indexing ❌
 * Maps ❌
 * Pipes ✅ (Not |& aka stderr pipe)
-* Redirects ❌
+* Redirects ✅
 * Glob ✅
 * Questionmark / single char glob ✅
 * Bracket globing char ✅
