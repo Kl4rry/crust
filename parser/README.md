@@ -22,7 +22,7 @@
 * Glob ✅
 * Questionmark / single char glob ✅
 * Bracket globing char ✅
-* $(expr) ❌
+* $(expr) ✅
 * Assign and modify += *= etc ❌
 * run in background using & ❌
 
@@ -31,6 +31,5 @@ There needs to be a function that returns the type of an expression.
 The type function should return a special type id.  
   
 Current plan for function calls are to treat them syntactically the same as calls to external programs.  
-$(expr) syntax to be considered. 
 
 Comparison operator chaining is currently permitted but should not be.

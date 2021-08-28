@@ -1,11 +1,15 @@
 use std::convert::TryFrom;
 
-use crate::{ast::Expr, error::SyntaxErrorKind, Token, TokenType};
+use crate::{
+    ast::{Expand, Expr},
+    error::SyntaxErrorKind,
+    Token, TokenType,
+};
 
 #[derive(Debug)]
 pub enum Literal {
     String(String),
-    Expand(String),
+    Expand(Expand),
     List(Vec<Expr>),
     Float(f64),
     Int(u128),
@@ -14,10 +18,9 @@ pub enum Literal {
 
 impl TryFrom<Token> for Literal {
     type Error = SyntaxErrorKind;
-    fn try_from(token: Token) -> Result<Self, Self::Error> {
+    fn try_from(token: Token) -> Result<Self, SyntaxErrorKind> {
         match token.token_type {
             TokenType::String(text) => Ok(Literal::String(text)),
-            TokenType::ExpandString(text) => Ok(Literal::Expand(text)),
             TokenType::Float(number, _) => Ok(Literal::Float(number)),
             TokenType::Int(number, _) => Ok(Literal::Int(number)),
             TokenType::True => Ok(Literal::Bool(true)),

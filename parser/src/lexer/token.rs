@@ -17,9 +17,9 @@ pub enum TokenType {
     Symbol(String),
     Variable(String),
     String(String),
-    ExpandString(String),
     Float(f64, String),
     Int(u128, String),
+    Quote,
     NewLine,
     Space,
     Exec,
@@ -111,6 +111,8 @@ impl TokenType {
     pub fn is_valid_id(&self) -> bool {
         matches!(
             *self,
+            TokenType::Dollar |
+            TokenType::Quote |
             TokenType::Assignment |
             //TokenType::Colon |
             TokenType::RightBracket |
@@ -130,7 +132,6 @@ impl TokenType {
             TokenType::Symbol(_) |
             TokenType::Variable(_) |
             TokenType::String(_) |
-            TokenType::ExpandString(_) |
             TokenType::Float(_, _) |
             TokenType::Int(_, _) |
             TokenType::True |
@@ -168,7 +169,6 @@ impl Token {
         match self.token_type {
             TokenType::String(text) => Ok(Identifier::String(text)),
             TokenType::Symbol(text) => Ok(Identifier::Glob(text)),
-            TokenType::ExpandString(text) => Ok(Identifier::Expand(text)),
             TokenType::Variable(_) => Ok(Identifier::Variable(self.try_into()?)),
             TokenType::Int(_, text) => Ok(Identifier::Glob(text)),
             TokenType::Float(_, text) => Ok(Identifier::Glob(text)),

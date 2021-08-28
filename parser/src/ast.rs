@@ -15,6 +15,9 @@ use unop::UnOp;
 pub mod literal;
 use literal::Literal;
 
+pub mod command;
+use command::Command;
+
 #[derive(Debug)]
 pub struct Ast {
     pub sequence: Vec<Compound>,
@@ -29,9 +32,22 @@ pub enum Compound {
 #[derive(Debug)]
 pub enum Identifier {
     Variable(Variable), // Should be expaned to variable value. Must be done before glob.
-    Expand(String),     // Should be variable expanded.
+    Expand(Expand),     // Should be variable expanded.
     Glob(String),
     String(String),
+    Expr(P<Expr>),
+}
+
+#[derive(Debug)]
+pub struct Expand {
+    pub content: Vec<ExpandKind>,
+}
+
+#[derive(Debug)]
+pub enum ExpandKind {
+    String(String),
+    Expr(P<Expr>),
+    Variable(Variable),
 }
 
 #[derive(Debug)]
@@ -57,11 +73,14 @@ pub enum Expr {
     Literal(Literal),
 }
 
-#[derive(Debug)]
-pub enum Command {
-    Expand(String),
-    String(String),
-    Variable(Variable),
+impl Expr {
+    #[inline]
+    pub fn wrap(self, unop: Option<UnOp>) -> Self {
+        match unop {
+            Some(unop) => Expr::Unary(unop, P::new(self)),
+            None => self,
+        }
+    }
 }
 
 #[derive(Debug)]

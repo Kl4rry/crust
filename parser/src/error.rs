@@ -1,4 +1,4 @@
-use std::{error::Error, fmt, iter, rc::Rc};
+use std::{error::Error, fmt, iter};
 
 use colored::Colorize;
 
@@ -22,24 +22,24 @@ impl fmt::Display for SyntaxErrorKind {
 impl Error for SyntaxErrorKind {}
 
 #[derive(Debug)]
-pub struct SyntaxError {
+pub struct SyntaxError<'a> {
     error: SyntaxErrorKind,
-    src: Rc<String>,
+    src: &'a str,
 }
 
-impl SyntaxError {
-    pub fn new(error: SyntaxErrorKind, src: Rc<String>) -> Self {
+impl<'a> SyntaxError<'a> {
+    pub fn new(error: SyntaxErrorKind, src: &'a str) -> Self {
         SyntaxError { error, src }
     }
 }
 
-impl fmt::Display for SyntaxError {
+impl<'a> fmt::Display for SyntaxError<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.error {
             SyntaxErrorKind::UnexpectedToken(ref token) => {
-                let line_span = get_line(&**self.src, &token.span);
+                let line_span = get_line(&self.src, &token.span);
                 let line = &self.src[line_span.start()..line_span.end()];
-                let line_number = get_line_number(&**self.src, &token.span);
+                let line_number = get_line_number(&self.src, &token.span);
 
                 let spacing = String::from_utf8(
                     iter::repeat(b' ')
@@ -69,7 +69,7 @@ impl fmt::Display for SyntaxError {
     }
 }
 
-impl Error for SyntaxError {}
+impl<'a> Error for SyntaxError<'a> {}
 
 fn get_line(src: &str, span: &Span) -> Span {
     let mut start = span.start();

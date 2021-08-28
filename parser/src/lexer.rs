@@ -1,10 +1,9 @@
 pub mod token;
-use std::rc::Rc;
 
 use token::{span::Span, Token, TokenType};
 
 pub struct Lexer {
-    src: Rc<String>,
+    src: String,
     current: u8,
     index: usize,
     eof: bool,
@@ -15,13 +14,13 @@ impl Lexer {
         Self {
             current: src.as_bytes()[0],
             index: 0,
-            src: Rc::new(src),
+            src,
             eof: false,
         }
     }
 
-    pub fn src(&self) -> Rc<String> {
-        self.src.clone()
+    pub fn src(&self) -> &str {
+        &self.src
     }
 
     #[inline(always)]
@@ -148,7 +147,7 @@ impl Lexer {
         }
     }
 
-    fn parse_expand_string(&mut self) -> Token {
+    /*fn parse_expand_string(&mut self) -> Token {
         let start = self.index;
         self.advance();
         while !self.eof {
@@ -165,7 +164,7 @@ impl Lexer {
             token_type: TokenType::ExpandString(value),
             span: Span::new(start, end),
         }
-    }
+    }*/
 
     fn parse_string(&mut self) -> Token {
         let start = self.index;
@@ -269,8 +268,8 @@ impl Iterator for Lexer {
                         self.advance_with(TokenType::Exec, 1)
                     }
                 }
-                b'"' => self.parse_expand_string(),
                 b'\'' => self.parse_string(),
+                b'"' => self.advance_with(TokenType::Quote, 1),
                 b')' => self.advance_with(TokenType::RightParen, 1),
                 b'(' => self.advance_with(TokenType::LeftParen, 1),
                 b'}' => self.advance_with(TokenType::RightBrace, 1),
