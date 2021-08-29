@@ -4,7 +4,7 @@ use std::{convert::TryInto, mem};
 
 use span::Span;
 
-use crate::{ast::Identifier, error::SyntaxErrorKind, Result};
+use crate::parser::{ast::Identifier, error::SyntaxErrorKind, Result};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Token {

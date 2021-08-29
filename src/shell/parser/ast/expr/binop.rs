@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use crate::{ast::Precedence, error::SyntaxErrorKind, Token, TokenType};
+use crate::parser::{ast::Precedence, error::SyntaxErrorKind, Token, TokenType};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum BinOp {

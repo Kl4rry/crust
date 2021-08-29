@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use crate::{
+use super::{
     error::SyntaxErrorKind,
     lexer::token::{Token, TokenType},
     P,

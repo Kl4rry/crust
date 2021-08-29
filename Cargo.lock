@@ -75,6 +75,8 @@ dependencies = [
 name = "crab"
 version = "0.1.0"
 dependencies = [
+ "bytecount",
+ "colored",
  "crossterm",
  "ctrlc",
  "directories",
@@ -82,6 +84,8 @@ dependencies = [
  "glob",
  "rustyline",
  "shared_child",
+ "thin-string",
+ "thin-vec",
  "whoami",
 ]
 
@@ -377,14 +381,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "parser"
-version = "0.1.0"
-dependencies = [
- "bytecount",
- "colored",
-]
-
-[[package]]
 name = "proc-macro2"
 version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -523,6 +519,21 @@ dependencies = [
  "quote",
  "unicode-xid",
 ]
+
+[[package]]
+name = "thin-string"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "775bece8430d29006cdab96224a2156bb2c678afdd71e87b0c29b714e3721ab3"
+dependencies = [
+ "thin-vec",
+]
+
+[[package]]
+name = "thin-vec"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b06f88e13a7763c201a51245db79a61ede78e35ff8d4fc9375ef8de985cbca75"
 
 [[package]]
 name = "unicode-segmentation"

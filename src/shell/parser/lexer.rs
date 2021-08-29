@@ -30,10 +30,11 @@ impl Lexer {
 
     #[inline(always)]
     fn advance(&mut self) {
-        if self.index < self.src.len() - 1 {
+        if (self.index < self.src.len() - 1) && !self.eof {
             self.index += 1;
             self.current = self.src.as_bytes()[self.index];
         } else {
+            self.index += 1;
             self.eof = true;
         }
     }
@@ -126,16 +127,13 @@ impl Lexer {
             }
         };
 
-        Token {
-            token_type,
-            span,
-        }
+        Token { token_type, span }
     }
 
     fn parse_variable(&mut self) -> Token {
         let start = self.index;
         self.advance();
-        while self.current.is_ascii_alphanumeric() || self.current == b'_' && !self.eof {
+        while (self.current.is_ascii_alphanumeric() || self.current == b'_') && !self.eof {
             self.advance();
         }
         let end = self.index;
@@ -146,25 +144,6 @@ impl Lexer {
             span: Span::new(start, end),
         }
     }
-
-    /*fn parse_expand_string(&mut self) -> Token {
-        let start = self.index;
-        self.advance();
-        while !self.eof {
-            if self.current == b'"' {
-                self.advance();
-                break;
-            }
-            self.advance();
-        }
-        let end = self.index;
-        let value = self.src[start + 1..end - 1].to_string();
-
-        Token {
-            token_type: TokenType::ExpandString(value),
-            span: Span::new(start, end),
-        }
-    }*/
 
     fn parse_string(&mut self) -> Token {
         let start = self.index;

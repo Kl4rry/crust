@@ -1,6 +1,6 @@
 use std::convert::{TryFrom, TryInto};
 
-use crate::{
+use crate::parser::{
     ast::{Expand, Variable},
     error::SyntaxErrorKind,
     lexer::token::{Token, TokenType},

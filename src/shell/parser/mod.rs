@@ -665,7 +665,7 @@ impl Parser {
     }
 }
 
-#[cfg(test)]
+/*#[cfg(test)]
 mod tests {
     use std::fs::read_to_string;
 
@@ -682,4 +682,4 @@ mod tests {
         }
         assert!(ast.is_ok());
     }
-}
+}*/

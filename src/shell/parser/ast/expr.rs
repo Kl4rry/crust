@@ -1,7 +1,9 @@
-use crate::{
+use crate::parser::{
     ast::{Argument, Literal, Variable},
     P,
 };
+
+use crate::shell::gc::Value;
 
 pub mod binop;
 use binop::BinOp;
@@ -37,5 +39,9 @@ impl Expr {
             Some(unop) => Expr::Unary(unop, P::new(self)),
             None => self,
         }
+    }
+
+    pub fn evaluate(&self) -> Value {
+        todo!();
     }
 }

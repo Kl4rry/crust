@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use crate::{
+use crate::parser::{
     ast::{Expand, Expr},
     error::SyntaxErrorKind,
     Token, TokenType,

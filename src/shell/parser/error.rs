@@ -2,7 +2,7 @@ use std::{error::Error, fmt, iter};
 
 use colored::Colorize;
 
-use crate::lexer::token::{span::Span, Token};
+use super::lexer::token::{span::Span, Token};
 
 #[derive(Debug)]
 pub enum SyntaxErrorKind {
@@ -73,7 +73,7 @@ impl<'a> Error for SyntaxError<'a> {}
 
 fn get_line(src: &str, span: &Span) -> Span {
     let mut start = span.start();
-    loop {
+    while start > 0 {
         if src.as_bytes()[start] == b'\n' {
             start += 1;
             break;

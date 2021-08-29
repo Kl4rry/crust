@@ -1,27 +1,39 @@
-use crossterm::{
-    execute,
-    style::Print,
-    terminal::SetTitle,
-};
-use rustyline::error::ReadlineError;
-use rustyline::Editor;
-use shared_child::SharedChild;
+#![allow(dead_code)]
+#![allow(unused_imports)]
 use std::{
+    collections::HashMap,
     env,
     io::{stdout, Stdout},
-    path::Path,
+    path::{Path, PathBuf},
     process::Command,
+    rc::Rc,
     sync::Arc,
 };
+
+use crossterm::{execute, style::Print, terminal::SetTitle};
+use rustyline::{error::ReadlineError, Editor};
+use shared_child::SharedChild;
+
+pub mod builtins;
+pub mod gc;
+pub mod parser;
+use parser::Parser;
 
 #[inline(always)]
 pub fn clear_str() -> &'static str {
     "\x1b[2J\x1b[3J\x1b[H"
 }
 
+#[inline(always)]
+fn dir() -> PathBuf {
+    std::env::current_dir().unwrap()
+}
+
 pub struct Shell {
+    running: bool,
     stdout: Stdout,
     main_child: Arc<Option<SharedChild>>,
+    variables: HashMap<String, Rc<gc::Value>>,
 }
 
 impl Shell {
@@ -36,8 +48,10 @@ impl Shell {
         .unwrap();
 
         Shell {
+            running: true,
             stdout: stdout(),
             main_child: child,
+            variables: HashMap::new(),
         }
     }
 
@@ -48,73 +62,31 @@ impl Shell {
             .build();
         let mut editor = Editor::<()>::with_config(config);
         let _ = editor.load_history("history.txt");
-        
-        loop {
-            let dir = std::env::current_dir().unwrap();
-            let name = format!(
-                "{}@{}",
-                whoami::username().to_ascii_lowercase(),
-                whoami::devicename().to_ascii_lowercase(),
-            );
-            let promt = format!(
-                "{} {} {}",
-                name,
-                dir.to_string_lossy(),
-                "> ",
-            );
 
-            let readline = editor.readline(&promt);
+        while self.running {
+            let readline = editor.readline(&self.promt());
             match readline {
                 Ok(line) => {
-                    editor.add_history_entry(line.as_str());
-                    
-                    let mut parts = line.trim().split_whitespace();
-                    let command = if let Some(cmd) = parts.next() {
-                        cmd
-                    } else {
-                        continue;
+                    let mut parser = Parser::new(line.clone());
+                    match parser.parse() {
+                        Ok(ast) => {
+                            println!("{:?}", ast);
+                        }
+                        Err(error) => {
+                            eprintln!("{}", error)
+                        }
                     };
-                    
-                    let args: Vec<&str> = parts.collect();
-                    match command {
-                        "cd" => {
-                            let new_dir = args.first().map_or("./", |x| *x);
-                            let root = Path::new(new_dir);
-                            if let Err(e) = env::set_current_dir(&root) {
-                                eprintln!("{}", e);
-                            }
-                        }
-                        "clear" => {
-                            //https://superuser.com/questions/1628694/how-do-i-add-a-keyboard-shortcut-to-clear-scrollback-buffer-in-windows-terminal
-                            (execute! {
-                                self.stdout,
-                                Print(clear_str()),
-                            })
-                            .unwrap();
-                        }
-                        "pwd" => {
-                            println!("{}", dir.to_string_lossy());
-                        }
-                        "exit" => {
-                            return;
-                        }
-                        "size" => {
-                            let (w, h) = crossterm::terminal::size().unwrap();
-                            println!("{} {}", w, h);
-                        }
-                        command => {
-                            self.execute_command(command, &args);
-                        }
-                    }
+                    editor.add_history_entry(line.as_str());
                 }
                 Err(ReadlineError::Interrupted) => {
                     println!("^C");
+                    self.running = false;
                 }
                 Err(ReadlineError::Eof) => {
                     println!("^D");
                 }
                 Err(err) => {
-                    println!("Error: {:?}", err);
+                    println!("Error: {}", err);
                     break;
                 }
             }
@@ -122,7 +94,17 @@ impl Shell {
         editor.save_history("history.txt").unwrap();
     }
 
-    pub fn execute_command(&mut self, cmd_name: &str, args: &[&str]) {
+    fn promt(&self) -> String {
+        let dir = std::env::current_dir().unwrap();
+        let name = format!(
+            "{}@{}",
+            whoami::username().to_ascii_lowercase(),
+            whoami::devicename().to_ascii_lowercase(),
+        );
+        format!("{} {} {}", name, dir.to_string_lossy(), "> ",)
+    }
+
+    pub fn _execute_command(&mut self, cmd_name: &str, args: &[&str]) {
         let mut command = Command::new(cmd_name);
         command.args(args);
         let shared_child = SharedChild::spawn(&mut command);
