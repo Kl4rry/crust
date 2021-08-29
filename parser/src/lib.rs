@@ -10,8 +10,10 @@ use lexer::{
 pub mod ast;
 
 use ast::{
-    binop::BinOp, command::Command, literal::Literal, unop::UnOp, Argument, Ast, Block, Compound,
-    Direction, Expand, ExpandKind, Expr, Identifier, Precedence, Statement, Variable,
+    expr::{binop::BinOp, command::Command, unop::UnOp, Direction, Expr},
+    literal::Literal,
+    Argument, Ast, Block, Compound, Expand, ExpandKind, Identifier, Precedence, Statement,
+    Variable,
 };
 
 pub mod error;
@@ -386,16 +388,16 @@ impl Parser {
                 let _ = self.skip_space();
                 let expr = self.parse_expr(None)?;
                 if export {
-                    return Ok(Statement::Export(variable, Some(expr)));
+                    Ok(Statement::Export(variable, Some(expr)))
                 } else {
-                    return Ok(Statement::Declaration(variable, Some(expr)));
+                    Ok(Statement::Declaration(variable, Some(expr)))
                 }
             }
             TokenType::SemiColon | TokenType::NewLine => {
                 if export {
-                    return Ok(Statement::Export(variable, None));
+                    Ok(Statement::Export(variable, None))
                 } else {
-                    return Ok(Statement::Declaration(variable, None));
+                    Ok(Statement::Declaration(variable, None))
                 }
             }
             _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
@@ -473,56 +475,53 @@ impl Parser {
 
         let mut rhs = self.parse_expr(None)?;
 
-        match rhs {
-            Expr::Binary(ref mut inner, ref mut rhs_l, ref mut rhs_r) => {
-                if outer.precedence() > inner.precedence() {
-                    // this madness corrects operator precedence
-                    // this is an example of how to swaps correct the tree
-                    //
-                    // lhs = x
-                    // rhs_l = z
-                    // rhs_r = y
-                    // outer = *
-                    // inner = +
-                    //
-                    // x * z + y intital is parsed as below
-                    //
-                    //       *
-                    //      / \
-                    //     x   +
-                    //        / \
-                    //       z   y
-                    std::mem::swap(&mut outer, inner);
-                    // step 1 swap operators
-                    //       +
-                    //      / \
-                    //     x   *
-                    //        / \
-                    //       z   y
-                    std::mem::swap(&mut **rhs_r, &mut lhs);
-                    // step 2 swap y and x
-                    //       +
-                    //      / \
-                    //     y   *
-                    //        / \
-                    //       z   x
-                    std::mem::swap(rhs_r, rhs_l);
-                    // step 3 swap x and z
-                    //       +
-                    //      / \
-                    //     y   *
-                    //        / \
-                    //       x   z
-                    std::mem::swap(&mut rhs, &mut lhs);
-                    // step 4 swap rhs and lhs
-                    //       +
-                    //      / \
-                    //     *   y
-                    //    / \
-                    //   x   z
-                }
+        if let Expr::Binary(ref mut inner, ref mut rhs_l, ref mut rhs_r) = rhs {
+            if outer.precedence() > inner.precedence() {
+                // this madness corrects operator precedence
+                // this is an example of how to swaps correct the tree
+                //
+                // lhs = x
+                // rhs_l = z
+                // rhs_r = y
+                // outer = *
+                // inner = +
+                //
+                // x * z + y intital is parsed as below
+                //
+                //       *
+                //      / \
+                //     x   +
+                //        / \
+                //       z   y
+                std::mem::swap(&mut outer, inner);
+                // step 1 swap operators
+                //       +
+                //      / \
+                //     x   *
+                //        / \
+                //       z   y
+                std::mem::swap(&mut **rhs_r, &mut lhs);
+                // step 2 swap y and x
+                //       +
+                //      / \
+                //     y   *
+                //        / \
+                //       z   x
+                std::mem::swap(rhs_r, rhs_l);
+                // step 3 swap x and z
+                //       +
+                //      / \
+                //     y   *
+                //        / \
+                //       x   z
+                std::mem::swap(&mut rhs, &mut lhs);
+                // step 4 swap rhs and lhs
+                //       +
+                //      / \
+                //     *   y
+                //    / \
+                //   x   z
             }
-            _ => (),
         }
 
         Ok(Expr::Binary(outer, P::new(lhs), P::new(rhs)))
@@ -571,14 +570,11 @@ impl Parser {
         self.skip_optional_space();
 
         if let Ok(token) = self.token() {
-            match token.token_type {
-                TokenType::Pipe => {
-                    self.eat()?;
-                    self.skip_whitespace();
-                    let rhs = self.parse_call()?;
-                    return Ok(Expr::Pipe(P::new(lhs), P::new(rhs)));
-                }
-                _ => (),
+            if token.token_type == TokenType::Pipe {
+                self.eat()?;
+                self.skip_whitespace();
+                let rhs = self.parse_call()?;
+                return Ok(Expr::Pipe(P::new(lhs), P::new(rhs)));
             }
         }
 
@@ -630,26 +626,26 @@ impl Parser {
                         Some(Identifier::String(text)) => {
                             text.push_str(&string);
                         }
-                        _ => ids.push(Identifier::String(string.into())),
+                        _ => ids.push(Identifier::String(string)),
                     },
                     TokenType::Symbol(string) => match ids.last_mut() {
                         Some(Identifier::Glob(text)) => {
                             text.push_str(&string);
                         }
-                        _ => ids.push(Identifier::Glob(string.into())),
+                        _ => ids.push(Identifier::Glob(string)),
                     },
                     TokenType::Variable(_) => ids.push(Identifier::Variable(token.try_into()?)),
                     TokenType::Int(_, string) => match ids.last_mut() {
                         Some(Identifier::Glob(text)) => {
                             text.push_str(&string);
                         }
-                        _ => ids.push(Identifier::Glob(string.into())),
+                        _ => ids.push(Identifier::Glob(string)),
                     },
                     TokenType::Float(_, string) => match ids.last_mut() {
                         Some(Identifier::Glob(text)) => {
                             text.push_str(&string);
                         }
-                        _ => ids.push(Identifier::Glob(string.into())),
+                        _ => ids.push(Identifier::Glob(string)),
                     },
                     _ => {
                         let string = token.try_into_glob_str()?;

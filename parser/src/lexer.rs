@@ -127,7 +127,7 @@ impl Lexer {
         };
 
         Token {
-            token_type: token_type,
+            token_type,
             span,
         }
     }

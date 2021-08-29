@@ -6,17 +6,11 @@ use crate::{
     P,
 };
 
-pub mod binop;
-use binop::BinOp;
-
-pub mod unop;
-use unop::UnOp;
-
 pub mod literal;
 use literal::Literal;
 
-pub mod command;
-use command::Command;
+pub mod expr;
+use expr::Expr;
 
 #[derive(Debug)]
 pub struct Ast {
@@ -53,34 +47,6 @@ pub enum ExpandKind {
 #[derive(Debug)]
 pub struct Variable {
     pub name: String,
-}
-
-#[derive(Debug)]
-pub enum Direction {
-    Left,
-    Right,
-}
-
-#[derive(Debug)]
-pub enum Expr {
-    Call(Command, Vec<Argument>),
-    Pipe(P<Expr>, P<Expr>),
-    Redirect(Direction, P<Expr>, Argument),
-    Variable(Variable),
-    Binary(BinOp, P<Expr>, P<Expr>),
-    Paren(P<Expr>),
-    Unary(UnOp, P<Expr>),
-    Literal(Literal),
-}
-
-impl Expr {
-    #[inline]
-    pub fn wrap(self, unop: Option<UnOp>) -> Self {
-        match unop {
-            Some(unop) => Expr::Unary(unop, P::new(self)),
-            None => self,
-        }
-    }
 }
 
 #[derive(Debug)]

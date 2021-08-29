@@ -196,7 +196,7 @@ impl Token {
             TokenType::False => Ok("false"),
             TokenType::Mul => Ok("*"),
             //TokenType::Colon => ":",
-            _ => return Err(SyntaxErrorKind::UnexpectedToken(self)),
+            _ => Err(SyntaxErrorKind::UnexpectedToken(self)),
         }
     }
 }

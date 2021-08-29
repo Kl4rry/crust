@@ -37,9 +37,9 @@ impl<'a> fmt::Display for SyntaxError<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.error {
             SyntaxErrorKind::UnexpectedToken(ref token) => {
-                let line_span = get_line(&self.src, &token.span);
+                let line_span = get_line(self.src, &token.span);
                 let line = &self.src[line_span.start()..line_span.end()];
-                let line_number = get_line_number(&self.src, &token.span);
+                let line_number = get_line_number(self.src, &token.span);
 
                 let spacing = String::from_utf8(
                     iter::repeat(b' ')
@@ -50,7 +50,7 @@ impl<'a> fmt::Display for SyntaxError<'a> {
 
                 let start = token.span.start() - line_span.start();
                 let marker_spacing = get_string(start, b' ');
-                let marker = get_string(token.span.len(), b'^').red();
+                let marker = get_string(token.span.length(), b'^').red();
 
                 writeln!(f, "{}: Unexpected token", "Syntax error".red())?;
                 writeln!(f, "{}{}", spacing, "|".blue())?;

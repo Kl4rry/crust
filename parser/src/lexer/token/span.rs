@@ -24,7 +24,7 @@ impl Span {
     }
 
     #[inline]
-    pub fn len(&self) -> usize {
+    pub fn length(&self) -> usize {
         (self.end - self.start) as usize
     }
 }

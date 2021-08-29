@@ -25,6 +25,7 @@
 * $(expr) ✅
 * Assign and modify += *= etc ❌
 * run in background using & ❌
+* Escapes sequences ❌
 
 # Builtin thoughts
 There needs to be a function that returns the type of an expression.  
