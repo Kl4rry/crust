@@ -1,6 +1,7 @@
+#![feature(iter_intersperse)]
 mod shell;
-use shell::Shell;
 pub use shell::parser;
+use shell::Shell;
 
 fn main() {
     let mut shell = Shell::new();

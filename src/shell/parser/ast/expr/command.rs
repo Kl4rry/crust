@@ -1,9 +1,9 @@
 use std::convert::{TryFrom, TryInto};
 
 use crate::parser::{
-    ast::{Expand, Variable},
-    error::SyntaxErrorKind,
+    ast::{expr::argument::Expand, Variable},
     lexer::token::{Token, TokenType},
+    syntax_error::SyntaxErrorKind,
 };
 
 #[derive(Debug)]

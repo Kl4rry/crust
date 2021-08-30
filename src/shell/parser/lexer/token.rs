@@ -4,7 +4,7 @@ use std::{convert::TryInto, mem};
 
 use span::Span;
 
-use crate::parser::{ast::Identifier, error::SyntaxErrorKind, Result};
+use crate::parser::{ast::expr::argument::Identifier, syntax_error::SyntaxErrorKind, Result};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Token {
@@ -168,11 +168,11 @@ impl Token {
     pub fn try_into_id(self) -> Result<Identifier> {
         match self.token_type {
             TokenType::String(text) => Ok(Identifier::String(text)),
-            TokenType::Symbol(text) => Ok(Identifier::Glob(text)),
+            TokenType::Symbol(text) => Ok(Identifier::Bare(text)),
             TokenType::Variable(_) => Ok(Identifier::Variable(self.try_into()?)),
-            TokenType::Int(_, text) => Ok(Identifier::Glob(text)),
-            TokenType::Float(_, text) => Ok(Identifier::Glob(text)),
-            _ => return Ok(Identifier::Glob(self.try_into_glob_str()?.into())),
+            TokenType::Int(_, text) => Ok(Identifier::Bare(text)),
+            TokenType::Float(_, text) => Ok(Identifier::Bare(text)),
+            _ => return Ok(Identifier::Bare(self.try_into_glob_str()?.into())),
         }
     }
 

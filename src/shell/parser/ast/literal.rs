@@ -1,8 +1,8 @@
 use std::convert::TryFrom;
 
 use crate::parser::{
-    ast::{Expand, Expr},
-    error::SyntaxErrorKind,
+    ast::{expr::argument::Expand, Expr},
+    syntax_error::SyntaxErrorKind,
     Token, TokenType,
 };
 

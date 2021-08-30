@@ -72,24 +72,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crab"
-version = "0.1.0"
-dependencies = [
- "bytecount",
- "colored",
- "crossterm",
- "ctrlc",
- "directories",
- "dirs",
- "glob",
- "rustyline",
- "shared_child",
- "thin-string",
- "thin-vec",
- "whoami",
-]
-
-[[package]]
 name = "crossterm"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -115,13 +97,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "ctrlc"
-version = "3.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "377c9b002a72a0b2c1a18c62e2f3864bdfea4a015e3683a96e24aa45dd6c02d1"
+name = "crust"
+version = "0.1.0"
 dependencies = [
- "nix 0.22.1",
- "winapi",
+ "bytecount",
+ "colored",
+ "crossterm",
+ "directories",
+ "dirs",
+ "glob",
+ "rustyline",
+ "shared_child",
+ "thin-string",
+ "thin-vec",
+ "whoami",
 ]
 
 [[package]]
@@ -334,19 +323,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nix"
-version = "0.22.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7555d6c7164cc913be1ce7f95cbecdabda61eb2ccd89008524af306fb7f5031"
-dependencies = [
- "bitflags",
- "cc",
- "cfg-if",
- "libc",
- "memoffset",
-]
-
-[[package]]
 name = "ntapi"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -441,7 +417,7 @@ dependencies = [
  "libc",
  "log",
  "memchr",
- "nix 0.20.1",
+ "nix",
  "radix_trie",
  "scopeguard",
  "smallvec",

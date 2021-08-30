@@ -69,8 +69,8 @@ impl Shell {
                 Ok(line) => {
                     let mut parser = Parser::new(line.clone());
                     match parser.parse() {
-                        Ok(ast) => {
-                            println!("{:?}", ast);
+                        Ok(mut ast) => {
+                            let _res = ast.eval(self);
                         }
                         Err(error) => {
                             eprintln!("{}", error)

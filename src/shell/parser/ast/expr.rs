@@ -1,9 +1,11 @@
-use crate::parser::{
-    ast::{Argument, Literal, Variable},
-    P,
+use crate::{
+    parser::{
+        ast::{Literal, Variable},
+        runtime_error::RunTimeError,
+        P,
+    },
+    shell::{gc::Value, Shell},
 };
-
-use crate::shell::gc::Value;
 
 pub mod binop;
 use binop::BinOp;
@@ -13,6 +15,9 @@ use unop::UnOp;
 
 pub mod command;
 use command::Command;
+
+pub mod argument;
+use argument::Argument;
 
 #[derive(Debug)]
 pub enum Direction {
@@ -41,7 +46,11 @@ impl Expr {
         }
     }
 
-    pub fn evaluate(&self) -> Value {
+    pub fn eval(&mut self, shell: &mut Shell) -> Result<Value, RunTimeError> {
+        match self {
+            Expr::Call(command, args) => {}
+            _ => todo!(),
+        }
         todo!();
     }
 }

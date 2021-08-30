@@ -1,9 +1,14 @@
 use std::convert::TryFrom;
 
-use super::{
-    error::SyntaxErrorKind,
-    lexer::token::{Token, TokenType},
-    P,
+use crate::{
+    parser::{
+        lexer::token::{Token, TokenType},
+        runtime_error::RunTimeError,
+        syntax_error::SyntaxErrorKind,
+        P,
+    },
+    shell::gc::Value,
+    Shell,
 };
 
 pub mod literal;
@@ -12,9 +17,24 @@ use literal::Literal;
 pub mod expr;
 use expr::Expr;
 
+pub mod statement;
+use statement::Statement;
+
+pub mod variable;
+use variable::Variable;
+
 #[derive(Debug)]
 pub struct Ast {
     pub sequence: Vec<Compound>,
+}
+
+impl Ast {
+    pub fn eval(&mut self, shell: &mut Shell) -> Result<(), RunTimeError> {
+        for compound in &mut self.sequence {
+            compound.eval(shell)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -23,67 +43,21 @@ pub enum Compound {
     Expr(Expr),
 }
 
-#[derive(Debug)]
-pub enum Identifier {
-    Variable(Variable), // Should be expaned to variable value. Must be done before glob.
-    Expand(Expand),     // Should be variable expanded.
-    Glob(String),
-    String(String),
-    Expr(P<Expr>),
-}
-
-#[derive(Debug)]
-pub struct Expand {
-    pub content: Vec<ExpandKind>,
-}
-
-#[derive(Debug)]
-pub enum ExpandKind {
-    String(String),
-    Expr(P<Expr>),
-    Variable(Variable),
-}
-
-#[derive(Debug)]
-pub struct Variable {
-    pub name: String,
-}
-
-#[derive(Debug)]
-pub struct Argument {
-    pub parts: Vec<Identifier>,
-}
-
-#[derive(Debug)]
-pub enum Statement {
-    Export(Variable, Option<Expr>),
-    Declaration(Variable, Option<Expr>),
-    Assignment(Variable, Expr),
-    Alias(Argument, Expr),
-    If(Expr, Block, Option<P<Statement>>),
-    Fn(String, Vec<Variable>, Block),
-    Return(Option<Expr>),
-    Loop(Block),
-    While(Expr, Block),
-    For(Variable, Expr, Block),
-    Break,
-    Continue,
-    Block(Block),
+impl Compound {
+    pub fn eval(&mut self, shell: &mut Shell) -> Result<Option<Value>, RunTimeError> {
+        match self {
+            Compound::Expr(expr) => Ok(Some(expr.eval(shell)?)),
+            Compound::Statement(statement) => {
+                statement.eval(shell)?;
+                Ok(None)
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct Block {
     pub sequence: Vec<Compound>,
-}
-
-impl TryFrom<Token> for Variable {
-    type Error = SyntaxErrorKind;
-    fn try_from(token: Token) -> Result<Self, Self::Error> {
-        match token.token_type {
-            TokenType::Variable(name) => Ok(Variable { name }),
-            _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
-        }
-    }
 }
 
 pub trait Precedence {

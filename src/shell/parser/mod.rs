@@ -10,14 +10,23 @@ use lexer::{
 pub mod ast;
 
 use ast::{
-    expr::{binop::BinOp, command::Command, unop::UnOp, Direction, Expr},
+    expr::{
+        argument::{Argument, Expand, ExpandKind, Identifier},
+        binop::BinOp,
+        command::Command,
+        unop::UnOp,
+        Direction, Expr,
+    },
     literal::Literal,
-    Argument, Ast, Block, Compound, Expand, ExpandKind, Identifier, Precedence, Statement,
-    Variable,
+    statement::Statement,
+    variable::Variable,
+    Ast, Block, Compound, Precedence,
 };
 
-pub mod error;
-use error::{SyntaxError, SyntaxErrorKind};
+pub mod syntax_error;
+use syntax_error::{SyntaxError, SyntaxErrorKind};
+
+pub mod runtime_error;
 
 pub type Result<T> = std::result::Result<T, SyntaxErrorKind>;
 pub type P<T> = Box<T>;
@@ -629,31 +638,31 @@ impl Parser {
                         _ => ids.push(Identifier::String(string)),
                     },
                     TokenType::Symbol(string) => match ids.last_mut() {
-                        Some(Identifier::Glob(text)) => {
+                        Some(Identifier::Bare(text)) => {
                             text.push_str(&string);
                         }
-                        _ => ids.push(Identifier::Glob(string)),
+                        _ => ids.push(Identifier::Bare(string)),
                     },
                     TokenType::Variable(_) => ids.push(Identifier::Variable(token.try_into()?)),
                     TokenType::Int(_, string) => match ids.last_mut() {
-                        Some(Identifier::Glob(text)) => {
+                        Some(Identifier::Bare(text)) => {
                             text.push_str(&string);
                         }
-                        _ => ids.push(Identifier::Glob(string)),
+                        _ => ids.push(Identifier::Bare(string)),
                     },
                     TokenType::Float(_, string) => match ids.last_mut() {
-                        Some(Identifier::Glob(text)) => {
+                        Some(Identifier::Bare(text)) => {
                             text.push_str(&string);
                         }
-                        _ => ids.push(Identifier::Glob(string)),
+                        _ => ids.push(Identifier::Bare(string)),
                     },
                     _ => {
                         let string = token.try_into_glob_str()?;
                         match ids.last_mut() {
-                            Some(Identifier::Glob(text)) => {
+                            Some(Identifier::Bare(text)) => {
                                 text.push_str(string);
                             }
-                            _ => ids.push(Identifier::Glob(string.into())),
+                            _ => ids.push(Identifier::Bare(string.into())),
                         }
                     }
                 }

@@ -19,6 +19,7 @@ impl Lexer {
         }
     }
 
+    #[inline(always)]
     pub fn src(&self) -> &str {
         &self.src
     }
@@ -30,12 +31,13 @@ impl Lexer {
 
     #[inline(always)]
     fn advance(&mut self) {
-        if (self.index < self.src.len() - 1) && !self.eof {
+        if !self.eof {
             self.index += 1;
-            self.current = self.src.as_bytes()[self.index];
-        } else {
-            self.index += 1;
-            self.eof = true;
+            if self.index < self.src.len() - 1 {
+                self.current = self.src.as_bytes()[self.index];
+            } else {
+                self.eof = true;
+            }
         }
     }
 
