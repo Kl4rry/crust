@@ -31,13 +31,12 @@ impl Lexer {
 
     #[inline(always)]
     fn advance(&mut self) {
-        if !self.eof {
+        if (self.index < self.src.len() - 1) && !self.eof {
             self.index += 1;
-            if self.index < self.src.len() - 1 {
-                self.current = self.src.as_bytes()[self.index];
-            } else {
-                self.eof = true;
-            }
+            self.current = self.src.as_bytes()[self.index];
+        } else if !self.eof {
+            self.index += 1;
+            self.eof = true;
         }
     }
 

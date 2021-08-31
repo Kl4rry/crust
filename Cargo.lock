@@ -110,6 +110,7 @@ dependencies = [
  "shared_child",
  "thin-string",
  "thin-vec",
+ "timing",
  "whoami",
 ]
 
@@ -510,6 +511,12 @@ name = "thin-vec"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b06f88e13a7763c201a51245db79a61ede78e35ff8d4fc9375ef8de985cbca75"
+
+[[package]]
+name = "timing"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d9e38db95716e38f864ad9e23a5888a376b2efe8bae6b2b77b3e70fd5566f39"
 
 [[package]]
 name = "unicode-segmentation"

@@ -62,18 +62,27 @@ impl Argument {
         }
 
         if glob {
-            let pattern: String = parts.into_iter().map(|(escape, string)| {
-                if escape {
-                    glob::Pattern::escape(&string)
-                } else {
-                    string
-                }
-            }).collect();
+            let pattern: String = parts
+                .into_iter()
+                .map(|(escape, string)| {
+                    if escape {
+                        glob::Pattern::escape(&string)
+                    } else {
+                        string
+                    }
+                })
+                .collect();
             let mut entries = Vec::new();
-            for entry in glob::glob(&pattern)? {
+            for entry in glob::glob(&format!("./{}", &pattern))? {
                 entries.push(entry?.to_string_lossy().to_string());
             }
-            Ok(entries)
+
+            if entries.len() > 0 {
+                Ok(entries)
+            } else {
+                Err(RunTimeError::NoMatchError)
+            }
+            
         } else {
             Ok(vec![parts.into_iter().map(|(_, string)| string).collect()])
         }

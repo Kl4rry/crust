@@ -1,9 +1,13 @@
 use std::convert::{TryFrom, TryInto};
 
-use crate::parser::{
-    ast::{expr::argument::Expand, Variable},
-    lexer::token::{Token, TokenType},
-    syntax_error::SyntaxErrorKind,
+use crate::{
+    parser::{
+        ast::{expr::argument::Expand, Variable},
+        lexer::token::{Token, TokenType},
+        runtime_error::RunTimeError,
+        syntax_error::SyntaxErrorKind,
+    },
+    Shell,
 };
 
 #[derive(Debug)]
@@ -11,6 +15,16 @@ pub enum Command {
     Expand(Expand),
     String(String),
     Variable(Variable),
+}
+
+impl Command {
+    pub fn eval(&mut self, shell: &mut Shell) -> Result<String, RunTimeError> {
+        match self {
+            Command::Variable(var) => Ok((*var.eval(shell)?).try_to_string()?),
+            Command::Expand(_expand) => todo!(),
+            Command::String(string) => Ok(string.clone()),
+        }
+    }
 }
 
 impl TryFrom<Token> for Command {

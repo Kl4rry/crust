@@ -1,6 +1,6 @@
 use std::{error::Error, fmt};
 
-use glob::{PatternError, GlobError};
+use glob::{GlobError, PatternError};
 
 #[derive(Debug)]
 pub enum RunTimeError {
@@ -9,6 +9,7 @@ pub enum RunTimeError {
     OutOfIndexError,
     GlobError(GlobError),
     PatternError(PatternError),
+    NoMatchError,
     VariableNotFound,
     ConversionError,
 }

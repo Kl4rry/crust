@@ -48,9 +48,16 @@ impl Expr {
 
     pub fn eval(&mut self, shell: &mut Shell) -> Result<Value, RunTimeError> {
         match self {
-            Expr::Call(command, args) => {}
+            Expr::Call(command, args) => {
+                let mut expanded_args = Vec::new();
+                for arg in args {
+                    expanded_args.extend(arg.eval(shell)?.into_iter());
+                }
+                println!("command: {}", command.eval(shell)?);
+                println!("args: {:?}", expanded_args);
+            }
             _ => todo!(),
         }
-        todo!();
+        Ok(Value::ExitStatus(0))
     }
 }
