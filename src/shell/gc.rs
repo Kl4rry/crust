@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::TryInto};
+use std::{collections::HashMap, ops::Range};
 
 use thin_string::ThinString;
 use thin_vec::ThinVec;
@@ -12,15 +12,8 @@ pub enum Value {
     String(ThinString),
     List(ThinVec<Value>),
     Map(Box<HashMap<Value, Value>>),
-    Range(Box<Range>),
+    Range(Box<Range<i64>>),
     ExitStatus(i64),
-}
-
-#[allow(dead_code)]
-pub struct Range {
-    start: i64,
-    end: i64,
-    current: i64,
 }
 
 impl Value {
@@ -35,6 +28,19 @@ impl Value {
                     vec.push(value.try_to_string()?);
                 }
                 Ok(vec.join(" "))
+            }
+            Self::Range(range) => {
+                let mut vec: Vec<i64> = Vec::new();
+                vec.extend(range.clone().into_iter());
+
+                Ok(vec
+                    .into_iter()
+                    .map(|x| {
+                        let mut string = x.to_string();
+                        string.push(' ');
+                        string
+                    })
+                    .collect())
             }
             Self::ExitStatus(number) => Ok(number.to_string()),
             _ => Err(RunTimeError::ConversionError),

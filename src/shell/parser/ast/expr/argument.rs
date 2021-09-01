@@ -1,8 +1,5 @@
-use std::convert::TryInto;
-
 use crate::{
     parser::{runtime_error::RunTimeError, Expr, Variable, P},
-    shell::gc::Value,
     Shell,
 };
 
@@ -45,7 +42,7 @@ pub struct Argument {
 }
 
 impl Argument {
-    pub fn eval(&mut self, shell: &mut Shell) -> Result<Vec<String>, RunTimeError> {
+    pub fn eval(&mut self, shell: &mut Shell) -> Result<ArgumentValue, RunTimeError> {
         let mut parts = Vec::new();
         let mut glob = false;
         for part in &mut self.parts {
@@ -53,6 +50,9 @@ impl Argument {
                 Identifier::Bare(string) => {
                     if string.contains('*') {
                         glob = true;
+                    }
+                    if string.contains('~') {
+                        *string = string.replace('~', shell.home_dir.as_os_str().to_str().unwrap());
                     }
                     (part.eval(shell).unwrap(), false)
                 }
@@ -78,13 +78,19 @@ impl Argument {
             }
 
             if entries.len() > 0 {
-                Ok(entries)
+                Ok(ArgumentValue::Multi(entries))
             } else {
                 Err(RunTimeError::NoMatchError)
             }
-            
         } else {
-            Ok(vec![parts.into_iter().map(|(_, string)| string).collect()])
+            Ok(ArgumentValue::Single(
+                parts.into_iter().map(|(_, string)| string).collect(),
+            ))
         }
     }
+}
+
+pub enum ArgumentValue {
+    Single(String),
+    Multi(Vec<String>),
 }

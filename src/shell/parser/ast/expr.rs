@@ -4,7 +4,7 @@ use crate::{
         runtime_error::RunTimeError,
         P,
     },
-    shell::{gc::Value, Shell},
+    shell::{builtins, gc::Value, Shell},
 };
 
 pub mod binop;
@@ -17,7 +17,7 @@ pub mod command;
 use command::Command;
 
 pub mod argument;
-use argument::Argument;
+use argument::{Argument, ArgumentValue};
 
 #[derive(Debug)]
 pub enum Direction {
@@ -51,10 +51,17 @@ impl Expr {
             Expr::Call(command, args) => {
                 let mut expanded_args = Vec::new();
                 for arg in args {
-                    expanded_args.extend(arg.eval(shell)?.into_iter());
+                    let arg = arg.eval(shell)?;
+                    match arg {
+                        ArgumentValue::Single(string) => expanded_args.push(string),
+                        ArgumentValue::Multi(vec) => expanded_args.extend(vec.into_iter()),
+                    }
                 }
-                println!("command: {}", command.eval(shell)?);
-                println!("args: {:?}", expanded_args);
+                let command = command.eval(shell)?;
+
+                if let Some(res) = builtins::run_builtin(shell, &command, &expanded_args) {
+                    return res;
+                }
             }
             _ => todo!(),
         }

@@ -1,10 +1,8 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
+//#![allow(dead_code)]
 use std::{
     collections::HashMap,
-    env,
     io::{stdout, Stdout},
-    path::{Path, PathBuf},
+    path::PathBuf,
     process::Command,
     rc::Rc,
     sync::Arc,
@@ -17,7 +15,7 @@ use shared_child::SharedChild;
 pub mod builtins;
 pub mod gc;
 pub mod parser;
-use parser::Parser;
+use parser::{runtime_error::RunTimeError, Parser};
 
 #[inline(always)]
 pub fn clear_str() -> &'static str {
@@ -31,6 +29,8 @@ fn dir() -> PathBuf {
 
 pub struct Shell {
     running: bool,
+    exit_status: i64,
+    home_dir: PathBuf,
     stdout: Stdout,
     main_child: Arc<Option<SharedChild>>,
     variables: HashMap<String, Rc<gc::Value>>,
@@ -47,15 +47,19 @@ impl Shell {
         })
         .unwrap();
 
+        let dirs = directories::UserDirs::new().unwrap();
+
         Shell {
             running: true,
+            exit_status: 0,
+            home_dir: dirs.home_dir().to_path_buf(),
             stdout: stdout(),
             main_child: child,
             variables: HashMap::new(),
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(mut self) -> i64 {
         let config = rustyline::Config::builder()
             .color_mode(rustyline::ColorMode::Forced)
             .bell_style(rustyline::config::BellStyle::None)
@@ -70,7 +74,12 @@ impl Shell {
                     let mut parser = Parser::new(line.clone());
                     match parser.parse() {
                         Ok(mut ast) => {
-                            let _res = ast.eval(self);
+                            let res = ast.eval(&mut self);
+                            match res {
+                                Ok(_value) => (),
+                                Err(RunTimeError::Exit) => (),
+                                Err(error) => eprintln!("{}", error),
+                            }
                         }
                         Err(error) => {
                             eprintln!("{}", error)
@@ -92,6 +101,7 @@ impl Shell {
             }
         }
         editor.save_history("history.txt").unwrap();
+        self.exit_status
     }
 
     fn promt(&self) -> String {

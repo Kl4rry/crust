@@ -1,11 +1,6 @@
-use std::convert::TryFrom;
-
 use crate::{
     parser::{
-        lexer::token::{Token, TokenType},
         runtime_error::RunTimeError,
-        syntax_error::SyntaxErrorKind,
-        P,
     },
     shell::gc::Value,
     Shell,
