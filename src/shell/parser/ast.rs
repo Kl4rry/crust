@@ -1,10 +1,4 @@
-use crate::{
-    parser::{
-        runtime_error::RunTimeError,
-    },
-    shell::gc::Value,
-    Shell,
-};
+use crate::{parser::runtime_error::RunTimeError, shell::gc::Value, Shell};
 
 pub mod literal;
 use literal::Literal;

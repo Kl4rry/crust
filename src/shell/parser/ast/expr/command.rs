@@ -18,7 +18,7 @@ pub enum Command {
 }
 
 impl Command {
-    pub fn eval(&mut self, shell: &mut Shell) -> Result<String, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<String, RunTimeError> {
         match self {
             Command::Variable(var) => Ok((*var.eval(shell)?).try_to_string()?),
             Command::Expand(_expand) => todo!(),

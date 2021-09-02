@@ -9,6 +9,7 @@ use crate::parser::runtime_error::RunTimeError;
 pub enum Value {
     Int(i64),
     Float(f64),
+    Bool(bool),
     String(ThinString),
     List(ThinVec<Value>),
     Map(Box<HashMap<Value, Value>>),
@@ -43,6 +44,24 @@ impl Value {
                     .collect())
             }
             Self::ExitStatus(number) => Ok(number.to_string()),
+            Self::Bool(boolean) => Ok(boolean.to_string()),
+            _ => Err(RunTimeError::ConversionError),
+        }
+    }
+
+    pub fn try_to_int(&self) -> Result<i64, RunTimeError> {
+        match self {
+            Self::Int(number) => Ok(*number),
+            Self::Float(number) => Ok(*number as i64),
+            Self::String(string) => {
+                let res = string.parse();
+                match res {
+                    Ok(number) => Ok(number),
+                    Err(_) => Err(RunTimeError::ConversionError),
+                }
+            }
+            Self::ExitStatus(number) => Ok(*number as i64),
+            Self::Bool(boolean) => Ok(*boolean as i64),
             _ => Err(RunTimeError::ConversionError),
         }
     }

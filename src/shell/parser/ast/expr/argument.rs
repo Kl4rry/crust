@@ -13,7 +13,7 @@ pub enum Identifier {
 }
 
 impl Identifier {
-    pub fn eval(&mut self, shell: &mut Shell) -> Result<String, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<String, RunTimeError> {
         match self {
             Identifier::Variable(var) => Ok((*var.eval(shell)?).try_to_string()?),
             Identifier::Expand(_expand) => todo!(),
@@ -42,19 +42,20 @@ pub struct Argument {
 }
 
 impl Argument {
-    pub fn eval(&mut self, shell: &mut Shell) -> Result<ArgumentValue, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<ArgumentValue, RunTimeError> {
         let mut parts = Vec::new();
         let mut glob = false;
-        for part in &mut self.parts {
+        for part in self.parts.iter() {
             let (string, escape) = match part {
                 Identifier::Bare(string) => {
+                    let mut string = string.clone();
                     if string.contains('*') {
                         glob = true;
                     }
                     if string.contains('~') {
-                        *string = string.replace('~', shell.home_dir.as_os_str().to_str().unwrap());
+                        string = string.replace('~', shell.home_dir.as_os_str().to_str().unwrap());
                     }
-                    (part.eval(shell).unwrap(), false)
+                    (string, false)
                 }
                 _ => (part.eval(shell)?, true),
             };

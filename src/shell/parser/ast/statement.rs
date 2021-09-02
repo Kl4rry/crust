@@ -1,9 +1,6 @@
 use crate::{
     parser::{
-        ast::{
-            expr::{argument::Argument, Expr},
-            Block, Variable,
-        },
+        ast::{expr::Expr, Block, Variable},
         runtime_error::RunTimeError,
         P,
     },
@@ -15,7 +12,6 @@ pub enum Statement {
     Export(Variable, Option<Expr>),
     Declaration(Variable, Option<Expr>),
     Assignment(Variable, Expr),
-    Alias(Argument, Expr),
     If(Expr, Block, Option<P<Statement>>),
     Fn(String, Vec<Variable>, Block),
     Return(Option<Expr>),

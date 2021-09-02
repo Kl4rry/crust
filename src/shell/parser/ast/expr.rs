@@ -1,3 +1,5 @@
+use thin_vec::ThinVec;
+
 use crate::{
     parser::{
         ast::{Literal, Variable},
@@ -11,6 +13,7 @@ pub mod binop;
 use binop::BinOp;
 
 pub mod unop;
+use thin_string::ToThinString;
 use unop::UnOp;
 
 pub mod command;
@@ -46,9 +49,9 @@ impl Expr {
         }
     }
 
-    pub fn eval(&mut self, shell: &mut Shell) -> Result<Value, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<Value, RunTimeError> {
         match self {
-            Expr::Call(command, args) => {
+            Self::Call(command, args) => {
                 let mut expanded_args = Vec::new();
                 for arg in args {
                     let arg = arg.eval(shell)?;
@@ -57,7 +60,15 @@ impl Expr {
                         ArgumentValue::Multi(vec) => expanded_args.extend(vec.into_iter()),
                     }
                 }
-                let command = command.eval(shell)?;
+                let mut command = command.eval(shell)?;
+
+                if let Some(alias) = shell.aliases.get(&command) {
+                    let mut split = alias.split_whitespace();
+                    command = split.next().unwrap().to_string();
+                    let mut args: Vec<_> = split.map(|s| s.to_string()).collect();
+                    args.extend(expanded_args.into_iter());
+                    expanded_args = args;
+                }
 
                 if let Some(res) = builtins::run_builtin(shell, &command, &expanded_args) {
                     return res;
@@ -65,14 +76,30 @@ impl Expr {
                     match shell.execute_command(&command, &expanded_args) {
                         Ok(_) => (),
                         Err(error) => match error.kind() {
-                            std::io::ErrorKind::NotFound => return Err(RunTimeError::CommandNotFound(command)),
+                            std::io::ErrorKind::NotFound => {
+                                return Err(RunTimeError::CommandNotFound(command))
+                            }
                             _ => return Err(RunTimeError::IoError(error)),
-                        }
+                        },
                     }
                 }
+                Ok(Value::ExitStatus(0))
             }
+            Self::Literal(literal) => match literal {
+                Literal::String(string) => Ok(Value::String(string.to_thin_string())),
+                Literal::Expand(_expand) => todo!(),
+                Literal::List(list) => {
+                    let mut values = ThinVec::new();
+                    for expr in list.iter() {
+                        values.push(expr.eval(shell)?);
+                    }
+                    Ok(Value::List(values))
+                }
+                Literal::Float(number) => Ok(Value::Int(*number as i64)),
+                Literal::Int(number) => Ok(Value::Int(*number as i64)),
+                Literal::Bool(boolean) => Ok(Value::Bool(*boolean)),
+            },
             _ => todo!(),
         }
-        Ok(Value::ExitStatus(0))
     }
 }

@@ -280,7 +280,6 @@ impl Parser {
             TokenType::Symbol(symbol) => match symbol.as_str() {
                 "export" => Ok(Compound::Statement(self.parse_declaration(true)?)),
                 "let" => Ok(Compound::Statement(self.parse_declaration(false)?)),
-                "alias" => Ok(Compound::Statement(self.parse_alias()?)),
                 _ => Ok(Compound::Expr(self.parse_expr(None)?)),
             },
             TokenType::Exec
@@ -360,17 +359,6 @@ impl Parser {
         };
 
         Ok(Statement::If(expr, block, statement))
-    }
-
-    fn parse_alias(&mut self) -> Result<Statement> {
-        self.eat()?;
-        self.skip_space()?;
-        let arg = self.parse_argument()?;
-        self.skip_optional_space();
-        self.eat()?.expect(TokenType::Assignment)?;
-        self.skip_optional_space();
-        let expr = self.parse_expr(None)?;
-        Ok(Statement::Alias(arg, expr))
     }
 
     fn parse_declaration(&mut self, export: bool) -> Result<Statement> {
