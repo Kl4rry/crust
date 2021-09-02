@@ -71,6 +71,10 @@ impl Shell {
             let readline = editor.readline(&self.promt());
             match readline {
                 Ok(line) => {
+                    if line.len() < 1 {
+                        continue;
+                    }
+
                     let mut parser = Parser::new(line.clone());
                     match parser.parse() {
                         Ok(mut ast) => {
@@ -111,20 +115,17 @@ impl Shell {
             whoami::username().to_ascii_lowercase(),
             whoami::devicename().to_ascii_lowercase(),
         );
-        format!("{} {} {}", name, dir.to_string_lossy(), "> ",)
+        let dir = dir.to_string_lossy();
+        let dir =  dir.replace(self.home_dir.to_str().unwrap(), "~");
+        format!("{} {} {}", name, dir, "> ",)
     }
 
-    pub fn _execute_command(&mut self, cmd_name: &str, args: &[&str]) {
+    pub fn execute_command(&mut self, cmd_name: &str, args: &[String]) -> Result<(), std::io::Error> {
         let mut command = Command::new(cmd_name);
         command.args(args);
-        let shared_child = SharedChild::spawn(&mut command);
-
-        match shared_child {
-            Ok(child) => {
-                self.main_child = Arc::new(Some(child));
-                (*self.main_child).as_ref().unwrap().wait().unwrap();
-            }
-            Err(_) => eprintln!("{}: command not found", cmd_name),
-        };
+        let child = SharedChild::spawn(&mut command)?;
+        self.main_child = Arc::new(Some(child));
+        (*self.main_child).as_ref().unwrap().wait().unwrap();
+        Ok(())
     }
 }

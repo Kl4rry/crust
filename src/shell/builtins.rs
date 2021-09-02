@@ -8,7 +8,7 @@ use crate::{parser::runtime_error::RunTimeError, shell::gc::Value};
 pub fn run_builtin(
     shell: &mut Shell,
     command: &str,
-    args: &Vec<String>,
+    args: &[String],
 ) -> Option<Result<Value, RunTimeError>> {
     match command {
         "clear" => Some(clear(shell)),
@@ -41,7 +41,7 @@ pub fn size() -> Result<Value, RunTimeError> {
     Ok(Value::ExitStatus(0))
 }
 
-pub fn exit(shell: &mut Shell, args: &Vec<String>) -> Result<Value, RunTimeError> {
+pub fn exit(shell: &mut Shell, args: &[String]) -> Result<Value, RunTimeError> {
     let matches = clap::App::new("exit")
         .about("exit the shell")
         .arg(clap::Arg::with_name("STATUS").help("The exit status of the shell"))
@@ -58,7 +58,7 @@ pub fn exit(shell: &mut Shell, args: &Vec<String>) -> Result<Value, RunTimeError
     Ok(Value::ExitStatus(0))
 }
 
-pub fn echo(shell: &mut Shell, args: &Vec<String>) -> Result<Value, RunTimeError> {
+pub fn echo(shell: &mut Shell, args: &[String]) -> Result<Value, RunTimeError> {
     for arg in args {
         write!(shell.stdout, "{} ", arg)?;
     }
@@ -67,7 +67,7 @@ pub fn echo(shell: &mut Shell, args: &Vec<String>) -> Result<Value, RunTimeError
     Ok(Value::ExitStatus(0))
 }
 
-pub fn cd(shell: &mut Shell, args: &Vec<String>) -> Result<Value, RunTimeError> {
+pub fn cd(shell: &mut Shell, args: &[String]) -> Result<Value, RunTimeError> {
     let matches = clap::App::new("exit")
         .about("change directory")
         .arg(clap::Arg::with_name("DIR").help("The new directory"))

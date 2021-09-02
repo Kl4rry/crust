@@ -11,6 +11,7 @@ pub enum RunTimeError {
     NoMatchError,
     VariableNotFound,
     ConversionError,
+    CommandNotFound(String),
     IoError(std::io::Error),
     GlobError(GlobError),
     PatternError(PatternError),
@@ -19,7 +20,10 @@ pub enum RunTimeError {
 
 impl fmt::Display for RunTimeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        match self {
+            RunTimeError::CommandNotFound(name) => write!(f, "{}: command not found", name),
+            _ => write!(f, "{:?}", self),
+        }
     }
 }
 

@@ -7,7 +7,6 @@ use crate::{
         runtime_error::RunTimeError,
         P,
     },
-    shell::gc::Value,
     Shell,
 };
 

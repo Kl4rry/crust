@@ -61,6 +61,14 @@ impl Expr {
 
                 if let Some(res) = builtins::run_builtin(shell, &command, &expanded_args) {
                     return res;
+                } else {
+                    match shell.execute_command(&command, &expanded_args) {
+                        Ok(_) => (),
+                        Err(error) => match error.kind() {
+                            std::io::ErrorKind::NotFound => return Err(RunTimeError::CommandNotFound(command)),
+                            _ => return Err(RunTimeError::IoError(error)),
+                        }
+                    }
                 }
             }
             _ => todo!(),
