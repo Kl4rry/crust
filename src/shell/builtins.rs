@@ -13,8 +13,8 @@ pub fn run_builtin(
 ) -> Option<Result<Value, RunTimeError>> {
     match command {
         "clear" => Some(clear(shell)),
-        "pwd" => Some(pwd()),
-        "size" => Some(size()),
+        "pwd" => Some(pwd(args)),
+        "size" => Some(size(args)),
         "exit" => Some(exit(shell, args)),
         "echo" => Some(echo(shell, args)),
         "cd" => Some(cd(shell, args)),
@@ -33,12 +33,20 @@ pub fn clear(shell: &mut Shell) -> Result<Value, RunTimeError> {
     Ok(Value::ExitStatus(0))
 }
 
-pub fn pwd() -> Result<Value, RunTimeError> {
+pub fn pwd(args: &[String]) -> Result<Value, RunTimeError> {
+    let _ = clap::App::new("pwd")
+        .about("print working directory")
+        .settings(&[clap::AppSettings::NoBinaryName])
+        .get_matches_from_safe(args.iter())?;
     println!("{}", dir().to_string_lossy());
     Ok(Value::ExitStatus(0))
 }
 
-pub fn size() -> Result<Value, RunTimeError> {
+pub fn size(args: &[String]) -> Result<Value, RunTimeError> {
+    let _ = clap::App::new("size")
+        .about("print size of terminal window")
+        .settings(&[clap::AppSettings::NoBinaryName])
+        .get_matches_from_safe(args.iter())?;
     let (w, h) = crossterm::terminal::size().unwrap();
     println!("{} {}", w, h);
     Ok(Value::ExitStatus(0))

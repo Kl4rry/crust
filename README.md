@@ -29,3 +29,5 @@
 
 # Builtin thoughts
 Comparison operator chaining is currently permitted but should not be.
+
+10 ^ 2 * 3 + 1 yields incorrect result

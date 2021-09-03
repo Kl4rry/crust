@@ -27,6 +27,15 @@ pub enum BinOp {
     Range,
 }
 
+impl BinOp {
+    pub fn is_comparison(&self) -> bool {
+        matches!(
+            *self,
+            Self::Eq | Self::Lt | Self::Le | Self::Ne | Self::Ge | Self::Gt
+        )
+    }
+}
+
 impl TryFrom<Token> for BinOp {
     type Error = SyntaxErrorKind;
     fn try_from(token: Token) -> Result<Self, Self::Error> {

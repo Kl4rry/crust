@@ -1,22 +1,12 @@
 //#![allow(dead_code)]
-use std::{
-    collections::HashMap,
-    io::{stdin, stdout, Read, Stdout},
-    path::PathBuf,
-    process::Command,
-    rc::Rc,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-};
+use std::{collections::HashMap, io::{stdout, Stdout}, path::PathBuf, process::{Child, Command, Output, Stdio}, rc::Rc, sync::{Arc, Mutex, MutexGuard}};
 
 use crossterm::{execute, style::Print, terminal::SetTitle};
 use rustyline::{error::ReadlineError, Editor};
-use shared_child::SharedChild;
 
 pub mod builtins;
 pub mod gc;
+use gc::Value;
 pub mod parser;
 use parser::{runtime_error::RunTimeError, Parser};
 
@@ -35,9 +25,9 @@ pub struct Shell {
     exit_status: i64,
     home_dir: PathBuf,
     stdout: Stdout,
-    child: Arc<Option<SharedChild>>,
-    waiting_on_child: Arc<AtomicBool>,
-    variables: HashMap<String, Rc<gc::Value>>,
+    child: Option<Child>,
+    child_id: Arc<Mutex<Option<u32>>>,
+    variables: HashMap<String, Rc<Value>>,
     aliases: HashMap<String, String>,
 }
 
@@ -50,6 +40,23 @@ impl Shell {
         })
         .unwrap();
 
+        let child_id = Arc::new(Mutex::new(None));
+        let handler_child = child_id.clone();
+        ctrlc::set_handler(move || {
+            let guard: MutexGuard<Option<u32>> = handler_child.lock().unwrap();
+            if let Some(id) = &*guard {
+                #[cfg(target_family = "windows")]
+                unsafe {
+                    winapi::um::wincon::GenerateConsoleCtrlEvent(0, *id);
+                }
+                #[cfg(target_family = "unix")]
+                {
+                    signal::kill(Pid::from_raw(*id as i32), Signal::SIGINT).unwrap();
+                }
+            }
+        })
+        .expect("Error setting Ctrl-C handler");
+
         let dirs = directories::UserDirs::new().unwrap();
 
         Shell {
@@ -57,8 +64,8 @@ impl Shell {
             exit_status: 0,
             home_dir: dirs.home_dir().to_path_buf(),
             stdout: stdout(),
-            child: Arc::new(None),
-            waiting_on_child: Arc::new(AtomicBool::new(false)),
+            child: None,
+            child_id,
             variables: HashMap::new(),
             aliases: HashMap::new(),
         }
@@ -85,7 +92,13 @@ impl Shell {
                         Ok(mut ast) => {
                             let res = ast.eval(&mut self);
                             match res {
-                                Ok(_value) => (),
+                                Ok(values) => {
+                                    for value in values {
+                                        if let Ok(string) = value.as_ref().try_to_string() {
+                                            println!("{}", string);
+                                        }
+                                    }
+                                }
                                 Err(RunTimeError::Exit) => (),
                                 Err(RunTimeError::ClapError(clap::Error { message, .. })) => {
                                     eprintln!("{}", message)
@@ -131,41 +144,18 @@ impl Shell {
         &mut self,
         cmd_name: &str,
         args: &[String],
-    ) -> Result<(), std::io::Error> {
-        let mut command = Command::new(cmd_name);
-        command.args(args);
-        let child = SharedChild::spawn(&mut command)?;
-        self.child = Arc::new(Some(child));
-        self.waiting_on_child.store(true, Ordering::SeqCst);
+        piped: bool,
+    ) -> Result<Output, std::io::Error> {
+        let stdout = if piped {
+            Stdio::piped()
+        } else {
+            Stdio::inherit()
+        };
 
-        let child = self.child.clone();
-        let waiting = self.waiting_on_child.clone();
-        std::thread::spawn(move || {
-            crossterm::terminal::enable_raw_mode().unwrap();
-            for byte in stdin().bytes() {
-                if !waiting.load(Ordering::SeqCst) {
-                    break;
-                }
-
-                if byte.unwrap() == 3 {
-                    if let Some(child) = &*child {
-                        #[cfg(target_family = "windows")]
-                        unsafe {
-                            winapi::um::wincon::GenerateConsoleCtrlEvent(0, child.id());
-                        }
-                        #[cfg(target_family = "unix")]
-                        {
-                            use shared_child::unix::SharedChildExt;
-                            child.send_signal(2);
-                        }
-                    }
-                }
-            }
-            crossterm::terminal::disable_raw_mode().unwrap();
-        });
-        (*self.child).as_ref().unwrap().wait().unwrap();
-        self.waiting_on_child.store(false, Ordering::SeqCst);
-
-        Ok(())
+        let child = Command::new(cmd_name).args(args).stdout(stdout).spawn()?;
+        *self.child_id.lock().unwrap() = Some(child.id());
+        let output = child.wait_with_output();
+        *self.child_id.lock().unwrap() = None;
+        output
     }
 }

@@ -20,7 +20,7 @@ pub enum Command {
 impl Command {
     pub fn eval(&self, shell: &mut Shell) -> Result<String, RunTimeError> {
         match self {
-            Command::Variable(var) => Ok((*var.eval(shell)?).try_to_string()?),
+            Command::Variable(var) => Ok(var.eval(shell)?.as_ref().try_to_string()?),
             Command::Expand(_expand) => todo!(),
             Command::String(string) => Ok(string.clone()),
         }

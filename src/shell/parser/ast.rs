@@ -1,4 +1,4 @@
-use crate::{parser::runtime_error::RunTimeError, shell::gc::Value, Shell};
+use crate::{parser::runtime_error::RunTimeError, shell::gc::ValueKind, Shell};
 
 pub mod literal;
 use literal::Literal;
@@ -18,11 +18,23 @@ pub struct Ast {
 }
 
 impl Ast {
-    pub fn eval(&mut self, shell: &mut Shell) -> Result<(), RunTimeError> {
+    pub fn eval(&mut self, shell: &mut Shell) -> Result<Vec<ValueKind>, RunTimeError> {
+        let mut values = Vec::new();
         for compound in &mut self.sequence {
-            compound.eval(shell)?;
+            match compound {
+                Compound::Expr(expr) => {
+                    if matches!(expr, Expr::Call(..)) {
+                        expr.eval(shell, false)?;
+                    } else {
+                        values.push(expr.eval(shell, false)?);
+                    }
+                }
+                Compound::Statement(statement) => {
+                    statement.eval(shell)?;
+                }
+            }
         }
-        Ok(())
+        Ok(values)
     }
 }
 
@@ -30,18 +42,6 @@ impl Ast {
 pub enum Compound {
     Statement(Statement),
     Expr(Expr),
-}
-
-impl Compound {
-    pub fn eval(&mut self, shell: &mut Shell) -> Result<Option<Value>, RunTimeError> {
-        match self {
-            Compound::Expr(expr) => Ok(Some(expr.eval(shell)?)),
-            Compound::Statement(statement) => {
-                statement.eval(shell)?;
-                Ok(None)
-            }
-        }
-    }
 }
 
 #[derive(Debug)]

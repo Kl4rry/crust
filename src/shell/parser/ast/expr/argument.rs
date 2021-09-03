@@ -15,11 +15,11 @@ pub enum Identifier {
 impl Identifier {
     pub fn eval(&self, shell: &mut Shell) -> Result<String, RunTimeError> {
         match self {
-            Identifier::Variable(var) => Ok((*var.eval(shell)?).try_to_string()?),
+            Identifier::Variable(var) => Ok(var.eval(shell)?.as_ref().try_to_string()?),
             Identifier::Expand(_expand) => todo!(),
             Identifier::Bare(string) => Ok(string.clone()),
             Identifier::String(string) => Ok(string.clone()),
-            Identifier::Expr(expr) => Ok(expr.eval(shell)?.try_to_string()?),
+            Identifier::Expr(expr) => Ok(expr.eval(shell, false)?.as_ref().try_to_string()?),
         }
     }
 }

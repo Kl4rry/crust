@@ -132,8 +132,8 @@ dependencies = [
  "directories",
  "dirs",
  "glob",
+ "nix 0.22.1",
  "rustyline",
- "shared_child",
  "thin-string",
  "thin-vec",
  "timing",
@@ -483,16 +483,6 @@ name = "scopeguard"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
-
-[[package]]
-name = "shared_child"
-version = "0.3.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6be9f7d5565b1483af3e72975e2dee33879b3b86bd48c0929fccf6585d79e65a"
-dependencies = [
- "libc",
- "winapi",
-]
 
 [[package]]
 name = "signal-hook"

@@ -422,7 +422,16 @@ impl Parser {
                 let expr = self.parse_expr(None)?;
                 self.skip_whitespace();
                 self.eat()?.expect(TokenType::RightParen)?;
-                Ok(Expr::Paren(P::new(expr)).wrap(unop))
+                let expr = Expr::Paren(P::new(expr)).wrap(unop);
+                self.skip_optional_space();
+
+                if let Ok(token) = self.token() {
+                    if token.is_binop() {
+                        return self.parse_binop(expr);
+                    }
+                }
+
+                Ok(expr)
             }
             TokenType::Variable(_) => {
                 let var = Expr::Variable(self.eat()?.try_into()?).wrap(unop);
