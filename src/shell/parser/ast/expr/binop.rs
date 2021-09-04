@@ -1,6 +1,10 @@
 use std::convert::TryFrom;
 
-use crate::parser::{ast::Precedence, syntax_error::SyntaxErrorKind, Token, TokenType};
+use crate::parser::{
+    ast::{Direction, Precedence},
+    syntax_error::SyntaxErrorKind,
+    Token, TokenType,
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum BinOp {
@@ -61,23 +65,23 @@ impl TryFrom<Token> for BinOp {
 }
 
 impl Precedence for BinOp {
-    fn precedence(&self) -> u8 {
+    fn precedence(&self) -> (u8, Direction) {
         match self {
-            Self::Expo => 9,
-            Self::Mul => 8,
-            Self::Div => 8,
-            Self::Mod => 8,
-            Self::Add => 7,
-            Self::Sub => 7,
-            Self::Eq => 6,
-            Self::Lt => 6,
-            Self::Le => 6,
-            Self::Ne => 6,
-            Self::Ge => 6,
-            Self::Gt => 6,
-            Self::And => 5,
-            Self::Or => 5,
-            Self::Range => 4,
+            Self::Expo => (9, Direction::Right),
+            Self::Mul => (8, Direction::Left),
+            Self::Div => (8, Direction::Left),
+            Self::Mod => (8, Direction::Left),
+            Self::Add => (7, Direction::Left),
+            Self::Sub => (7, Direction::Left),
+            Self::Eq => (6, Direction::Left),
+            Self::Lt => (6, Direction::Left),
+            Self::Le => (6, Direction::Left),
+            Self::Ne => (6, Direction::Left),
+            Self::Ge => (6, Direction::Left),
+            Self::Gt => (6, Direction::Left),
+            Self::And => (5, Direction::Left),
+            Self::Or => (5, Direction::Left),
+            Self::Range => (4, Direction::Left),
         }
     }
 }

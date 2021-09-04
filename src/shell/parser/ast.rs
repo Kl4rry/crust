@@ -50,5 +50,11 @@ pub struct Block {
 }
 
 pub trait Precedence {
-    fn precedence(&self) -> u8;
+    fn precedence(&self) -> (u8, Direction);
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Direction {
+    Left,
+    Right,
 }

@@ -77,7 +77,7 @@ pub fn echo(shell: &mut Shell, args: &[String]) -> Result<Value, RunTimeError> {
     for arg in args {
         write!(shell.stdout, "{} ", arg)?;
     }
-    write!(shell.stdout, "\n")?;
+    writeln!(shell.stdout)?;
     shell.stdout.flush()?;
     Ok(Value::ExitStatus(0))
 }
@@ -120,12 +120,12 @@ pub fn alias(shell: &mut Shell, args: &[String]) -> Result<Value, RunTimeError> 
     let name = matches.value_of("NAME").unwrap();
     let command = matches.value_of("COMMAND").unwrap();
 
-    if name.len() < 1 {
+    if name.is_empty() {
         eprintln!("alias: NAME must be atleast on character long");
         return Ok(Value::ExitStatus(-1));
     }
 
-    if command.len() < 1 {
+    if command.is_empty() {
         eprintln!("alias: COMMAND must be atleast on character long");
         return Ok(Value::ExitStatus(-1));
     }

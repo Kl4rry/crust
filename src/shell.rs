@@ -1,5 +1,12 @@
 //#![allow(dead_code)]
-use std::{collections::HashMap, io::{stdout, Stdout}, path::PathBuf, process::{Child, Command, Output, Stdio}, rc::Rc, sync::{Arc, Mutex, MutexGuard}};
+use std::{
+    collections::HashMap,
+    io::{stdout, Stdout},
+    path::PathBuf,
+    process::{Child, Command, Output, Stdio},
+    rc::Rc,
+    sync::{Arc, Mutex, MutexGuard},
+};
 
 use crossterm::{execute, style::Print, terminal::SetTitle};
 use rustyline::{error::ReadlineError, Editor};
@@ -83,13 +90,14 @@ impl Shell {
             let readline = editor.readline(&self.promt());
             match readline {
                 Ok(line) => {
-                    if line.len() < 1 {
+                    if line.is_empty() {
                         continue;
                     }
 
                     let mut parser = Parser::new(line.clone());
                     match parser.parse() {
                         Ok(mut ast) => {
+                            //println!("{:#?}", ast);
                             let res = ast.eval(&mut self);
                             match res {
                                 Ok(values) => {
@@ -113,6 +121,7 @@ impl Shell {
                     editor.add_history_entry(line.as_str());
                 }
                 Err(ReadlineError::Interrupted) => {
+                    self.running = false;
                     println!("^C");
                 }
                 Err(ReadlineError::Eof) => {

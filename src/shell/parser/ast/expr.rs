@@ -2,7 +2,7 @@ use thin_vec::ThinVec;
 
 use crate::{
     parser::{
-        ast::{Literal, Variable},
+        ast::{Direction, Literal, Variable},
         runtime_error::RunTimeError,
         P,
     },
@@ -25,12 +25,6 @@ use command::Command;
 
 pub mod argument;
 use argument::{Argument, ArgumentValue};
-
-#[derive(Debug)]
-pub enum Direction {
-    Left,
-    Right,
-}
 
 #[derive(Debug)]
 pub enum Expr {

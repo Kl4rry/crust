@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use crate::parser::{ast::Precedence, syntax_error::SyntaxErrorKind, Token, TokenType};
+use crate::parser::{syntax_error::SyntaxErrorKind, Token, TokenType};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum UnOp {
@@ -15,15 +15,6 @@ impl TryFrom<Token> for UnOp {
             TokenType::Not => Ok(UnOp::Not),
             TokenType::Sub => Ok(UnOp::Neg),
             _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
-        }
-    }
-}
-
-impl Precedence for UnOp {
-    fn precedence(&self) -> u8 {
-        match *self {
-            Self::Neg => 10,
-            Self::Not => 10,
         }
     }
 }

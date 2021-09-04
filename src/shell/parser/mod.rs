@@ -15,12 +15,12 @@ use ast::{
         binop::BinOp,
         command::Command,
         unop::UnOp,
-        Direction, Expr,
+        Expr,
     },
     literal::Literal,
     statement::Statement,
     variable::Variable,
-    Ast, Block, Compound, Precedence,
+    Ast, Block, Compound, Direction, Precedence,
 };
 
 pub mod syntax_error;
@@ -181,7 +181,9 @@ impl Parser {
                         TokenType::Space => drop(self.eat()?),
                         ref token_type => {
                             if token_type.is_binop() {
-                                return Ok(Compound::Expr(self.parse_binop(Expr::Variable(var))?));
+                                return Ok(Compound::Expr(
+                                    self.parse_sub_expr(Some(Expr::Variable(var)), 0)?,
+                                ));
                             } else {
                                 return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?));
                             }
@@ -306,6 +308,7 @@ impl Parser {
         let mut expand = Expand {
             content: Vec::new(),
         };
+
         while let Ok(token) = self.token() {
             match token.token_type {
                 TokenType::Dollar => expand
@@ -401,18 +404,10 @@ impl Parser {
         }
     }
 
-    fn parse_expr(&mut self, unop: Option<UnOp>) -> Result<Expr> {
+    fn parse_primary(&mut self, unop: Option<UnOp>) -> Result<Expr> {
         match &self.token()?.token_type {
             TokenType::True | TokenType::False => {
-                let mut literal = Expr::Literal(self.eat()?.try_into()?).wrap(unop);
-                self.skip_optional_space();
-                if let Ok(token) = self.token() {
-                    if token.is_binop() {
-                        literal = self.parse_binop(literal)?;
-                    }
-                };
-
-                Ok(literal)
+                Ok(Expr::Literal(self.eat()?.try_into()?).wrap(unop))
             }
             TokenType::Symbol(_) => Ok(self.parse_call()?.wrap(unop)),
             TokenType::Exec => Ok(self.parse_call()?),
@@ -422,115 +417,87 @@ impl Parser {
                 let expr = self.parse_expr(None)?;
                 self.skip_whitespace();
                 self.eat()?.expect(TokenType::RightParen)?;
-                let expr = Expr::Paren(P::new(expr)).wrap(unop);
-                self.skip_optional_space();
-
-                if let Ok(token) = self.token() {
-                    if token.is_binop() {
-                        return self.parse_binop(expr);
-                    }
-                }
-
-                Ok(expr)
+                Ok(Expr::Paren(P::new(expr)).wrap(unop))
             }
-            TokenType::Variable(_) => {
-                let var = Expr::Variable(self.eat()?.try_into()?).wrap(unop);
-                self.skip_optional_space();
-
-                if let Ok(token) = self.token() {
-                    if token.is_binop() {
-                        return self.parse_binop(var);
-                    }
-                }
-
-                Ok(var)
-            }
+            TokenType::Variable(_) => Ok(Expr::Variable(self.eat()?.try_into()?).wrap(unop)),
             TokenType::Dollar => Ok(self.parse_expr_expand()?.wrap(unop)),
             TokenType::String(_)
             | TokenType::Int(_, _)
             | TokenType::Float(_, _)
-            | TokenType::Quote => {
-                let literal = Expr::Literal(match self.token()?.token_type {
-                    TokenType::Quote => {
-                        let expand = self.parse_expand()?;
-                        Literal::Expand(expand)
-                    }
-                    _ => self.eat()?.try_into()?,
-                })
-                .wrap(unop);
-
-                self.skip_optional_space();
-                if let Ok(token) = self.token() {
-                    if token.is_binop() {
-                        return self.parse_binop(literal);
-                    }
+            | TokenType::Quote => Ok(Expr::Literal(match self.token()?.token_type {
+                TokenType::Quote => {
+                    let expand = self.parse_expand()?;
+                    Literal::Expand(expand)
                 }
-                Ok(literal)
-            }
+                _ => self.eat()?.try_into()?,
+            })
+            .wrap(unop)),
             TokenType::Sub | TokenType::Not => {
                 let inner = self.eat()?.try_into()?;
+                self.skip_optional_space();
                 Ok(self.parse_expr(Some(inner))?.wrap(unop))
             }
             _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         }
     }
 
-    fn parse_binop(&mut self, mut lhs: Expr) -> Result<Expr> {
-        let mut outer: BinOp = self.eat()?.try_into()?;
+    fn parse_expr(&mut self, unop: Option<UnOp>) -> Result<Expr> {
+        let primary = self.parse_primary(unop)?;
+        self.skip_optional_space();
+        self.parse_sub_expr(Some(primary), 0)
+    }
+
+    fn parse_sub_expr(&mut self, lhs: Option<Expr>, min_precedence: u8) -> Result<Expr> {
+        let mut lhs = if let Some(expr) = lhs {
+            expr
+        } else {
+            self.parse_primary(None)?
+        };
         self.skip_optional_space();
 
-        let mut rhs = self.parse_expr(None)?;
-
-        if let Expr::Binary(ref mut inner, ref mut rhs_l, ref mut rhs_r) = rhs {
-            if outer.precedence() > inner.precedence() {
-                // this madness corrects operator precedence
-                // this is an example of how to swaps correct the tree
-                //
-                // lhs = x
-                // rhs_l = z
-                // rhs_r = y
-                // outer = *
-                // inner = +
-                //
-                // x * z + y intital is parsed as below
-                //
-                //       *
-                //      / \
-                //     x   +
-                //        / \
-                //       z   y
-                std::mem::swap(&mut outer, inner);
-                // step 1 swap operators
-                //       +
-                //      / \
-                //     x   *
-                //        / \
-                //       z   y
-                std::mem::swap(&mut **rhs_r, &mut lhs);
-                // step 2 swap y and x
-                //       +
-                //      / \
-                //     y   *
-                //        / \
-                //       z   x
-                std::mem::swap(rhs_r, rhs_l);
-                // step 3 swap x and z
-                //       +
-                //      / \
-                //     y   *
-                //        / \
-                //       x   z
-                std::mem::swap(&mut rhs, &mut lhs);
-                // step 4 swap rhs and lhs
-                //       +
-                //      / \
-                //     *   y
-                //    / \
-                //   x   z
+        let mut lookahead: Option<BinOp> = match self.token() {
+            Ok(token) => {
+                if token.is_binop() {
+                    Some(token.to_binop())
+                } else {
+                    None
+                }
             }
-        }
+            Err(_) => None,
+        };
 
-        Ok(Expr::Binary(outer, P::new(lhs), P::new(rhs)))
+        while let Some(op) = lookahead {
+            let (precedence, assoc) = op.precedence();
+            if precedence < min_precedence {
+                break;
+            }
+
+            let next_min = if assoc == Direction::Left {
+                precedence
+            } else {
+                precedence + 1
+            };
+
+            self.eat()?;
+            self.skip_whitespace();
+            let rhs = self.parse_sub_expr(None, next_min)?;
+            self.skip_optional_space();
+
+            lookahead = match self.token() {
+                Ok(token) => {
+                    if token.is_binop() {
+                        Some(token.to_binop())
+                    } else {
+                        None
+                    }
+                }
+                Err(_) => None,
+            };
+
+            lhs = Expr::Binary(op, P::new(lhs), P::new(rhs));
+        }
+        self.skip_optional_space();
+        Ok(lhs)
     }
 
     fn parse_call(&mut self) -> Result<Expr> {
@@ -670,22 +637,3 @@ impl Parser {
         Ok(Argument { parts: ids })
     }
 }
-
-/*#[cfg(test)]
-mod tests {
-    use std::fs::read_to_string;
-
-    use super::*;
-
-    #[test]
-    fn parser_test() {
-        let src = read_to_string("test.crust").unwrap();
-        let mut parser = Parser::new(src);
-        let ast = parser.parse();
-        match &ast {
-            Ok(ast) => println!("{:#?}", ast),
-            Err(error) => eprintln!("{}", &error),
-        }
-        assert!(ast.is_ok());
-    }
-}*/

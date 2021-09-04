@@ -78,7 +78,7 @@ impl Argument {
                 entries.push(entry?.to_string_lossy().to_string());
             }
 
-            if entries.len() > 0 {
+            if !entries.is_empty() {
                 Ok(ArgumentValue::Multi(entries))
             } else {
                 Err(RunTimeError::NoMatchError)

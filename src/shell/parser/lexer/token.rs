@@ -4,7 +4,11 @@ use std::{convert::TryInto, mem};
 
 use span::Span;
 
-use crate::parser::{ast::expr::argument::Identifier, syntax_error::SyntaxErrorKind, Result};
+use crate::parser::{
+    ast::expr::{argument::Identifier, binop::BinOp},
+    syntax_error::SyntaxErrorKind,
+    Result,
+};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Token {
@@ -197,6 +201,28 @@ impl Token {
             TokenType::Mul => Ok("*"),
             //TokenType::Colon => ":",
             _ => Err(SyntaxErrorKind::UnexpectedToken(self)),
+        }
+    }
+
+    /// Get binop from token. Will panic if token is not valid binop.
+    pub fn to_binop(&self) -> BinOp {
+        match self.token_type {
+            TokenType::Add => BinOp::Add,
+            TokenType::Sub => BinOp::Sub,
+            TokenType::Mul => BinOp::Mul,
+            TokenType::Div => BinOp::Div,
+            TokenType::Expo => BinOp::Expo,
+            TokenType::Mod => BinOp::Mod,
+            TokenType::Eq => BinOp::Eq,
+            TokenType::Lt => BinOp::Lt,
+            TokenType::Le => BinOp::Le,
+            TokenType::Ne => BinOp::Ne,
+            TokenType::Ge => BinOp::Ge,
+            TokenType::Gt => BinOp::Gt,
+            TokenType::And => BinOp::And,
+            TokenType::Or => BinOp::Or,
+            TokenType::Range => BinOp::Range,
+            _ => panic!("could not convert token {:?} to binop", self),
         }
     }
 }
