@@ -10,6 +10,8 @@ mod cd;
 mod clear;
 mod echo;
 mod exit;
+#[cfg(target_family = "windows")]
+mod ls;
 mod pwd;
 mod size;
 mod unalias;
@@ -25,6 +27,8 @@ static BUILTINS: phf::Map<&'static str, Bulitin> = phf_map! {
     "cd" => cd::cd,
     "alias" => alias::alias,
     "unalias" => unalias::unalias,
+    #[cfg(target_family = "windows")]
+    "ls" => ls::ls,
 };
 
 pub fn run_builtin(
