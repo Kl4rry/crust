@@ -95,7 +95,6 @@ impl Shell {
                     let mut parser = Parser::new(line.clone());
                     match parser.parse() {
                         Ok(mut ast) => {
-                            //println!("{:#?}", ast);
                             let res = ast.eval(&mut self);
                             match res {
                                 Ok(values) => {

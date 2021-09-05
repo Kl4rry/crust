@@ -292,6 +292,8 @@ impl Parser {
             | TokenType::Quote
             | TokenType::Sub
             | TokenType::LeftParen
+            | TokenType::True
+            | &TokenType::False
             | TokenType::Not => Ok(Compound::Expr(self.parse_expr(None)?)),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         }

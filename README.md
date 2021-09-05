@@ -29,3 +29,5 @@
 
 # Builtin thoughts
 Comparison operator chaining is currently permitted but should not be.
+
+Unary operators have no precedence.
