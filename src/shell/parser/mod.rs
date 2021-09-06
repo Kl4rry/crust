@@ -283,7 +283,7 @@ impl Parser {
                 "export" => Ok(Compound::Statement(self.parse_declaration(true)?)),
                 "let" => Ok(Compound::Statement(self.parse_declaration(false)?)),
                 _ => Ok(Compound::Expr(self.parse_expr(None)?)),
-            }
+            },
             TokenType::Exec
             | TokenType::Dollar
             | TokenType::Int(_, _)

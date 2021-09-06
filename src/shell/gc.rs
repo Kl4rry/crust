@@ -1,29 +1,22 @@
-use std::cell::UnsafeCell;
-
-use slab::Slab;
+use std::{cell::RefCell, collections::HashSet, ops::Deref};
 
 pub mod value;
 pub use value::Value;
 
 thread_local! {
-    pub static GC: UnsafeCell<Gc> = UnsafeCell::new(Gc::new());
-}
-
-pub fn drop_all() {
-    let ptr = GC.with(|cell| cell.get());
-    unsafe {
-        (*ptr).values.clear();
-    }
+    pub static GC: Gc = Gc::new();
 }
 
 pub struct Gc {
-    values: Slab<Value>,
+    pub values: RefCell<Vec<*mut Value>>,
+    pub keepers: RefCell<HashSet<*mut Value>>,
 }
 
 impl Gc {
     pub fn new() -> Self {
         Self {
-            values: Slab::new(),
+            values: RefCell::new(Vec::new()),
+            keepers: RefCell::new(HashSet::new()),
         }
     }
 }
@@ -40,12 +33,12 @@ pub enum ValueKind {
     Stack(Value),
 }
 
-impl AsRef<Value> for ValueKind {
-    #[inline(always)]
-    fn as_ref(&self) -> &Value {
+impl Deref for ValueKind {
+    type Target = Value;
+    fn deref(&self) -> &Self::Target {
         match self {
-            ValueKind::Heap(id) => id.as_ref(),
-            ValueKind::Stack(value) => value,
+            Self::Heap(value) => unsafe { &*value.ptr },
+            Self::Stack(value) => value,
         }
     }
 }
@@ -67,26 +60,53 @@ impl From<HeapValue> for ValueKind {
 impl From<Value> for HeapValue {
     #[inline(always)]
     fn from(value: Value) -> HeapValue {
-        let ptr = GC.with(|cell| cell.get());
-        unsafe {
-            HeapValue {
-                id: (*ptr).values.insert(value),
-            }
-        }
+        let ptr = Box::into_raw(Box::new(value));
+        GC.with(|gc| {
+            gc.values.borrow_mut().push(ptr);
+        });
+        HeapValue { ptr }
     }
 }
 
 #[derive(Clone, Debug)]
 #[repr(transparent)]
 pub struct HeapValue {
-    id: usize,
+    ptr: *mut Value,
 }
 
-impl AsRef<Value> for HeapValue {
-    #[inline(always)]
-    fn as_ref(&self) -> &Value {
-        let ptr = GC.with(|cell| cell.get());
-        unsafe { (*ptr).values.get(self.id).unwrap() }
+impl HeapValue {
+    pub fn trace(&self) {
+        GC.with(|gc| {
+            let mut keepers = gc.keepers.borrow_mut();
+            if !keepers.contains(&self.ptr) {
+                keepers.insert(self.ptr);
+                drop(keepers);
+                unsafe {
+                    match &*self.ptr {
+                        Value::List(items) => {
+                            for item in items {
+                                item.trace();
+                            }
+                        }
+                        Value::Map(map) => {
+                            for (key, value) in map.iter() {
+                                key.trace();
+                                value.trace();
+                            }
+                        }
+                        _ => (),
+                    }
+                }
+            }
+        });
+    }
+}
+
+impl Deref for HeapValue {
+    type Target = Value;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.ptr }
     }
 }
 
@@ -99,28 +119,3 @@ impl From<ValueKind> for HeapValue {
         }
     }
 }
-
-/*use std::cell::{Ref, RefCell};
-
-thread_local! {
-    pub static GC: RefCell<Gc> = RefCell::new(Gc::new());
-}
-
-pub enum ValueRef<'a> {
-    Heap(Ref<'a, Gc>, &'a Value),
-    Stack(&'a Value),
-}
-
-impl ValueKind {
-    pub fn get_ref(&self) -> ValueRef {
-        match self {
-            Self::Heap(value) => {
-                let gc = GC2.get_or(|| Gc::new());
-                let id = value.id;
-                gc.values.get(id);
-                todo!();
-            }
-            Self::Stack(value) => ValueRef::Stack(value),
-        }
-    }
-}*/

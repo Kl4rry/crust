@@ -1,4 +1,3 @@
-//#![allow(dead_code)]
 use std::{
     collections::HashMap,
     io::{stdout, Stdout},
@@ -98,7 +97,7 @@ impl Shell {
                             match res {
                                 Ok(values) => {
                                     for value in values {
-                                        println!("{}", value.as_ref().to_string());
+                                        println!("{}", value.to_string());
                                     }
                                 }
                                 Err(RunTimeError::Exit) => (),
@@ -112,6 +111,12 @@ impl Shell {
                             eprintln!("{}", error)
                         }
                     };
+
+                    // collect garbage
+                    if gc::GC.with(|gc| gc.values.borrow().len()) > 100 {
+                        self.collect_trash();
+                    }
+
                     editor.add_history_entry(line.as_str());
                 }
                 Err(ReadlineError::Interrupted) => {
@@ -128,7 +133,6 @@ impl Shell {
             }
         }
         editor.save_history("history.txt").unwrap();
-        gc::drop_all();
         self.exit_status
     }
 
@@ -161,5 +165,19 @@ impl Shell {
         let output = child.wait_with_output();
         *self.child_id.lock().unwrap() = None;
         output
+    }
+
+    pub fn collect_trash(&mut self) {
+        for var in self.variables.values() {
+            var.trace();
+        }
+
+        gc::GC.with(|gc| {
+            let mut values = gc.values.borrow_mut();
+            let mut keepers = gc.keepers.borrow_mut();
+            let drain = values.drain_filter(|value| !keepers.contains(value));
+            drain.for_each(|raw| unsafe { drop(Box::from_raw(raw)) });
+            keepers.clear();
+        });
     }
 }

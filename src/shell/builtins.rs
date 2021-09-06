@@ -8,6 +8,7 @@ use crate::{parser::runtime_error::RunTimeError, shell::gc::Value};
 mod alias;
 mod cd;
 mod clear;
+mod drop;
 mod echo;
 mod exit;
 #[cfg(target_family = "windows")]
@@ -29,6 +30,7 @@ static BUILTINS: phf::Map<&'static str, Bulitin> = phf_map! {
     "unalias" => unalias::unalias,
     #[cfg(target_family = "windows")]
     "ls" => ls::ls,
+    "drop" => drop::drop,
 };
 
 pub fn run_builtin(

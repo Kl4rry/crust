@@ -99,22 +99,22 @@ impl Expr {
                 Literal::Float(number) => Ok(Value::Float(*number).into()),
                 Literal::Int(number) => Ok(Value::Int(*number as i64).into()),
                 Literal::Bool(boolean) => Ok(Value::Bool(*boolean).into()),
-            }
+            },
             Self::Variable(Variable { name }) => match shell.variables.get(name) {
                 Some(value) => Ok(value.clone().into()),
                 None => Err(RunTimeError::VariableNotFound),
-            }
+            },
             Self::Unary(unop, expr) => {
                 let value = expr.eval(shell, false)?;
                 match unop {
                     UnOp::Neg => {
-                        if value.as_ref().is_float() {
-                            Ok(Value::Float(-value.as_ref().try_to_float()?).into())
+                        if value.is_float() {
+                            Ok(Value::Float(-value.try_to_float()?).into())
                         } else {
-                            Ok(Value::Int(-value.as_ref().try_to_int()?).into())
+                            Ok(Value::Int(-value.try_to_int()?).into())
                         }
                     }
-                    UnOp::Not => Ok(Value::Bool(!value.as_ref().try_to_bool()?).into()),
+                    UnOp::Not => Ok(Value::Bool(!value.try_to_bool()?).into()),
                 }
             }
             Self::Paren(expr) => expr.eval(shell, false),
@@ -125,29 +125,26 @@ impl Expr {
 
                     match lhs.as_ref() {
                         Value::Int(number) => {
-                            if rhs.as_ref().is_float() {
-                                Ok(Value::Float(*number as f64 + rhs.as_ref().try_to_float()?)
-                                    .into())
+                            if rhs.is_float() {
+                                Ok(Value::Float(*number as f64 + rhs.try_to_float()?).into())
                             } else {
-                                Ok(Value::Int(*number + rhs.as_ref().try_to_int()?).into())
+                                Ok(Value::Int(*number + rhs.try_to_int()?).into())
                             }
                         }
                         Value::Float(number) => {
-                            Ok(Value::Float(*number as f64 + rhs.as_ref().try_to_float()?).into())
+                            Ok(Value::Float(*number as f64 + rhs.try_to_float()?).into())
                         }
                         Value::Bool(boolean) => {
-                            if rhs.as_ref().is_float() {
-                                Ok(Value::Float(
-                                    *boolean as i64 as f64 + rhs.as_ref().try_to_float()?,
-                                )
-                                .into())
+                            if rhs.is_float() {
+                                Ok(Value::Float(*boolean as i64 as f64 + rhs.try_to_float()?)
+                                    .into())
                             } else {
-                                Ok(Value::Int(*boolean as i64 + rhs.as_ref().try_to_int()?).into())
+                                Ok(Value::Int(*boolean as i64 + rhs.try_to_int()?).into())
                             }
                         }
                         Value::String(lhs) => {
                             let mut new = lhs.clone();
-                            let rhs = rhs.as_ref().to_string();
+                            let rhs = rhs.to_string();
                             new.push_str(&rhs);
                             Ok(Value::String(new).into())
                         }
@@ -160,24 +157,21 @@ impl Expr {
 
                     match lhs.as_ref() {
                         Value::Int(number) => {
-                            if rhs.as_ref().is_float() {
-                                Ok(Value::Float(*number as f64 - rhs.as_ref().try_to_float()?)
-                                    .into())
+                            if rhs.is_float() {
+                                Ok(Value::Float(*number as f64 - rhs.try_to_float()?).into())
                             } else {
-                                Ok(Value::Int(*number - rhs.as_ref().try_to_int()?).into())
+                                Ok(Value::Int(*number - rhs.try_to_int()?).into())
                             }
                         }
                         Value::Float(number) => {
-                            Ok(Value::Float(*number as f64 - rhs.as_ref().try_to_float()?).into())
+                            Ok(Value::Float(*number as f64 - rhs.try_to_float()?).into())
                         }
                         Value::Bool(boolean) => {
-                            if rhs.as_ref().is_float() {
-                                Ok(Value::Float(
-                                    *boolean as i64 as f64 - rhs.as_ref().try_to_float()?,
-                                )
-                                .into())
+                            if rhs.is_float() {
+                                Ok(Value::Float(*boolean as i64 as f64 - rhs.try_to_float()?)
+                                    .into())
                             } else {
-                                Ok(Value::Int(*boolean as i64 - rhs.as_ref().try_to_int()?).into())
+                                Ok(Value::Int(*boolean as i64 - rhs.try_to_int()?).into())
                             }
                         }
                         _ => todo!(),
@@ -189,29 +183,26 @@ impl Expr {
 
                     match lhs.as_ref() {
                         Value::Int(number) => {
-                            if rhs.as_ref().is_float() {
-                                Ok(Value::Float(*number as f64 * rhs.as_ref().try_to_float()?)
-                                    .into())
+                            if rhs.is_float() {
+                                Ok(Value::Float(*number as f64 * rhs.try_to_float()?).into())
                             } else {
-                                Ok(Value::Int(*number * rhs.as_ref().try_to_int()?).into())
+                                Ok(Value::Int(*number * rhs.try_to_int()?).into())
                             }
                         }
                         Value::Float(number) => {
-                            Ok(Value::Float(*number as f64 * rhs.as_ref().try_to_float()?).into())
+                            Ok(Value::Float(*number as f64 * rhs.try_to_float()?).into())
                         }
                         Value::Bool(boolean) => {
-                            if rhs.as_ref().is_float() {
-                                Ok(Value::Float(
-                                    *boolean as i64 as f64 * rhs.as_ref().try_to_float()?,
-                                )
-                                .into())
+                            if rhs.is_float() {
+                                Ok(Value::Float(*boolean as i64 as f64 * rhs.try_to_float()?)
+                                    .into())
                             } else {
-                                Ok(Value::Int(*boolean as i64 * rhs.as_ref().try_to_int()?).into())
+                                Ok(Value::Int(*boolean as i64 * rhs.try_to_int()?).into())
                             }
                         }
                         Value::String(lhs) => {
                             let mut new = ThinString::new();
-                            let mul = rhs.as_ref().try_to_int()?;
+                            let mul = rhs.try_to_int()?;
                             for _ in 0..mul {
                                 new.push_str(lhs);
                             }
@@ -226,15 +217,14 @@ impl Expr {
 
                     match lhs.as_ref() {
                         Value::Int(number) => {
-                            Ok(Value::Float(*number as f64 / rhs.as_ref().try_to_float()?).into())
+                            Ok(Value::Float(*number as f64 / rhs.try_to_float()?).into())
                         }
                         Value::Float(number) => {
-                            Ok(Value::Float(*number as f64 / rhs.as_ref().try_to_float()?).into())
+                            Ok(Value::Float(*number as f64 / rhs.try_to_float()?).into())
                         }
-                        Value::Bool(boolean) => Ok(Value::Float(
-                            *boolean as i64 as f64 / rhs.as_ref().try_to_float()?,
-                        )
-                        .into()),
+                        Value::Bool(boolean) => {
+                            Ok(Value::Float(*boolean as i64 as f64 / rhs.try_to_float()?).into())
+                        }
                         _ => todo!(),
                     }
                 }
@@ -243,16 +233,14 @@ impl Expr {
                     let rhs = rhs.eval(shell, false)?;
 
                     match lhs.as_ref() {
-                        Value::Int(number) => Ok(Value::Float(
-                            (*number as f64).powf(rhs.as_ref().try_to_float()?),
-                        )
-                        .into()),
-                        Value::Float(number) => Ok(Value::Float(
-                            (*number as f64).powf(rhs.as_ref().try_to_float()?),
-                        )
-                        .into()),
+                        Value::Int(number) => {
+                            Ok(Value::Float((*number as f64).powf(rhs.try_to_float()?)).into())
+                        }
+                        Value::Float(number) => {
+                            Ok(Value::Float((*number as f64).powf(rhs.try_to_float()?)).into())
+                        }
                         Value::Bool(boolean) => Ok(Value::Float(
-                            (*boolean as i64 as f64).powf(rhs.as_ref().try_to_float()?),
+                            (*boolean as i64 as f64).powf(rhs.try_to_float()?),
                         )
                         .into()),
                         _ => todo!(),
@@ -264,24 +252,21 @@ impl Expr {
 
                     match lhs.as_ref() {
                         Value::Int(number) => {
-                            if rhs.as_ref().is_float() {
-                                Ok(Value::Float(*number as f64 % rhs.as_ref().try_to_float()?)
-                                    .into())
+                            if rhs.is_float() {
+                                Ok(Value::Float(*number as f64 % rhs.try_to_float()?).into())
                             } else {
-                                Ok(Value::Int(*number % rhs.as_ref().try_to_int()?).into())
+                                Ok(Value::Int(*number % rhs.try_to_int()?).into())
                             }
                         }
                         Value::Float(number) => {
-                            Ok(Value::Float(*number as f64 % rhs.as_ref().try_to_float()?).into())
+                            Ok(Value::Float(*number as f64 % rhs.try_to_float()?).into())
                         }
                         Value::Bool(boolean) => {
-                            if rhs.as_ref().is_float() {
-                                Ok(Value::Float(
-                                    *boolean as i64 as f64 % rhs.as_ref().try_to_float()?,
-                                )
-                                .into())
+                            if rhs.is_float() {
+                                Ok(Value::Float(*boolean as i64 as f64 % rhs.try_to_float()?)
+                                    .into())
                             } else {
-                                Ok(Value::Int(*boolean as i64 % rhs.as_ref().try_to_int()?).into())
+                                Ok(Value::Int(*boolean as i64 % rhs.try_to_int()?).into())
                             }
                         }
                         _ => todo!(),

@@ -1,3 +1,4 @@
+#![feature(drain_filter)]
 mod shell;
 pub use shell::parser;
 use shell::Shell;

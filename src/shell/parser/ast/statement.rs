@@ -29,12 +29,12 @@ impl Statement {
         match self {
             Self::Assignment(var, expr) => {
                 let value = match expr.eval(shell, false)? {
-                    ValueKind::Heap(value) => value.clone(),
+                    ValueKind::Heap(value) => value,
                     ValueKind::Stack(value) => value.into(),
                 };
                 shell.variables.insert(var.name.clone(), value);
             }
-            _ => todo!(),
+            _ => todo!("statement not impl"),
         }
         Ok(())
     }
