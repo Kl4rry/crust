@@ -181,3 +181,10 @@ impl Shell {
         });
     }
 }
+
+impl Drop for Shell {
+    fn drop(&mut self) {
+        self.variables.clear();
+        self.collect_trash();
+    }
+}
