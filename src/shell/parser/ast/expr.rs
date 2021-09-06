@@ -8,7 +8,7 @@ use crate::{
     },
     shell::{
         builtins,
-        gc::{Value, ValueKind},
+        gc::{HeapValue, Value, ValueKind},
         Shell,
     },
 };
@@ -85,22 +85,25 @@ impl Expr {
             }
             Self::Literal(literal) => match literal {
                 Literal::String(string) => Ok(Value::String(string.to_thin_string()).into()),
-                Literal::Expand(_expand) => todo!(),
+                Literal::Expand(expand) => {
+                    Ok(Value::String(expand.eval(shell)?.to_thin_string()).into())
+                }
+
                 Literal::List(list) => {
-                    let mut values = ThinVec::new();
+                    let mut values: ThinVec<HeapValue> = ThinVec::new();
                     for expr in list.iter() {
-                        values.push(expr.eval(shell, false)?);
+                        values.push(expr.eval(shell, false)?.into());
                     }
                     Ok(Value::List(values).into())
                 }
                 Literal::Float(number) => Ok(Value::Float(*number).into()),
                 Literal::Int(number) => Ok(Value::Int(*number as i64).into()),
                 Literal::Bool(boolean) => Ok(Value::Bool(*boolean).into()),
-            },
+            }
             Self::Variable(Variable { name }) => match shell.variables.get(name) {
                 Some(value) => Ok(value.clone().into()),
                 None => Err(RunTimeError::VariableNotFound),
-            },
+            }
             Self::Unary(unop, expr) => {
                 let value = expr.eval(shell, false)?;
                 match unop {
@@ -144,7 +147,7 @@ impl Expr {
                         }
                         Value::String(lhs) => {
                             let mut new = lhs.clone();
-                            let rhs = rhs.as_ref().try_to_string()?;
+                            let rhs = rhs.as_ref().to_string();
                             new.push_str(&rhs);
                             Ok(Value::String(new).into())
                         }

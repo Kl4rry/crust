@@ -1,4 +1,4 @@
-use std::{convert::TryFrom, rc::Rc};
+use std::convert::TryFrom;
 
 use thin_string::ToThinString;
 
@@ -8,7 +8,7 @@ use crate::{
         runtime_error::RunTimeError,
         syntax_error::SyntaxErrorKind,
     },
-    shell::gc::Value,
+    shell::gc::{Value, ValueKind},
     Shell,
 };
 
@@ -18,12 +18,12 @@ pub struct Variable {
 }
 
 impl Variable {
-    pub fn eval(&self, shell: &mut Shell) -> Result<Rc<Value>, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<ValueKind, RunTimeError> {
         let value = shell.variables.get(&self.name);
         match value {
-            Some(value) => Ok(value.clone()),
+            Some(value) => Ok(value.clone().into()),
             None => match std::env::var(&self.name) {
-                Ok(value) => Ok(Rc::new(Value::String(value.to_thin_string()))),
+                Ok(value) => Ok(Value::String(value.to_thin_string()).into()),
                 Err(_) => Err(RunTimeError::VariableNotFound),
             },
         }

@@ -4,7 +4,6 @@ use std::{
     io::{stdout, Stdout},
     path::PathBuf,
     process::{Command, Output, Stdio},
-    rc::Rc,
     sync::{Arc, Mutex, MutexGuard},
 };
 
@@ -13,7 +12,7 @@ use rustyline::{error::ReadlineError, Editor};
 
 pub mod builtins;
 pub mod gc;
-use gc::Value;
+use gc::HeapValue;
 pub mod parser;
 use parser::{runtime_error::RunTimeError, Parser};
 
@@ -33,7 +32,7 @@ pub struct Shell {
     home_dir: PathBuf,
     stdout: Stdout,
     child_id: Arc<Mutex<Option<u32>>>,
-    variables: HashMap<String, Rc<Value>>,
+    variables: HashMap<String, HeapValue>,
     aliases: HashMap<String, String>,
 }
 
@@ -99,9 +98,7 @@ impl Shell {
                             match res {
                                 Ok(values) => {
                                     for value in values {
-                                        if let Ok(string) = value.as_ref().try_to_string() {
-                                            println!("{}", string);
-                                        }
+                                        println!("{}", value.as_ref().to_string());
                                     }
                                 }
                                 Err(RunTimeError::Exit) => (),
@@ -118,11 +115,11 @@ impl Shell {
                     editor.add_history_entry(line.as_str());
                 }
                 Err(ReadlineError::Interrupted) => {
-                    self.running = false;
                     println!("^C");
                 }
                 Err(ReadlineError::Eof) => {
                     println!("^D");
+                    self.running = false;
                 }
                 Err(err) => {
                     println!("Error: {}", err);
@@ -131,6 +128,7 @@ impl Shell {
             }
         }
         editor.save_history("history.txt").unwrap();
+        gc::drop_all();
         self.exit_status
     }
 

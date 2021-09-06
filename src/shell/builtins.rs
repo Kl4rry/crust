@@ -1,6 +1,6 @@
 use std::io::{stdout, Write};
 
-use phf::phf_map;
+use phf::*;
 
 use super::Shell;
 use crate::{parser::runtime_error::RunTimeError, shell::gc::Value};

@@ -4,6 +4,7 @@ use crate::{
         runtime_error::RunTimeError,
         P,
     },
+    shell::gc::ValueKind,
     Shell,
 };
 
@@ -24,7 +25,17 @@ pub enum Statement {
 }
 
 impl Statement {
-    pub fn eval(&self, _shell: &mut Shell) -> Result<(), RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<(), RunTimeError> {
+        match self {
+            Self::Assignment(var, expr) => {
+                let value = match expr.eval(shell, false)? {
+                    ValueKind::Heap(value) => value.clone(),
+                    ValueKind::Stack(value) => value.into(),
+                };
+                shell.variables.insert(var.name.clone(), value);
+            }
+            _ => todo!(),
+        }
         Ok(())
     }
 }

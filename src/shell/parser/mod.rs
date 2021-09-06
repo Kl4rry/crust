@@ -55,7 +55,7 @@ impl Parser {
     }
 
     #[inline(always)]
-    fn token(&self) -> Result<&Token> {
+    fn peek(&self) -> Result<&Token> {
         match self.token {
             Some(ref token) => Ok(token),
             None => Err(SyntaxErrorKind::ExpectedToken),
@@ -74,7 +74,7 @@ impl Parser {
 
     #[inline(always)]
     pub fn skip_space(&mut self) -> Result<()> {
-        while let Ok(token) = self.token() {
+        while let Ok(token) = self.peek() {
             if !token.is_space() {
                 return Ok(());
             }
@@ -85,7 +85,7 @@ impl Parser {
 
     #[inline(always)]
     pub fn skip_optional_space(&mut self) {
-        while let Ok(token) = self.token() {
+        while let Ok(token) = self.peek() {
             if !token.is_space() {
                 break;
             }
@@ -95,7 +95,7 @@ impl Parser {
 
     #[inline(always)]
     pub fn skip_whitespace(&mut self) {
-        while let Ok(token) = self.token() {
+        while let Ok(token) = self.peek() {
             match token.token_type {
                 TokenType::Space | TokenType::NewLine => {
                     let _ = self.eat();
@@ -107,7 +107,7 @@ impl Parser {
 
     #[inline(always)]
     pub fn skip_whitespace_and_semi(&mut self) {
-        while let Ok(token) = self.token() {
+        while let Ok(token) = self.peek() {
             match token.token_type {
                 TokenType::Space | TokenType::NewLine | TokenType::SemiColon => {
                     let _ = self.eat();
@@ -129,7 +129,7 @@ impl Parser {
 
         loop {
             self.skip_whitespace_and_semi();
-            let token = match self.token() {
+            let token = match self.peek() {
                 Ok(token) => token,
                 Err(_) => return Ok(sequence),
             };
@@ -141,7 +141,7 @@ impl Parser {
 
             self.skip_optional_space();
 
-            let token = match self.token() {
+            let token = match self.peek() {
                 Ok(token) => token,
                 Err(_) => return Ok(sequence),
             };
@@ -162,13 +162,13 @@ impl Parser {
     }
 
     fn parse_compound(&mut self) -> Result<Compound> {
-        let token_type = &self.token()?.token_type;
+        let token_type = &self.peek()?.token_type;
 
         match token_type {
             TokenType::LeftBrace => Ok(Compound::Statement(Statement::Block(self.parse_block()?))),
             TokenType::Variable(_) => {
                 let var: Variable = self.eat()?.try_into()?;
-                while let Ok(token) = self.token() {
+                while let Ok(token) = self.peek() {
                     match token.token_type {
                         TokenType::Assignment => {
                             self.eat()?.expect(TokenType::Assignment)?;
@@ -265,7 +265,7 @@ impl Parser {
             TokenType::Return => {
                 self.eat()?;
                 self.skip_optional_space();
-                match self.token() {
+                match self.peek() {
                     Ok(token) => match token.token_type {
                         TokenType::NewLine | TokenType::SemiColon => {
                             self.eat()?;
@@ -283,7 +283,7 @@ impl Parser {
                 "export" => Ok(Compound::Statement(self.parse_declaration(true)?)),
                 "let" => Ok(Compound::Statement(self.parse_declaration(false)?)),
                 _ => Ok(Compound::Expr(self.parse_expr(None)?)),
-            },
+            }
             TokenType::Exec
             | TokenType::Dollar
             | TokenType::Int(_, _)
@@ -293,7 +293,8 @@ impl Parser {
             | TokenType::Sub
             | TokenType::LeftParen
             | TokenType::True
-            | &TokenType::False
+            | TokenType::False
+            | TokenType::LeftBracket
             | TokenType::Not => Ok(Compound::Expr(self.parse_expr(None)?)),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         }
@@ -311,7 +312,8 @@ impl Parser {
             content: Vec::new(),
         };
 
-        while let Ok(token) = self.token() {
+        loop {
+            let token = self.peek()?;
             match token.token_type {
                 TokenType::Dollar => expand
                     .content
@@ -347,12 +349,12 @@ impl Parser {
         let block = self.parse_block()?;
         self.skip_whitespace();
 
-        let statement = match self.token() {
+        let statement = match self.peek() {
             Ok(token) => match token.token_type {
                 TokenType::Else => {
                     self.eat()?;
                     self.skip_whitespace();
-                    match self.token()?.token_type {
+                    match self.peek()?.token_type {
                         TokenType::If => Some(P::new(self.parse_if()?)),
                         TokenType::LeftBrace => Some(P::new(Statement::Block(self.parse_block()?))),
                         _ => return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
@@ -407,7 +409,7 @@ impl Parser {
     }
 
     fn parse_primary(&mut self, unop: Option<UnOp>) -> Result<Expr> {
-        match &self.token()?.token_type {
+        match self.peek()?.token_type {
             TokenType::True | TokenType::False => {
                 Ok(Expr::Literal(self.eat()?.try_into()?).wrap(unop))
             }
@@ -426,7 +428,7 @@ impl Parser {
             TokenType::String(_)
             | TokenType::Int(_, _)
             | TokenType::Float(_, _)
-            | TokenType::Quote => Ok(Expr::Literal(match self.token()?.token_type {
+            | TokenType::Quote => Ok(Expr::Literal(match self.peek()?.token_type {
                 TokenType::Quote => {
                     let expand = self.parse_expand()?;
                     Literal::Expand(expand)
@@ -438,6 +440,33 @@ impl Parser {
                 let inner = self.eat()?.try_into()?;
                 self.skip_optional_space();
                 Ok(self.parse_expr(Some(inner))?.wrap(unop))
+            }
+            TokenType::LeftBracket => {
+                let mut list = Vec::new();
+                self.eat()?;
+                let mut last_was_comma = false;
+                loop {
+                    self.skip_whitespace();
+                    match self.peek()?.token_type {
+                        TokenType::RightBracket => {
+                            self.eat()?;
+                            break;
+                        }
+                        TokenType::Comma => {
+                            if last_was_comma {
+                                return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?));
+                            } else {
+                                self.eat()?;
+                                last_was_comma = true;
+                            }
+                        }
+                        _ => {
+                            last_was_comma = false;
+                            list.push(self.parse_expr(None)?)
+                        }
+                    }
+                }
+                Ok(Expr::Literal(Literal::List(list)))
             }
             _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         }
@@ -457,7 +486,7 @@ impl Parser {
         };
         self.skip_optional_space();
 
-        let mut lookahead: Option<BinOp> = match self.token() {
+        let mut lookahead: Option<BinOp> = match self.peek() {
             Ok(token) => {
                 if token.is_binop() {
                     Some(token.to_binop())
@@ -485,7 +514,7 @@ impl Parser {
             let rhs = self.parse_sub_expr(None, next_min)?;
             self.skip_optional_space();
 
-            lookahead = match self.token() {
+            lookahead = match self.peek() {
                 Ok(token) => {
                     if token.is_binop() {
                         Some(token.to_binop())
@@ -506,7 +535,7 @@ impl Parser {
         let command = self.parse_command()?;
         let mut args = Vec::new();
 
-        while let Ok(token) = self.token() {
+        while let Ok(token) = self.peek() {
             match token.token_type {
                 TokenType::Space => {
                     self.eat()?;
@@ -524,7 +553,7 @@ impl Parser {
 
         self.skip_optional_space();
 
-        if let Ok(token) = self.token() {
+        if let Ok(token) = self.peek() {
             match token.token_type {
                 TokenType::Lt => {
                     self.eat()?;
@@ -544,7 +573,7 @@ impl Parser {
 
         self.skip_optional_space();
 
-        if let Ok(token) = self.token() {
+        if let Ok(token) = self.peek() {
             if token.token_type == TokenType::Pipe {
                 self.eat()?;
                 self.skip_whitespace();
@@ -561,7 +590,7 @@ impl Parser {
         match token.token_type {
             TokenType::Exec => {
                 self.skip_whitespace();
-                match self.token()?.token_type {
+                match self.peek()?.token_type {
                     TokenType::Quote => Ok(Command::Expand(self.parse_expand()?)),
                     _ => self.eat()?.try_into(),
                 }
@@ -574,14 +603,14 @@ impl Parser {
     fn parse_argument(&mut self) -> Result<Argument> {
         let mut ids = Vec::new();
 
-        let id = match self.token()?.token_type {
+        let id = match self.peek()?.token_type {
             TokenType::Quote => Identifier::Expand(self.parse_expand()?),
             TokenType::Dollar => Identifier::Expr(P::new(self.parse_expr_expand()?)),
             _ => self.eat()?.try_into_id()?,
         };
 
         ids.push(id);
-        while let Ok(token) = self.token() {
+        while let Ok(token) = self.peek() {
             if token.is_valid_id() {
                 match token.token_type {
                     TokenType::Quote => {
