@@ -19,13 +19,16 @@ pub struct Variable {
 
 impl Variable {
     pub fn eval(&self, shell: &mut Shell) -> Result<ValueKind, RunTimeError> {
-        let value = shell.variables.get(&self.name);
-        match value {
-            Some(value) => Ok(value.clone().into()),
-            None => match std::env::var(&self.name) {
-                Ok(value) => Ok(Value::String(value.to_thin_string()).into()),
-                Err(_) => Err(RunTimeError::VariableNotFound),
-            },
+        for frame in shell.variable_stack.iter().rev() {
+            match frame.get(&self.name) {
+                Some(value) => return Ok(value.clone().into()),
+                None => (),
+            }
+        }
+
+        match std::env::var(&self.name) {
+            Ok(value) => Ok(Value::String(value.to_thin_string()).into()),
+            Err(_) => Err(RunTimeError::VariableNotFound),
         }
     }
 }

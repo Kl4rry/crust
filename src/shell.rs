@@ -31,7 +31,7 @@ pub struct Shell {
     home_dir: PathBuf,
     stdout: Stdout,
     child_id: Arc<Mutex<Option<u32>>>,
-    variables: HashMap<String, HeapValue>,
+    variable_stack: Vec<HashMap<String, HeapValue>>,
     aliases: HashMap<String, String>,
 }
 
@@ -69,7 +69,7 @@ impl Shell {
             home_dir: dirs.home_dir().to_path_buf(),
             stdout: stdout(),
             child_id,
-            variables: HashMap::new(),
+            variable_stack: vec![HashMap::new()],
             aliases: HashMap::new(),
         }
     }
@@ -168,8 +168,10 @@ impl Shell {
     }
 
     pub fn collect_trash(&mut self) {
-        for var in self.variables.values() {
-            var.trace();
+        for map in self.variable_stack.iter() {
+            for var in map.values() {
+                var.trace()
+            }
         }
 
         gc::GC.with(|gc| {
@@ -184,7 +186,7 @@ impl Shell {
 
 impl Drop for Shell {
     fn drop(&mut self) {
-        self.variables.clear();
+        self.variable_stack.clear();
         self.collect_trash();
     }
 }

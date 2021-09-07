@@ -32,8 +32,13 @@ impl Statement {
                     ValueKind::Heap(value) => value,
                     ValueKind::Stack(value) => value.into(),
                 };
-                shell.variables.insert(var.name.clone(), value);
+                shell
+                    .variable_stack
+                    .last_mut()
+                    .expect("stack is empty this should be impossible")
+                    .insert(var.name.clone(), value);
             }
+            Self::Export(_var, _expr) => {}
             _ => todo!("statement not impl"),
         }
         Ok(())

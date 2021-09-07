@@ -2,14 +2,17 @@ use std::io::{stdout, Write};
 
 use phf::*;
 
-use super::Shell;
-use crate::{parser::runtime_error::RunTimeError, shell::gc::Value};
+use crate::{
+    parser::runtime_error::RunTimeError,
+    shell::{gc::Value, Shell},
+};
 
 mod alias;
 mod cd;
 mod clear;
 mod drop;
 mod echo;
+mod env;
 mod exit;
 #[cfg(target_family = "windows")]
 mod ls;
@@ -31,6 +34,7 @@ static BUILTINS: phf::Map<&'static str, Bulitin> = phf_map! {
     #[cfg(target_family = "windows")]
     "ls" => ls::ls,
     "drop" => drop::drop,
+    "env" => env::env,
 };
 
 pub fn run_builtin(
@@ -40,7 +44,10 @@ pub fn run_builtin(
 ) -> Option<Result<Value, RunTimeError>> {
     let mut out = stdout();
     let status = match BUILTINS.get(command) {
-        Some(cmd) => cmd(shell, args, &mut out).ok()?,
+        Some(cmd) => match cmd(shell, args, &mut out) {
+            Ok(status) => status,
+            Err(error) => return Some(Err(error)),
+        },
         None => return None,
     };
     Some(Ok(Value::ExitStatus(status)))

@@ -100,10 +100,7 @@ impl Expr {
                 Literal::Int(number) => Ok(Value::Int(*number as i64).into()),
                 Literal::Bool(boolean) => Ok(Value::Bool(*boolean).into()),
             },
-            Self::Variable(Variable { name }) => match shell.variables.get(name) {
-                Some(value) => Ok(value.clone().into()),
-                None => Err(RunTimeError::VariableNotFound),
-            },
+            Self::Variable(variable) => variable.eval(shell),
             Self::Unary(unop, expr) => {
                 let value = expr.eval(shell, false)?;
                 match unop {

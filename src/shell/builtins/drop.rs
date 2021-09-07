@@ -15,12 +15,11 @@ pub fn drop(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i64
 
     let name = matches.value_of("NAME").unwrap();
 
-    let value = shell.variables.remove(name);
-
-    if value.is_some() {
-        Ok(0)
-    } else {
-        eprintln!("drop: variable: {} not found", name);
-        Ok(-1)
+    for frame in shell.variable_stack.iter_mut() {
+        let value = frame.remove(name);
+        if value.is_some() {
+            return Ok(0);
+        }
     }
+    Ok(-1)
 }
