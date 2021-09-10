@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Range};
+use std::ops::Range;
 
 use thin_string::ThinString;
 use thin_vec::ThinVec;
@@ -14,7 +14,6 @@ pub enum Value {
     Bool(bool),
     String(ThinString),
     List(ThinVec<HeapValue>),
-    Map(Box<HashMap<HeapValue, HeapValue>>),
     Range(Box<Range<i64>>),
     ExitStatus(i64),
 }
@@ -33,15 +32,11 @@ impl ToString for Value {
             Self::Float(number) => number.to_string(),
             Self::String(string) => string.to_string(),
             Self::List(list) => {
-                let mut string = String::from('[');
-                let len = list.len();
-                for (index, value) in list.into_iter().enumerate() {
+                let mut string = String::new();
+                for value in list.into_iter() {
                     string.push_str(&value.as_ref().to_string());
-                    if index < len - 1 {
-                        string.push_str(", ");
-                    }
+                    string.push(' ');
                 }
-                string.push(']');
                 string
             }
             Self::Range(range) => {
@@ -58,7 +53,6 @@ impl ToString for Value {
             }
             Self::ExitStatus(number) => number.to_string(),
             Self::Bool(boolean) => boolean.to_string(),
-            Self::Map(map) => format!("{:?}", map),
         }
     }
 }

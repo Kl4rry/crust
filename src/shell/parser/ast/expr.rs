@@ -8,7 +8,7 @@ use crate::{
     },
     shell::{
         builtins,
-        gc::{HeapValue, Value, ValueKind},
+        values::{HeapValue, Value, ValueKind},
         Shell,
     },
 };
@@ -92,14 +92,22 @@ impl Expr {
                 Literal::List(list) => {
                     let mut values: ThinVec<HeapValue> = ThinVec::new();
                     for expr in list.iter() {
-                        values.push(expr.eval(shell, false)?.into());
+                        let value = expr.eval(shell, false)?;
+                        match *value {
+                            Value::List(ref list) => {
+                                for item in list {
+                                    values.push(item.clone());
+                                }
+                            }
+                            _ => values.push(value.into()),
+                        }
                     }
                     Ok(Value::List(values).into())
                 }
                 Literal::Float(number) => Ok(Value::Float(*number).into()),
                 Literal::Int(number) => Ok(Value::Int(*number as i64).into()),
                 Literal::Bool(boolean) => Ok(Value::Bool(*boolean).into()),
-            },
+            }
             Self::Variable(variable) => variable.eval(shell),
             Self::Unary(unop, expr) => {
                 let value = expr.eval(shell, false)?;
@@ -116,6 +124,11 @@ impl Expr {
             }
             Self::Paren(expr) => expr.eval(shell, false),
             Self::Binary(binop, lhs, rhs) => match binop {
+                BinOp::Range => {
+                    let lhs = lhs.eval(shell, false)?.try_to_int()?;
+                    let rhs = rhs.eval(shell, false)?.try_to_int()?;
+                    Ok(Value::Range(P::new(lhs..rhs)).into())
+                }
                 BinOp::Add => {
                     let lhs = lhs.eval(shell, false)?;
                     let rhs = rhs.eval(shell, false)?;

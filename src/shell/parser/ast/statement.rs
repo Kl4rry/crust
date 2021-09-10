@@ -4,7 +4,7 @@ use crate::{
         runtime_error::RunTimeError,
         P,
     },
-    shell::gc::ValueKind,
+    shell::values::ValueKind,
     Shell,
 };
 
@@ -36,6 +36,7 @@ impl Statement {
                     .variable_stack
                     .last_mut()
                     .expect("stack is empty this should be impossible")
+                    .variables
                     .insert(var.name.clone(), value);
             }
             Self::Export(_var, _expr) => {}

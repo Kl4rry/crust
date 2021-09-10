@@ -8,7 +8,7 @@ use crate::{
         runtime_error::RunTimeError,
         syntax_error::SyntaxErrorKind,
     },
-    shell::gc::{Value, ValueKind},
+    shell::values::{Value, ValueKind},
     Shell,
 };
 
@@ -20,7 +20,7 @@ pub struct Variable {
 impl Variable {
     pub fn eval(&self, shell: &mut Shell) -> Result<ValueKind, RunTimeError> {
         for frame in shell.variable_stack.iter().rev() {
-            match frame.get(&self.name) {
+            match frame.variables.get(&self.name) {
                 Some(value) => return Ok(value.clone().into()),
                 None => (),
             }

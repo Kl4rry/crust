@@ -4,7 +4,7 @@ use thin_string::ToThinString;
 
 use crate::{
     parser::runtime_error::RunTimeError,
-    shell::{gc::Value, Shell},
+    shell::{values::Value, Shell},
 };
 
 pub fn exit(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i64, RunTimeError> {

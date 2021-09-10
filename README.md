@@ -1,3 +1,6 @@
+# Crust
+This readme contains notes to myself.
+
 # Parsing
 * Literals ✅
 * Binary operators ✅
@@ -31,3 +34,8 @@
 Comparison operator chaining is currently permitted but should not be.
 
 Unary operators have no precedence.
+
+Lists should become multiple arguments
+
+# Design rules
+Data structures cannot be cyclic. This means that lists are cannot hold lists.

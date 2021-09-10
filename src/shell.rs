@@ -10,10 +10,12 @@ use crossterm::{execute, style::Print, terminal::SetTitle};
 use rustyline::{error::ReadlineError, Editor};
 
 pub mod builtins;
-pub mod gc;
-use gc::HeapValue;
+pub mod values;
+use values::HeapValue;
 pub mod parser;
 use parser::{runtime_error::RunTimeError, Parser};
+mod frame;
+use frame::Frame;
 
 #[inline(always)]
 pub fn clear_str() -> &'static str {
@@ -29,9 +31,10 @@ pub struct Shell {
     running: bool,
     exit_status: i64,
     home_dir: PathBuf,
+    history_file: PathBuf,
     stdout: Stdout,
     child_id: Arc<Mutex<Option<u32>>>,
-    variable_stack: Vec<HashMap<String, HeapValue>>,
+    variable_stack: Vec<Frame>,
     aliases: HashMap<String, String>,
 }
 
@@ -62,14 +65,18 @@ impl Shell {
         .expect("Error setting Ctrl-C handler");
 
         let dirs = directories::UserDirs::new().unwrap();
-
+        let home_dir = dirs.home_dir().to_path_buf();
+        let mut history_file = home_dir.clone();
+        history_file.push(".crust_history");
+        
         Shell {
             running: true,
             exit_status: 0,
-            home_dir: dirs.home_dir().to_path_buf(),
+            home_dir,
+            history_file,
             stdout: stdout(),
             child_id,
-            variable_stack: vec![HashMap::new()],
+            variable_stack: vec![Frame::new()],
             aliases: HashMap::new(),
         }
     }
@@ -80,7 +87,7 @@ impl Shell {
             .bell_style(rustyline::config::BellStyle::None)
             .build();
         let mut editor = Editor::<()>::with_config(config);
-        let _ = editor.load_history("history.txt");
+        let _ = editor.load_history(&self.history_file);
 
         while self.running {
             let readline = editor.readline(&self.promt());
@@ -112,11 +119,6 @@ impl Shell {
                         }
                     };
 
-                    // collect garbage
-                    if gc::GC.with(|gc| gc.values.borrow().len()) > 100 {
-                        self.collect_trash();
-                    }
-
                     editor.add_history_entry(line.as_str());
                 }
                 Err(ReadlineError::Interrupted) => {
@@ -132,7 +134,7 @@ impl Shell {
                 }
             }
         }
-        editor.save_history("history.txt").unwrap();
+        editor.save_history(&self.history_file).unwrap();
         self.exit_status
     }
 
@@ -166,27 +168,10 @@ impl Shell {
         *self.child_id.lock().unwrap() = None;
         output
     }
-
-    pub fn collect_trash(&mut self) {
-        for map in self.variable_stack.iter() {
-            for var in map.values() {
-                var.trace()
-            }
-        }
-
-        gc::GC.with(|gc| {
-            let mut values = gc.values.borrow_mut();
-            let mut keepers = gc.keepers.borrow_mut();
-            let drain = values.drain_filter(|value| !keepers.contains(value));
-            drain.for_each(|raw| unsafe { drop(Box::from_raw(raw)) });
-            keepers.clear();
-        });
-    }
 }
 
 impl Drop for Shell {
     fn drop(&mut self) {
         self.variable_stack.clear();
-        self.collect_trash();
     }
 }

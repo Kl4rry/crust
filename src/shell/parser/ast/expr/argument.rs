@@ -15,11 +15,11 @@ pub enum Identifier {
 impl Identifier {
     pub fn eval(&self, shell: &mut Shell) -> Result<String, RunTimeError> {
         match self {
-            Identifier::Variable(var) => Ok(var.eval(shell)?.as_ref().to_string()),
+            Identifier::Variable(var) => Ok(var.eval(shell)?.to_string()),
             Identifier::Expand(expand) => Ok(expand.eval(shell)?),
             Identifier::Bare(string) => Ok(string.clone()),
             Identifier::String(string) => Ok(string.clone()),
-            Identifier::Expr(expr) => Ok(expr.eval(shell, false)?.as_ref().to_string()),
+            Identifier::Expr(expr) => Ok(expr.eval(shell, false)?.to_string()),
         }
     }
 }
@@ -36,9 +36,9 @@ impl Expand {
             match item {
                 ExpandKind::String(string) => value.push_str(string),
                 ExpandKind::Expr(expr) => {
-                    value.push_str(&expr.eval(shell, true)?.as_ref().to_string())
+                    value.push_str(&expr.eval(shell, true)?.to_string())
                 }
-                ExpandKind::Variable(var) => value.push_str(&var.eval(shell)?.as_ref().to_string()),
+                ExpandKind::Variable(var) => value.push_str(&var.eval(shell)?.to_string()),
             }
         }
         Ok(value)
