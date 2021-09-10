@@ -1,4 +1,4 @@
-# Features
+# Parsing
 * Literals ✅
 * Binary operators ✅
 * Unary operators ✅
@@ -14,7 +14,7 @@
 * Variable declaration ✅
 * Export ✅
 * Alias ✅
-* Lists ❌
+* Lists ✅
 * Indexing ❌
 * Maps ❌
 * Pipes ✅ (Not |& aka stderr pipe)
