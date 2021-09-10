@@ -12,7 +12,15 @@ pub fn exit(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i64
         .about("exit the shell")
         .arg(clap::Arg::with_name("STATUS").help("The exit status of the shell"))
         .settings(&[clap::AppSettings::NoBinaryName])
-        .get_matches_from_safe(args.iter())?;
+        .get_matches_from_safe(args.iter());
+
+    let matches = match matches {
+        Ok(matches) => matches,
+        Err(clap::Error { message, .. }) => {
+            eprintln!("{}", message);
+            return Ok(-1);
+        }
+    };
 
     if let Some(status) = matches.value_of("STATUS") {
         shell.exit_status = match Value::String(status.to_thin_string()).try_to_int() {

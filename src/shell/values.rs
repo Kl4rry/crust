@@ -1,10 +1,9 @@
-use std::ops::Deref;
-use std::rc::Rc;
+use std::{ops::Deref, rc::Rc};
 
 pub mod value;
 pub use value::Value;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ValueKind {
     Heap(HeapValue),
     Stack(Value),
@@ -37,7 +36,9 @@ impl From<HeapValue> for ValueKind {
 impl From<Value> for HeapValue {
     #[inline(always)]
     fn from(value: Value) -> HeapValue {
-        HeapValue { ptr: Rc::new(value) }
+        HeapValue {
+            ptr: Rc::new(value),
+        }
     }
 }
 

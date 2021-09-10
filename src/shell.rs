@@ -68,7 +68,7 @@ impl Shell {
         let home_dir = dirs.home_dir().to_path_buf();
         let mut history_file = home_dir.clone();
         history_file.push(".crust_history");
-        
+
         Shell {
             running: true,
             exit_status: 0,
@@ -96,7 +96,7 @@ impl Shell {
                     if line.is_empty() {
                         continue;
                     }
-
+                    
                     let mut parser = Parser::new(line.clone());
                     match parser.parse() {
                         Ok(mut ast) => {
@@ -108,9 +108,6 @@ impl Shell {
                                     }
                                 }
                                 Err(RunTimeError::Exit) => (),
-                                Err(RunTimeError::ClapError(clap::Error { message, .. })) => {
-                                    eprintln!("{}", message)
-                                }
                                 Err(error) => eprintln!("{}", error),
                             }
                         }

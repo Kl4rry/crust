@@ -7,7 +7,7 @@ use super::HeapValue;
 use crate::parser::runtime_error::RunTimeError;
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Int(i64),
     Float(f64),

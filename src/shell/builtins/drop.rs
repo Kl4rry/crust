@@ -11,7 +11,15 @@ pub fn drop(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i64
                 .required(true),
         )
         .settings(&[clap::AppSettings::NoBinaryName])
-        .get_matches_from_safe(args.iter())?;
+        .get_matches_from_safe(args.iter());
+
+    let matches = match matches {
+        Ok(matches) => matches,
+        Err(clap::Error { message, .. }) => {
+            eprintln!("{}", message);
+            return Ok(-1);
+        }
+    };
 
     let name = matches.value_of("NAME").unwrap();
 

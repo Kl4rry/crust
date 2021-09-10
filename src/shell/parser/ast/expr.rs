@@ -1,4 +1,4 @@
-use thin_vec::ThinVec;
+use thin_vec::*;
 
 use crate::{
     parser::{
@@ -17,7 +17,7 @@ pub mod binop;
 use binop::BinOp;
 
 pub mod unop;
-use thin_string::{ThinString, ToThinString};
+use thin_string::ThinString;
 use unop::UnOp;
 
 pub mod command;
@@ -83,31 +83,7 @@ impl Expr {
                 }
                 Ok(Value::ExitStatus(0).into())
             }
-            Self::Literal(literal) => match literal {
-                Literal::String(string) => Ok(Value::String(string.to_thin_string()).into()),
-                Literal::Expand(expand) => {
-                    Ok(Value::String(expand.eval(shell)?.to_thin_string()).into())
-                }
-
-                Literal::List(list) => {
-                    let mut values: ThinVec<HeapValue> = ThinVec::new();
-                    for expr in list.iter() {
-                        let value = expr.eval(shell, false)?;
-                        match *value {
-                            Value::List(ref list) => {
-                                for item in list {
-                                    values.push(item.clone());
-                                }
-                            }
-                            _ => values.push(value.into()),
-                        }
-                    }
-                    Ok(Value::List(values).into())
-                }
-                Literal::Float(number) => Ok(Value::Float(*number).into()),
-                Literal::Int(number) => Ok(Value::Int(*number as i64).into()),
-                Literal::Bool(boolean) => Ok(Value::Bool(*boolean).into()),
-            }
+            Self::Literal(literal) => literal.eval(shell),
             Self::Variable(variable) => variable.eval(shell),
             Self::Unary(unop, expr) => {
                 let value = expr.eval(shell, false)?;
@@ -135,6 +111,12 @@ impl Expr {
 
                     match lhs.as_ref() {
                         Value::Int(number) => {
+                            if let Value::List(rhs) = rhs.as_ref() {
+                                let mut list: ThinVec<HeapValue> = thin_vec![lhs.clone().into()];
+                                list.extend(rhs.iter().map(|value| value.clone().into()));
+                                return Ok(Value::List(list).into());
+                            }
+
                             if rhs.is_float() {
                                 Ok(Value::Float(*number as f64 + rhs.try_to_float()?).into())
                             } else {
@@ -142,9 +124,21 @@ impl Expr {
                             }
                         }
                         Value::Float(number) => {
+                            if let Value::List(rhs) = rhs.as_ref() {
+                                let mut list: ThinVec<HeapValue> = thin_vec![lhs.clone().into()];
+                                list.extend(rhs.iter().map(|value| value.clone().into()));
+                                return Ok(Value::List(list).into());
+                            }
+
                             Ok(Value::Float(*number as f64 + rhs.try_to_float()?).into())
                         }
                         Value::Bool(boolean) => {
+                            if let Value::List(rhs) = rhs.as_ref() {
+                                let mut list: ThinVec<HeapValue> = thin_vec![lhs.clone().into()];
+                                list.extend(rhs.iter().map(|value| value.clone().into()));
+                                return Ok(Value::List(list).into());
+                            }
+
                             if rhs.is_float() {
                                 Ok(Value::Float(*boolean as i64 as f64 + rhs.try_to_float()?)
                                     .into())
@@ -152,13 +146,24 @@ impl Expr {
                                 Ok(Value::Int(*boolean as i64 + rhs.try_to_int()?).into())
                             }
                         }
-                        Value::String(lhs) => {
-                            let mut new = lhs.clone();
+                        Value::String(string) => {
+                            if let Value::List(rhs) = rhs.as_ref() {
+                                let mut list: ThinVec<HeapValue> = thin_vec![lhs.clone().into()];
+                                list.extend(rhs.iter().map(|value| value.clone().into()));
+                                return Ok(Value::List(list).into());
+                            }
+
+                            let mut new = string.clone();
                             let rhs = rhs.to_string();
                             new.push_str(&rhs);
                             Ok(Value::String(new).into())
                         }
-                        _ => todo!(),
+                        Value::List(lhs) => {
+                            let mut list = lhs.clone();
+                            list.push(rhs.into());
+                            Ok(Value::List(list).into())
+                        }
+                        _ => Err(RunTimeError::InvalidOperand),
                     }
                 }
                 BinOp::Sub => {
@@ -184,7 +189,7 @@ impl Expr {
                                 Ok(Value::Int(*boolean as i64 - rhs.try_to_int()?).into())
                             }
                         }
-                        _ => todo!(),
+                        _ => Err(RunTimeError::InvalidOperand),
                     }
                 }
                 BinOp::Mul => {
@@ -210,15 +215,23 @@ impl Expr {
                                 Ok(Value::Int(*boolean as i64 * rhs.try_to_int()?).into())
                             }
                         }
-                        Value::String(lhs) => {
+                        Value::String(string) => {
                             let mut new = ThinString::new();
                             let mul = rhs.try_to_int()?;
                             for _ in 0..mul {
-                                new.push_str(lhs);
+                                new.push_str(string);
                             }
                             Ok(Value::String(new).into())
                         }
-                        _ => todo!(),
+                        Value::List(list) => {
+                            let mut new = ThinVec::new();
+                            let mul = rhs.try_to_int()?;
+                            for _ in 0..mul {
+                                new.extend_from_slice(list);
+                            }
+                            Ok(Value::List(new).into())
+                        }
+                        _ => Err(RunTimeError::InvalidOperand),
                     }
                 }
                 BinOp::Div => {
@@ -235,7 +248,7 @@ impl Expr {
                         Value::Bool(boolean) => {
                             Ok(Value::Float(*boolean as i64 as f64 / rhs.try_to_float()?).into())
                         }
-                        _ => todo!(),
+                        _ => Err(RunTimeError::InvalidOperand),
                     }
                 }
                 BinOp::Expo => {
@@ -253,7 +266,7 @@ impl Expr {
                             (*boolean as i64 as f64).powf(rhs.try_to_float()?),
                         )
                         .into()),
-                        _ => todo!(),
+                        _ => Err(RunTimeError::InvalidOperand),
                     }
                 }
                 BinOp::Mod => {
@@ -279,7 +292,7 @@ impl Expr {
                                 Ok(Value::Int(*boolean as i64 % rhs.try_to_int()?).into())
                             }
                         }
-                        _ => todo!(),
+                        _ => Err(RunTimeError::InvalidOperand),
                     }
                 }
                 _ => todo!(),

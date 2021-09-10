@@ -7,7 +7,15 @@ pub fn cd(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i64, 
         .about("change directory")
         .arg(clap::Arg::with_name("DIR").help("The new directory"))
         .settings(&[clap::AppSettings::NoBinaryName])
-        .get_matches_from_safe(args.iter())?;
+        .get_matches_from_safe(args.iter());
+
+    let matches = match matches {
+        Ok(matches) => matches,
+        Err(clap::Error { message, .. }) => {
+            eprintln!("{}", message);
+            return Ok(-1);
+        }
+    };
 
     let dir = match matches.value_of("DIR") {
         Some(value) => value,
