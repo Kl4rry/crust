@@ -50,5 +50,5 @@ pub fn run_builtin(
         },
         None => return None,
     };
-    Some(Ok(Value::ExitStatus(status)))
+    Some(Ok(Value::Int(status)))
 }

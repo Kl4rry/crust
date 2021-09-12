@@ -96,7 +96,7 @@ impl Shell {
                     if line.is_empty() {
                         continue;
                     }
-                    
+
                     let mut parser = Parser::new(line.clone());
                     match parser.parse() {
                         Ok(mut ast) => {

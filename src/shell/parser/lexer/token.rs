@@ -38,7 +38,7 @@ pub enum TokenType {
     Comma,
     /// $
     Dollar,
-    //Colon,
+    Colon,
     SemiColon,
     // Binary operators
     /// The x..y operator (range)
@@ -79,6 +79,12 @@ pub enum TokenType {
     Fn,
     True,
     False,
+
+    // casts
+    IntCast,
+    FloatCast,
+    StrCast,
+    BoolCast,
 }
 
 impl TokenType {
@@ -115,31 +121,35 @@ impl TokenType {
     pub fn is_valid_id(&self) -> bool {
         matches!(
             *self,
-            TokenType::Dollar |
-            TokenType::Quote |
-            TokenType::Assignment |
-            //TokenType::Colon |
-            TokenType::RightBracket |
-            TokenType::LeftBracket |
-            TokenType::Range |
-            TokenType::Add |
-            TokenType::Sub |
-            TokenType::Mul |
-            TokenType::Div |
-            TokenType::Expo |
-            TokenType::Mod |
-            TokenType::Eq  |
-            TokenType::Le  |
-            TokenType::Ne |
-            TokenType::Ge  |
-            TokenType::Not |
-            TokenType::Symbol(_) |
-            TokenType::Variable(_) |
-            TokenType::String(_) |
-            TokenType::Float(_, _) |
-            TokenType::Int(_, _) |
-            TokenType::True |
-            TokenType::False
+            TokenType::Dollar
+                | TokenType::Quote
+                | TokenType::Assignment
+                | TokenType::Colon
+                | TokenType::RightBracket
+                | TokenType::LeftBracket
+                | TokenType::Range
+                | TokenType::Add
+                | TokenType::Sub
+                | TokenType::Mul
+                | TokenType::Div
+                | TokenType::Expo
+                | TokenType::Mod
+                | TokenType::Eq
+                | TokenType::Le
+                | TokenType::Ne
+                | TokenType::Ge
+                | TokenType::Not
+                | TokenType::Symbol(_)
+                | TokenType::Variable(_)
+                | TokenType::String(_)
+                | TokenType::Float(_, _)
+                | TokenType::Int(_, _)
+                | TokenType::True
+                | TokenType::False
+                | TokenType::IntCast
+                | TokenType::FloatCast
+                | TokenType::StrCast
+                | TokenType::BoolCast
         )
     }
 }
@@ -199,7 +209,11 @@ impl Token {
             TokenType::True => Ok("true"),
             TokenType::False => Ok("false"),
             TokenType::Mul => Ok("*"),
-            //TokenType::Colon => ":",
+            TokenType::Colon => Ok(":"),
+            TokenType::IntCast => Ok("int"),
+            TokenType::FloatCast => Ok("float"),
+            TokenType::StrCast => Ok("str"),
+            TokenType::BoolCast => Ok("bool"),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self)),
         }
     }

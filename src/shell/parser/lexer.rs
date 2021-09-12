@@ -120,6 +120,10 @@ impl Lexer {
             "fn" => TokenType::Fn,
             "true" => TokenType::True,
             "false" => TokenType::False,
+            "int" => TokenType::IntCast,
+            "float" => TokenType::FloatCast,
+            "str" => TokenType::StrCast,
+            "bool" => TokenType::BoolCast,
             _ => {
                 return Token {
                     token_type: TokenType::Symbol(value),

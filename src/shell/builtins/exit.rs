@@ -2,10 +2,7 @@ use std::io::Write;
 
 use thin_string::ToThinString;
 
-use crate::{
-    parser::runtime_error::RunTimeError,
-    shell::{values::Value, Shell},
-};
+use crate::{parser::runtime_error::RunTimeError, shell::Shell};
 
 pub fn exit(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i64, RunTimeError> {
     let matches = clap::App::new("exit")
@@ -23,7 +20,7 @@ pub fn exit(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i64
     };
 
     if let Some(status) = matches.value_of("STATUS") {
-        shell.exit_status = match Value::String(status.to_thin_string()).try_to_int() {
+        shell.exit_status = match status.to_thin_string().parse() {
             Ok(number) => number,
             Err(_) => {
                 eprintln!("exit: STATUS must be integer");

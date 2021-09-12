@@ -15,7 +15,7 @@ use ast::{
         binop::BinOp,
         command::Command,
         unop::UnOp,
-        Expr,
+        Expr, Type,
     },
     literal::Literal,
     statement::Statement,
@@ -295,6 +295,10 @@ impl Parser {
             | TokenType::True
             | TokenType::False
             | TokenType::LeftBracket
+            | TokenType::BoolCast
+            | TokenType::IntCast
+            | TokenType::FloatCast
+            | TokenType::StrCast
             | TokenType::Not => Ok(Compound::Expr(self.parse_expr(None)?)),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         }
@@ -413,6 +417,10 @@ impl Parser {
             TokenType::True | TokenType::False => {
                 Ok(Expr::Literal(self.eat()?.try_into()?).wrap(unop))
             }
+            TokenType::IntCast
+            | TokenType::FloatCast
+            | TokenType::StrCast
+            | TokenType::BoolCast => self.parse_cast(),
             TokenType::Symbol(_) => Ok(self.parse_call()?.wrap(unop)),
             TokenType::Exec => Ok(self.parse_call()?),
             TokenType::LeftParen => {
@@ -529,6 +537,23 @@ impl Parser {
         }
         self.skip_optional_space();
         Ok(lhs)
+    }
+
+    fn parse_cast(&mut self) -> Result<Expr> {
+        let token = self.eat()?;
+        let type_of = match token.token_type {
+            TokenType::IntCast => Type::Int,
+            TokenType::FloatCast => Type::Float,
+            TokenType::StrCast => Type::Str,
+            TokenType::BoolCast => Type::Bool,
+            _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
+        };
+        self.skip_whitespace();
+        self.eat()?.expect(TokenType::LeftParen)?;
+        let expr = self.parse_expr(None)?;
+        self.skip_whitespace();
+        self.eat()?.expect(TokenType::RightParen)?;
+        Ok(Expr::TypeCast(type_of, P::new(expr)))
     }
 
     fn parse_call(&mut self) -> Result<Expr> {

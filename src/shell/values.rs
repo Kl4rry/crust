@@ -3,10 +3,18 @@ use std::{ops::Deref, rc::Rc};
 pub mod value;
 pub use value::Value;
 
+pub mod range;
+
 #[derive(Debug, Clone)]
 pub enum ValueKind {
     Heap(HeapValue),
     Stack(Value),
+}
+
+impl PartialEq for ValueKind {
+    fn eq(&self, other: &Self) -> bool {
+        **self == **other
+    }
 }
 
 impl Deref for ValueKind {
@@ -46,6 +54,12 @@ impl From<Value> for HeapValue {
 #[repr(transparent)]
 pub struct HeapValue {
     ptr: Rc<Value>,
+}
+
+impl PartialEq for HeapValue {
+    fn eq(&self, other: &Self) -> bool {
+        **self == **other
+    }
 }
 
 impl Deref for HeapValue {

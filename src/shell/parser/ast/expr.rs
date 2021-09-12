@@ -17,7 +17,7 @@ pub mod binop;
 use binop::BinOp;
 
 pub mod unop;
-use thin_string::ThinString;
+use thin_string::{ThinString, ToThinString};
 use unop::UnOp;
 
 pub mod command;
@@ -25,6 +25,14 @@ use command::Command;
 
 pub mod argument;
 use argument::{Argument, ArgumentValue};
+
+#[derive(Debug)]
+pub enum Type {
+    Int,
+    Float,
+    Str,
+    Bool,
+}
 
 #[derive(Debug)]
 pub enum Expr {
@@ -36,6 +44,7 @@ pub enum Expr {
     Paren(P<Expr>),
     Unary(UnOp, P<Expr>),
     Literal(Literal),
+    TypeCast(Type, P<Expr>),
 }
 
 impl Expr {
@@ -81,28 +90,35 @@ impl Expr {
                         },
                     }
                 }
-                Ok(Value::ExitStatus(0).into())
+                Ok(Value::Int(0).into())
             }
             Self::Literal(literal) => literal.eval(shell),
             Self::Variable(variable) => variable.eval(shell),
+            Self::TypeCast(type_of, expr) => {
+                let value = expr.eval(shell, false)?;
+                match type_of {
+                    Type::Int => todo!(),
+                    Type::Float => todo!(),
+                    Type::Str => Ok(Value::String(value.to_string().to_thin_string()).into()),
+                    Type::Bool => Ok(Value::Bool(value.truthy()).into()),
+                }
+            }
             Self::Unary(unop, expr) => {
                 let value = expr.eval(shell, false)?;
                 match unop {
-                    UnOp::Neg => {
-                        if value.is_float() {
-                            Ok(Value::Float(-value.try_to_float()?).into())
-                        } else {
-                            Ok(Value::Int(-value.try_to_int()?).into())
-                        }
-                    }
-                    UnOp::Not => Ok(Value::Bool(!value.try_to_bool()?).into()),
+                    UnOp::Neg => match value.as_ref() {
+                        Value::Int(int) => Ok(Value::Int(*int).into()),
+                        Value::Float(float) => Ok(Value::Float(*float).into()),
+                        _ => return Err(RunTimeError::InvalidOperand),
+                    },
+                    UnOp::Not => Ok(Value::Bool(!value.truthy()).into()),
                 }
             }
             Self::Paren(expr) => expr.eval(shell, false),
             Self::Binary(binop, lhs, rhs) => match binop {
                 BinOp::Range => {
-                    let lhs = lhs.eval(shell, false)?.try_to_int()?;
-                    let rhs = rhs.eval(shell, false)?.try_to_int()?;
+                    let lhs = lhs.eval(shell, false)?.try_as_int()?;
+                    let rhs = rhs.eval(shell, false)?.try_as_int()?;
                     Ok(Value::Range(P::new(lhs..rhs)).into())
                 }
                 BinOp::Add => {
@@ -110,42 +126,51 @@ impl Expr {
                     let rhs = rhs.eval(shell, false)?;
 
                     match lhs.as_ref() {
-                        Value::Int(number) => {
-                            if let Value::List(rhs) = rhs.as_ref() {
+                        Value::Int(number) => match rhs.as_ref() {
+                            Value::List(rhs) => {
                                 let mut list: ThinVec<HeapValue> = thin_vec![lhs.clone().into()];
                                 list.extend(rhs.iter().map(|value| value.clone().into()));
                                 return Ok(Value::List(list).into());
                             }
-
-                            if rhs.is_float() {
-                                Ok(Value::Float(*number as f64 + rhs.try_to_float()?).into())
-                            } else {
-                                Ok(Value::Int(*number + rhs.try_to_int()?).into())
+                            Value::String(string) => {
+                                let mut thin_string = number.to_thin_string();
+                                thin_string.push_str(string);
+                                return Ok(Value::String(thin_string).into());
                             }
-                        }
-                        Value::Float(number) => {
-                            if let Value::List(rhs) = rhs.as_ref() {
+                            Value::Float(rhs) => {
+                                return Ok(Value::Float(*number as f64 + *rhs).into())
+                            }
+                            _ => Ok(Value::Int(number + lhs.try_as_int()?).into()),
+                        },
+                        Value::Float(number) => match rhs.as_ref() {
+                            Value::List(rhs) => {
                                 let mut list: ThinVec<HeapValue> = thin_vec![lhs.clone().into()];
                                 list.extend(rhs.iter().map(|value| value.clone().into()));
                                 return Ok(Value::List(list).into());
                             }
-
-                            Ok(Value::Float(*number as f64 + rhs.try_to_float()?).into())
-                        }
-                        Value::Bool(boolean) => {
-                            if let Value::List(rhs) = rhs.as_ref() {
+                            Value::String(string) => {
+                                let mut thin_string = number.to_thin_string();
+                                thin_string.push_str(string);
+                                return Ok(Value::String(thin_string).into());
+                            }
+                            _ => Ok(Value::Float(number + lhs.try_as_float()?).into()),
+                        },
+                        Value::Bool(boolean) => match rhs.as_ref() {
+                            Value::List(rhs) => {
                                 let mut list: ThinVec<HeapValue> = thin_vec![lhs.clone().into()];
                                 list.extend(rhs.iter().map(|value| value.clone().into()));
                                 return Ok(Value::List(list).into());
                             }
-
-                            if rhs.is_float() {
-                                Ok(Value::Float(*boolean as i64 as f64 + rhs.try_to_float()?)
-                                    .into())
-                            } else {
-                                Ok(Value::Int(*boolean as i64 + rhs.try_to_int()?).into())
+                            Value::Float(rhs) => {
+                                return Ok(Value::Float(*boolean as i64 as f64 + *rhs).into())
                             }
-                        }
+                            Value::String(string) => {
+                                let mut thin_string = boolean.to_thin_string();
+                                thin_string.push_str(string);
+                                return Ok(Value::String(thin_string).into());
+                            }
+                            _ => Ok(Value::Int(*boolean as i64 + lhs.try_as_int()?).into()),
+                        },
                         Value::String(string) => {
                             if let Value::List(rhs) = rhs.as_ref() {
                                 let mut list: ThinVec<HeapValue> = thin_vec![lhs.clone().into()];
@@ -171,24 +196,21 @@ impl Expr {
                     let rhs = rhs.eval(shell, false)?;
 
                     match lhs.as_ref() {
-                        Value::Int(number) => {
-                            if rhs.is_float() {
-                                Ok(Value::Float(*number as f64 - rhs.try_to_float()?).into())
-                            } else {
-                                Ok(Value::Int(*number - rhs.try_to_int()?).into())
-                            }
-                        }
+                        Value::Int(number) => match rhs.as_ref() {
+                            Value::Int(rhs) => Ok(Value::Int(number - rhs).into()),
+                            Value::Float(rhs) => Ok(Value::Float(*number as f64 - rhs).into()),
+                            _ => Err(RunTimeError::InvalidOperand),
+                        },
                         Value::Float(number) => {
-                            Ok(Value::Float(*number as f64 - rhs.try_to_float()?).into())
+                            Ok(Value::Float(*number as f64 - rhs.try_as_float()?).into())
                         }
-                        Value::Bool(boolean) => {
-                            if rhs.is_float() {
-                                Ok(Value::Float(*boolean as i64 as f64 - rhs.try_to_float()?)
-                                    .into())
-                            } else {
-                                Ok(Value::Int(*boolean as i64 - rhs.try_to_int()?).into())
+                        Value::Bool(boolean) => match rhs.as_ref() {
+                            Value::Int(rhs) => Ok(Value::Int(*boolean as i64 - rhs).into()),
+                            Value::Float(rhs) => {
+                                Ok(Value::Float(*boolean as i64 as f64 - rhs).into())
                             }
-                        }
+                            _ => Err(RunTimeError::InvalidOperand),
+                        },
                         _ => Err(RunTimeError::InvalidOperand),
                     }
                 }
@@ -197,27 +219,38 @@ impl Expr {
                     let rhs = rhs.eval(shell, false)?;
 
                     match lhs.as_ref() {
-                        Value::Int(number) => {
-                            if rhs.is_float() {
-                                Ok(Value::Float(*number as f64 * rhs.try_to_float()?).into())
-                            } else {
-                                Ok(Value::Int(*number * rhs.try_to_int()?).into())
+                        Value::Int(number) => match rhs.as_ref() {
+                            Value::Int(rhs) => Ok(Value::Int(number * rhs).into()),
+                            Value::Float(rhs) => Ok(Value::Float(*number as f64 * rhs).into()),
+                            Value::String(string) => {
+                                let mut new = ThinString::new();
+                                for _ in 0..*number {
+                                    new.push_str(string);
+                                }
+                                Ok(Value::String(new).into())
                             }
-                        }
+                            _ => Err(RunTimeError::InvalidOperand),
+                        },
                         Value::Float(number) => {
-                            Ok(Value::Float(*number as f64 * rhs.try_to_float()?).into())
+                            Ok(Value::Float(*number as f64 * rhs.try_as_float()?).into())
                         }
-                        Value::Bool(boolean) => {
-                            if rhs.is_float() {
-                                Ok(Value::Float(*boolean as i64 as f64 * rhs.try_to_float()?)
-                                    .into())
-                            } else {
-                                Ok(Value::Int(*boolean as i64 * rhs.try_to_int()?).into())
+                        Value::Bool(boolean) => match rhs.as_ref() {
+                            Value::Int(rhs) => Ok(Value::Int(*boolean as i64 * rhs).into()),
+                            Value::Float(rhs) => {
+                                Ok(Value::Float(*boolean as i64 as f64 * rhs).into())
                             }
-                        }
+                            Value::String(string) => {
+                                let mut new = ThinString::new();
+                                for _ in 0..*boolean as i64 {
+                                    new.push_str(string);
+                                }
+                                Ok(Value::String(new).into())
+                            }
+                            _ => Err(RunTimeError::InvalidOperand),
+                        },
                         Value::String(string) => {
                             let mut new = ThinString::new();
-                            let mul = rhs.try_to_int()?;
+                            let mul = rhs.try_as_int()?;
                             for _ in 0..mul {
                                 new.push_str(string);
                             }
@@ -225,7 +258,7 @@ impl Expr {
                         }
                         Value::List(list) => {
                             let mut new = ThinVec::new();
-                            let mul = rhs.try_to_int()?;
+                            let mul = rhs.try_as_int()?;
                             for _ in 0..mul {
                                 new.extend_from_slice(list);
                             }
@@ -240,13 +273,13 @@ impl Expr {
 
                     match lhs.as_ref() {
                         Value::Int(number) => {
-                            Ok(Value::Float(*number as f64 / rhs.try_to_float()?).into())
+                            Ok(Value::Float(*number as f64 / rhs.try_as_float()?).into())
                         }
                         Value::Float(number) => {
-                            Ok(Value::Float(*number as f64 / rhs.try_to_float()?).into())
+                            Ok(Value::Float(*number as f64 / rhs.try_as_float()?).into())
                         }
                         Value::Bool(boolean) => {
-                            Ok(Value::Float(*boolean as i64 as f64 / rhs.try_to_float()?).into())
+                            Ok(Value::Float(*boolean as i64 as f64 / rhs.try_as_float()?).into())
                         }
                         _ => Err(RunTimeError::InvalidOperand),
                     }
@@ -257,13 +290,13 @@ impl Expr {
 
                     match lhs.as_ref() {
                         Value::Int(number) => {
-                            Ok(Value::Float((*number as f64).powf(rhs.try_to_float()?)).into())
+                            Ok(Value::Float((*number as f64).powf(rhs.try_as_float()?)).into())
                         }
                         Value::Float(number) => {
-                            Ok(Value::Float((*number as f64).powf(rhs.try_to_float()?)).into())
+                            Ok(Value::Float((*number as f64).powf(rhs.try_as_float()?)).into())
                         }
                         Value::Bool(boolean) => Ok(Value::Float(
-                            (*boolean as i64 as f64).powf(rhs.try_to_float()?),
+                            (*boolean as i64 as f64).powf(rhs.try_as_float()?),
                         )
                         .into()),
                         _ => Err(RunTimeError::InvalidOperand),
@@ -274,28 +307,43 @@ impl Expr {
                     let rhs = rhs.eval(shell, false)?;
 
                     match lhs.as_ref() {
-                        Value::Int(number) => {
-                            if rhs.is_float() {
-                                Ok(Value::Float(*number as f64 % rhs.try_to_float()?).into())
-                            } else {
-                                Ok(Value::Int(*number % rhs.try_to_int()?).into())
-                            }
-                        }
+                        Value::Int(number) => match rhs.as_ref() {
+                            Value::Int(rhs) => Ok(Value::Int(number % rhs).into()),
+                            Value::Float(rhs) => Ok(Value::Float(*number as f64 % rhs).into()),
+                            _ => Err(RunTimeError::InvalidOperand),
+                        },
                         Value::Float(number) => {
-                            Ok(Value::Float(*number as f64 % rhs.try_to_float()?).into())
+                            Ok(Value::Float(*number as f64 % rhs.try_as_float()?).into())
                         }
-                        Value::Bool(boolean) => {
-                            if rhs.is_float() {
-                                Ok(Value::Float(*boolean as i64 as f64 % rhs.try_to_float()?)
-                                    .into())
-                            } else {
-                                Ok(Value::Int(*boolean as i64 % rhs.try_to_int()?).into())
+                        Value::Bool(boolean) => match rhs.as_ref() {
+                            Value::Int(rhs) => Ok(Value::Int(*boolean as i64 % rhs).into()),
+                            Value::Float(rhs) => {
+                                Ok(Value::Float(*boolean as i64 as f64 % rhs).into())
                             }
-                        }
+                            _ => Err(RunTimeError::InvalidOperand),
+                        },
                         _ => Err(RunTimeError::InvalidOperand),
                     }
                 }
-                _ => todo!(),
+                // The == operator (equality)
+                BinOp::Eq => {
+                    let lhs = lhs.eval(shell, false)?;
+                    let rhs = rhs.eval(shell, false)?;
+
+                    Ok(Value::Bool(lhs == rhs).into())
+                }
+                // The < operator (less than)
+                BinOp::Lt => todo!(),
+                // The <= operator (less than or equal to)
+                BinOp::Le => todo!(),
+                // The != operator (not equal to)
+                BinOp::Ne => todo!(),
+                // The >= operator (greater than or equal to)
+                BinOp::Ge => todo!(),
+                // The > operator (greater than)
+                BinOp::Gt => todo!(),
+                BinOp::And => todo!(),
+                BinOp::Or => todo!(),
             },
             _ => todo!(),
         }

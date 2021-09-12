@@ -15,7 +15,49 @@ pub enum Value {
     String(ThinString),
     List(ThinVec<HeapValue>),
     Range(Box<Range<i64>>),
-    ExitStatus(i64),
+}
+
+impl PartialEq for Value {
+    // this function still does dumb type conversions
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            Value::Int(number) => match other {
+                Value::Float(rhs) => *number as f64 == *rhs,
+                Value::Int(rhs) => number == rhs,
+                Value::Bool(rhs) => (*number == 1) == *rhs,
+                _ => false,
+            }
+            Value::Float(number) => match other {
+                Value::Float(rhs) => *number as f64 == *rhs,
+                Value::Int(rhs) => *number == *rhs as f64,
+                Value::Bool(rhs) => (*number == 1.0) == *rhs,
+                _ => false,
+            }
+            Value::Bool(boolean) => match other {
+                Value::Float(rhs) => *boolean == (*rhs == 1.0),
+                Value::Int(rhs) => *boolean == (*rhs == 1),
+                Value::Bool(rhs) => boolean == rhs,
+                Value::String(string) => (string.len() == 1) == *boolean,
+                Value::List(list) => (list.len() == 1) == *boolean,
+                Value::Range(range) => !(range.start == 0 && range.end == 0) == *boolean,
+            }
+            Value::String(string) => match other {
+                Value::String(rhs) => string == rhs,
+                Value::Bool(rhs) => (string.len() != 0) == *rhs,
+                _ => false,
+            }
+            Value::List(list) => match other {
+                Value::List(rhs) => list == rhs,
+                Value::Bool(rhs) => (list.len() != 0) == *rhs,
+                _ => false,
+            }
+            Value::Range(range) => match other {
+                Value::Range(rhs) => **range == **rhs,
+                Value::Bool(rhs) => !(range.start == 0 && range.end == 0) == *rhs,
+                _ => false,
+            }
+        }
+    }
 }
 
 impl AsRef<Value> for Value {
@@ -51,14 +93,30 @@ impl ToString for Value {
                     })
                     .collect()
             }
-            Self::ExitStatus(number) => number.to_string(),
             Self::Bool(boolean) => boolean.to_string(),
         }
     }
 }
 
 impl Value {
-    pub fn try_to_int(&self) -> Result<i64, RunTimeError> {
+    pub fn try_as_int(&self) -> Result<i64, RunTimeError> {
+        match self {
+            Self::Int(number) => Ok(*number),
+            Self::Bool(boolean) => Ok(*boolean as i64),
+            _ => Err(RunTimeError::ConversionError),
+        }
+    }
+
+    pub fn try_as_float(&self) -> Result<f64, RunTimeError> {
+        match self {
+            Self::Int(number) => Ok(*number as f64),
+            Self::Float(number) => Ok(*number),
+            Self::Bool(boolean) => Ok(*boolean as i64 as f64),
+            _ => Err(RunTimeError::ConversionError),
+        }
+    }
+
+    /*pub fn try_to_int(&self) -> Result<i64, RunTimeError> {
         match self {
             Self::Int(number) => Ok(*number),
             Self::Float(number) => Ok(*number as i64),
@@ -90,30 +148,24 @@ impl Value {
             Self::Bool(boolean) => Ok(*boolean as i64 as f64),
             _ => Err(RunTimeError::ConversionError),
         }
-    }
+    }*/
 
-    pub fn try_to_bool(&self) -> Result<bool, RunTimeError> {
+    pub fn truthy(&self) -> bool {
         match self {
-            Self::Int(number) => Ok(*number != 0),
-            Self::Float(number) => Ok(*number != 0.0),
-            Self::String(string) => {
-                let res = string.parse();
-                match res {
-                    Ok(boolean) => Ok(boolean),
-                    Err(_) => Err(RunTimeError::ConversionError),
-                }
-            }
-            Self::ExitStatus(number) => Ok(*number == 0),
-            Self::Bool(boolean) => Ok(*boolean),
-            _ => Err(RunTimeError::ConversionError),
+            Self::Int(number) => *number != 0,
+            Self::Float(number) => *number != 0.0,
+            Self::String(string) => string.len() != 0,
+            Self::Bool(boolean) => *boolean,
+            Self::List(list) => list.len() != 0,
+            Self::Range(range) => range.start != 0 && range.end != 0,
         }
     }
 
-    pub fn is_float(&self) -> bool {
+    /*pub fn is_float_not_int(&self) -> bool {
         match self {
             Self::String(string) => string.parse::<f64>().is_ok(),
             Self::Float(_) => true,
             _ => false,
         }
-    }
+    }*/
 }
