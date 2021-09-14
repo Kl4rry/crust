@@ -20,9 +20,8 @@ pub struct Variable {
 impl Variable {
     pub fn eval(&self, shell: &mut Shell) -> Result<ValueKind, RunTimeError> {
         for frame in shell.variable_stack.iter().rev() {
-            match frame.variables.get(&self.name) {
-                Some(value) => return Ok(value.clone().into()),
-                None => (),
+            if let Some(value) = frame.variables.get(&self.name) {
+                return Ok(value.clone().into());
             }
         }
 

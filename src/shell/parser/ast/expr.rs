@@ -109,7 +109,7 @@ impl Expr {
                     UnOp::Neg => match value.as_ref() {
                         Value::Int(int) => Ok(Value::Int(*int).into()),
                         Value::Float(float) => Ok(Value::Float(*float).into()),
-                        _ => return Err(RunTimeError::InvalidOperand),
+                        _ => Err(RunTimeError::InvalidOperand),
                     },
                     UnOp::Not => Ok(Value::Bool(!value.truthy()).into()),
                 }
@@ -129,52 +129,52 @@ impl Expr {
                         Value::Int(number) => match rhs.as_ref() {
                             Value::List(rhs) => {
                                 let mut list: ThinVec<HeapValue> = thin_vec![lhs.clone().into()];
-                                list.extend(rhs.iter().map(|value| value.clone().into()));
-                                return Ok(Value::List(list).into());
+                                list.extend(rhs.iter().cloned());
+                                Ok(Value::List(list).into())
                             }
                             Value::String(string) => {
                                 let mut thin_string = number.to_thin_string();
                                 thin_string.push_str(string);
-                                return Ok(Value::String(thin_string).into());
+                                Ok(Value::String(thin_string).into())
                             }
                             Value::Float(rhs) => {
-                                return Ok(Value::Float(*number as f64 + *rhs).into())
+                                Ok(Value::Float(*number as f64 + *rhs).into())
                             }
                             _ => Ok(Value::Int(number + lhs.try_as_int()?).into()),
                         },
                         Value::Float(number) => match rhs.as_ref() {
                             Value::List(rhs) => {
                                 let mut list: ThinVec<HeapValue> = thin_vec![lhs.clone().into()];
-                                list.extend(rhs.iter().map(|value| value.clone().into()));
-                                return Ok(Value::List(list).into());
+                                list.extend(rhs.iter().cloned());
+                                Ok(Value::List(list).into())
                             }
                             Value::String(string) => {
                                 let mut thin_string = number.to_thin_string();
                                 thin_string.push_str(string);
-                                return Ok(Value::String(thin_string).into());
+                                Ok(Value::String(thin_string).into())
                             }
                             _ => Ok(Value::Float(number + lhs.try_as_float()?).into()),
                         },
                         Value::Bool(boolean) => match rhs.as_ref() {
                             Value::List(rhs) => {
                                 let mut list: ThinVec<HeapValue> = thin_vec![lhs.clone().into()];
-                                list.extend(rhs.iter().map(|value| value.clone().into()));
-                                return Ok(Value::List(list).into());
+                                list.extend(rhs.iter().cloned());
+                                Ok(Value::List(list).into())
                             }
                             Value::Float(rhs) => {
-                                return Ok(Value::Float(*boolean as i64 as f64 + *rhs).into())
+                                Ok(Value::Float(*boolean as i64 as f64 + *rhs).into())
                             }
                             Value::String(string) => {
                                 let mut thin_string = boolean.to_thin_string();
                                 thin_string.push_str(string);
-                                return Ok(Value::String(thin_string).into());
+                                Ok(Value::String(thin_string).into())
                             }
                             _ => Ok(Value::Int(*boolean as i64 + lhs.try_as_int()?).into()),
                         },
                         Value::String(string) => {
                             if let Value::List(rhs) = rhs.as_ref() {
                                 let mut list: ThinVec<HeapValue> = thin_vec![lhs.clone().into()];
-                                list.extend(rhs.iter().map(|value| value.clone().into()));
+                                list.extend(rhs.iter().cloned());
                                 return Ok(Value::List(list).into());
                             }
 

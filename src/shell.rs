@@ -172,3 +172,9 @@ impl Drop for Shell {
         self.variable_stack.clear();
     }
 }
+
+impl Default for Shell {
+    fn default() -> Self {
+        Self::new()
+    }
+}

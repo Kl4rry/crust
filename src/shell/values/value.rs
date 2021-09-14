@@ -37,23 +37,23 @@ impl PartialEq for Value {
                 Value::Float(rhs) => *boolean == (*rhs == 1.0),
                 Value::Int(rhs) => *boolean == (*rhs == 1),
                 Value::Bool(rhs) => boolean == rhs,
-                Value::String(string) => (string.len() == 1) == *boolean,
-                Value::List(list) => (list.len() == 1) == *boolean,
-                Value::Range(range) => !(range.start == 0 && range.end == 0) == *boolean,
+                Value::String(string) => string.is_empty() != *boolean,
+                Value::List(list) => list.is_empty() != *boolean,
+                Value::Range(range) => (range.start == 0 && range.end == 0) != *boolean,
             }
             Value::String(string) => match other {
                 Value::String(rhs) => string == rhs,
-                Value::Bool(rhs) => (string.len() != 0) == *rhs,
+                Value::Bool(rhs) => (string.len() == 1) == *rhs,
                 _ => false,
             }
             Value::List(list) => match other {
                 Value::List(rhs) => list == rhs,
-                Value::Bool(rhs) => (list.len() != 0) == *rhs,
+                Value::Bool(rhs) => list.is_empty() != *rhs,
                 _ => false,
             }
             Value::Range(range) => match other {
                 Value::Range(rhs) => **range == **rhs,
-                Value::Bool(rhs) => !(range.start == 0 && range.end == 0) == *rhs,
+                Value::Bool(rhs) => (range.start == 0 && range.end == 0) != *rhs,
                 _ => false,
             }
         }
@@ -154,9 +154,9 @@ impl Value {
         match self {
             Self::Int(number) => *number != 0,
             Self::Float(number) => *number != 0.0,
-            Self::String(string) => string.len() != 0,
+            Self::String(string) => !string.is_empty(),
             Self::Bool(boolean) => *boolean,
-            Self::List(list) => list.len() != 0,
+            Self::List(list) => !list.is_empty(),
             Self::Range(range) => range.start != 0 && range.end != 0,
         }
     }
