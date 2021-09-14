@@ -18,24 +18,23 @@ pub enum Value {
 }
 
 impl PartialEq for Value {
-    // this function still does dumb type conversions
     fn eq(&self, other: &Self) -> bool {
         match self {
             Value::Int(number) => match other {
                 Value::Float(rhs) => *number as f64 == *rhs,
                 Value::Int(rhs) => number == rhs,
-                Value::Bool(rhs) => (*number == 1) == *rhs,
+                Value::Bool(rhs) => *number == *rhs as i64,
                 _ => false,
             }
             Value::Float(number) => match other {
                 Value::Float(rhs) => *number as f64 == *rhs,
                 Value::Int(rhs) => *number == *rhs as f64,
-                Value::Bool(rhs) => (*number == 1.0) == *rhs,
+                Value::Bool(rhs) => *number == *rhs as i64 as f64,
                 _ => false,
             }
             Value::Bool(boolean) => match other {
-                Value::Float(rhs) => *boolean == (*rhs == 1.0),
-                Value::Int(rhs) => *boolean == (*rhs == 1),
+                Value::Float(rhs) => *boolean as i64 as f64 == *rhs,
+                Value::Int(rhs) => *boolean as i64 == *rhs,
                 Value::Bool(rhs) => boolean == rhs,
                 Value::String(string) => string.is_empty() != *boolean,
                 Value::List(list) => list.is_empty() != *boolean,
