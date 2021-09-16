@@ -58,7 +58,8 @@ impl Shell {
                 }
                 #[cfg(target_family = "unix")]
                 {
-                    signal::kill(Pid::from_raw(*id as i32), Signal::SIGINT).unwrap();
+                    use nix::{sys::signal, unistd::Pid};
+                    signal::kill(Pid::from_raw(*id as i32), signal::Signal::SIGINT).unwrap();
                 }
             }
         })

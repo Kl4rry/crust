@@ -22,6 +22,7 @@ mod unalias;
 
 type Bulitin = fn(&mut Shell, &[String], &mut dyn Write) -> Result<i64, RunTimeError>;
 
+#[cfg(target_family = "windows")]
 static BUILTINS: phf::Map<&'static str, Bulitin> = phf_map! {
     "clear" => clear::clear,
     "pwd" => pwd::pwd,
@@ -31,8 +32,21 @@ static BUILTINS: phf::Map<&'static str, Bulitin> = phf_map! {
     "cd" => cd::cd,
     "alias" => alias::alias,
     "unalias" => unalias::unalias,
-    #[cfg(target_family = "windows")]
     "ls" => ls::ls,
+    "drop" => drop::drop,
+    "env" => env::env,
+};
+
+#[cfg(target_family = "unix")]
+static BUILTINS: phf::Map<&'static str, Bulitin> = phf_map! {
+    "clear" => clear::clear,
+    "pwd" => pwd::pwd,
+    "size" => size::size,
+    "exit" => exit::exit,
+    "echo" => echo::echo,
+    "cd" => cd::cd,
+    "alias" => alias::alias,
+    "unalias" => unalias::unalias,
     "drop" => drop::drop,
     "env" => env::env,
 };

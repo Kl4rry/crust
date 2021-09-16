@@ -25,13 +25,13 @@ impl PartialEq for Value {
                 Value::Int(rhs) => number == rhs,
                 Value::Bool(rhs) => *number == *rhs as i64,
                 _ => false,
-            }
+            },
             Value::Float(number) => match other {
                 Value::Float(rhs) => *number as f64 == *rhs,
                 Value::Int(rhs) => *number == *rhs as f64,
                 Value::Bool(rhs) => *number == *rhs as i64 as f64,
                 _ => false,
-            }
+            },
             Value::Bool(boolean) => match other {
                 Value::Float(rhs) => *boolean as i64 as f64 == *rhs,
                 Value::Int(rhs) => *boolean as i64 == *rhs,
@@ -39,22 +39,22 @@ impl PartialEq for Value {
                 Value::String(string) => string.is_empty() != *boolean,
                 Value::List(list) => list.is_empty() != *boolean,
                 Value::Range(range) => (range.start == 0 && range.end == 0) != *boolean,
-            }
+            },
             Value::String(string) => match other {
                 Value::String(rhs) => string == rhs,
                 Value::Bool(rhs) => (string.len() == 1) == *rhs,
                 _ => false,
-            }
+            },
             Value::List(list) => match other {
                 Value::List(rhs) => list == rhs,
                 Value::Bool(rhs) => list.is_empty() != *rhs,
                 _ => false,
-            }
+            },
             Value::Range(range) => match other {
                 Value::Range(rhs) => **range == **rhs,
                 Value::Bool(rhs) => (range.start == 0 && range.end == 0) != *rhs,
                 _ => false,
-            }
+            },
         }
     }
 }
