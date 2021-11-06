@@ -98,7 +98,8 @@ impl Shell {
                         continue;
                     }
 
-                    let mut parser = Parser::new(line.clone());
+                    editor.add_history_entry(&line);
+                    let mut parser = Parser::new(line);
                     match parser.parse() {
                         Ok(mut ast) => {
                             let res = ast.eval(&mut self);
@@ -116,8 +117,6 @@ impl Shell {
                             eprintln!("{}", error)
                         }
                     };
-
-                    editor.add_history_entry(line.as_str());
                 }
                 Err(ReadlineError::Interrupted) => {
                     println!("^C");
