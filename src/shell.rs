@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    io::{stdout, Stdout},
+    io::stdout,
     path::PathBuf,
     process::{Command, Output, Stdio},
     sync::{Arc, Mutex, MutexGuard},
@@ -32,7 +32,6 @@ pub struct Shell {
     exit_status: i64,
     home_dir: PathBuf,
     history_file: PathBuf,
-    stdout: Stdout,
     child_id: Arc<Mutex<Option<u32>>>,
     variable_stack: Vec<Frame>,
     aliases: HashMap<String, String>,
@@ -75,7 +74,6 @@ impl Shell {
             exit_status: 0,
             home_dir,
             history_file,
-            stdout: stdout(),
             child_id,
             variable_stack: vec![Frame::new()],
             aliases: HashMap::new(),
