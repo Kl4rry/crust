@@ -16,6 +16,7 @@ pub mod parser;
 use parser::{runtime_error::RunTimeError, Parser};
 mod frame;
 use frame::Frame;
+mod helper;
 
 #[inline(always)]
 pub fn clear_str() -> &'static str {
@@ -85,7 +86,8 @@ impl Shell {
             .color_mode(rustyline::ColorMode::Forced)
             .bell_style(rustyline::config::BellStyle::None)
             .build();
-        let mut editor = Editor::<()>::with_config(config);
+        let mut editor = Editor::<helper::EditorHelper>::with_config(config);
+        editor.set_helper(Some(helper::EditorHelper));
         let _ = editor.load_history(&self.history_file);
 
         while self.running {
