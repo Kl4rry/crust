@@ -1,20 +1,37 @@
-use rustyline::{Helper, completion::Completer, highlight::Highlighter, hint::Hinter, validate::Validator};
 use std::borrow::Cow;
+
+use rustyline::{
+    completion::{Completer, FilenameCompleter, Pair},
+    highlight::Highlighter,
+    hint::Hinter,
+    history::SearchDirection,
+    validate::Validator,
+    Helper,
+};
 use yansi::Paint;
 
-pub struct EditorHelper;
+pub struct EditorHelper {
+    filename_completer: FilenameCompleter,
+}
+
+impl EditorHelper {
+    pub fn new() -> Self {
+        Self {
+            filename_completer: FilenameCompleter::new(),
+        }
+    }
+}
 
 impl Completer for EditorHelper {
-    type Candidate = String;
+    type Candidate = Pair;
 
     fn complete(
         &self,
         line: &str,
         pos: usize,
-        ctx: &rustyline::Context<'_>,
+        _: &rustyline::Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
-        let _ = (line, pos, ctx);
-        Ok((0, Vec::with_capacity(0)))
+        self.filename_completer.complete_path(line, pos)
     }
 
     fn update(&self, line: &mut rustyline::line_buffer::LineBuffer, start: usize, elected: &str) {
@@ -32,13 +49,15 @@ impl Highlighter for EditorHelper {
 impl Hinter for EditorHelper {
     type Hint = String;
 
-    fn hint(&self, _line: &str, _pos: usize, _: &rustyline::Context<'_>) -> Option<Self::Hint> {
-        /*if pos == line.len() {
-            Some(String::from("test"))
+    fn hint(&self, line: &str, _pos: usize, ctx: &rustyline::Context<'_>) -> Option<Self::Hint> {
+        if let Some(search_result) =
+            ctx.history()
+                .starts_with(line, ctx.history().len() - 1, SearchDirection::Reverse)
+        {
+            Some(String::from(&search_result.entry[search_result.pos..]))
         } else {
             None
-        }*/
-        None
+        }
     }
 }
 

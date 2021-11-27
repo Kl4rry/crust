@@ -1,18 +1,28 @@
-use std::{error::Error, fmt};
+use std::{error::Error, fmt, io};
 
 use glob::{GlobError, PatternError};
 
+use super::ast::expr::{binop::BinOp, unop::UnOp};
+use crate::shell::values::value::Type;
+
 #[derive(Debug)]
 pub enum RunTimeError {
+    // exit, break, and return are not real errors and are only used to interrupt execution
+    // this is a not so nice hack but it works
     Exit,
-    MaxRecursionError,
-    OutOfIndexError,
-    NoMatchError,
-    VariableNotFound,
-    ConversionError,
-    InvalidOperand,
+    Break,
+    Return,
+
+    // real errors
+    NoMatch(String),
+    MaxRecursion(usize),
+    IndexOutOfBounds { length: usize, index: usize },
+    InvalidConversion { from: Type, to: Type },
+    VariableNotFound(String),
+    InvalidBinaryOperand(BinOp, Type, Type),
+    InvalidUnaryOperand(UnOp, Type),
     CommandNotFound(String),
-    IoError(std::io::Error),
+    IoError(io::Error),
     GlobError(GlobError),
     PatternError(PatternError),
 }
@@ -20,8 +30,34 @@ pub enum RunTimeError {
 impl fmt::Display for RunTimeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            RunTimeError::CommandNotFound(name) => write!(f, "{}: command not found", name),
-            _ => write!(f, "{:?}", self),
+            Self::CommandNotFound(name) => write!(f, "{}: command not found", name),
+            Self::NoMatch(pattern) => write!(f, "no match found for pattern: '{}'", pattern),
+            Self::VariableNotFound(name) => write!(f, "variable with name: '{}' not found", name),
+            Self::InvalidBinaryOperand(binop, lhs, rhs) => {
+                write!(
+                    f,
+                    "'{}' not supported between '{}' and '{}'",
+                    binop, lhs, rhs
+                )
+            }
+            Self::InvalidUnaryOperand(unop, value) => {
+                write!(f, "'{}' not supported for '{}'", unop, value)
+            }
+            Self::InvalidConversion { from, to } => {
+                write!(f, "cannot convert '{}' to '{}'", from, to)
+            }
+            Self::MaxRecursion(limit) => write!(f, "max recursion limit of {} reached", limit),
+            Self::IndexOutOfBounds { length, index } => write!(
+                f,
+                "index is out of bounds, length is {} but the index is {}",
+                length, index
+            ),
+            Self::IoError(error) => error.fmt(f),
+            Self::GlobError(error) => error.fmt(f),
+            Self::PatternError(error) => error.fmt(f),
+            Self::Exit => unreachable!(),
+            Self::Break => unreachable!(),
+            Self::Return => unreachable!(),
         }
     }
 }

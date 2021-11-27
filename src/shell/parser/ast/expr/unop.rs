@@ -1,11 +1,26 @@
-use std::convert::TryFrom;
+use std::{convert::TryFrom, fmt};
 
 use crate::parser::{syntax_error::SyntaxErrorKind, Token, TokenType};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum UnOp {
     Neg,
     Not,
+}
+
+impl AsRef<str> for UnOp {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::Neg => "-",
+            Self::Not => "!",
+        }
+    }
+}
+
+impl fmt::Display for UnOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_ref())
+    }
 }
 
 impl TryFrom<Token> for UnOp {

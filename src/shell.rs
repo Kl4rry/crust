@@ -86,8 +86,8 @@ impl Shell {
             .color_mode(rustyline::ColorMode::Forced)
             .bell_style(rustyline::config::BellStyle::None)
             .build();
-        let mut editor = Editor::<helper::EditorHelper>::with_config(config);
-        editor.set_helper(Some(helper::EditorHelper));
+        let mut editor = Editor::with_config(config);
+        editor.set_helper(Some(helper::EditorHelper::new()));
         let _ = editor.load_history(&self.history_file);
 
         while self.running {

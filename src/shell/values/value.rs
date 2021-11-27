@@ -1,10 +1,39 @@
-use std::ops::Range;
+use std::{fmt, ops::Range};
 
 use thin_string::ThinString;
 use thin_vec::ThinVec;
 
 use super::HeapValue;
 use crate::parser::runtime_error::RunTimeError;
+
+#[derive(Debug)]
+pub enum Type {
+    Int,
+    Float,
+    Bool,
+    String,
+    List,
+    Range,
+}
+
+impl AsRef<str> for Type {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::Int => "int",
+            Self::Float => "float",
+            Self::Bool => "bool",
+            Self::String => "string",
+            Self::List => "list",
+            Self::Range => "range",
+        }
+    }
+}
+
+impl fmt::Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_ref())
+    }
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -98,11 +127,25 @@ impl ToString for Value {
 }
 
 impl Value {
+    pub fn to_type(&self) -> Type {
+        match self {
+            Self::Int(_) => Type::Int,
+            Self::Float(_) => Type::Float,
+            Self::Bool(_) => Type::Bool,
+            Self::String(_) => Type::String,
+            Self::List(_) => Type::List,
+            Self::Range(_) => Type::Range,
+        }
+    }
+
     pub fn try_as_int(&self) -> Result<i64, RunTimeError> {
         match self {
             Self::Int(number) => Ok(*number),
             Self::Bool(boolean) => Ok(*boolean as i64),
-            _ => Err(RunTimeError::ConversionError),
+            _ => Err(RunTimeError::InvalidConversion {
+                from: self.to_type(),
+                to: Type::Int,
+            }),
         }
     }
 
@@ -111,7 +154,10 @@ impl Value {
             Self::Int(number) => Ok(*number as f64),
             Self::Float(number) => Ok(*number),
             Self::Bool(boolean) => Ok(*boolean as i64 as f64),
-            _ => Err(RunTimeError::ConversionError),
+            _ => Err(RunTimeError::InvalidConversion {
+                from: self.to_type(),
+                to: Type::Float,
+            }),
         }
     }
 

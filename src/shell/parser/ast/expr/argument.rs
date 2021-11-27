@@ -95,7 +95,7 @@ impl Argument {
             if !entries.is_empty() {
                 Ok(ArgumentValue::Multi(entries))
             } else {
-                Err(RunTimeError::NoMatchError)
+                Err(RunTimeError::NoMatch(pattern))
             }
         } else {
             Ok(ArgumentValue::Single(

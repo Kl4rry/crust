@@ -40,7 +40,7 @@ impl Statement {
                     .insert(var.name.clone(), value);
             }
             Self::Export(_var, _expr) => {}
-            _ => todo!("statement not impl"),
+            statement => todo!("statement not impl: {:?}", statement),
         }
         Ok(())
     }

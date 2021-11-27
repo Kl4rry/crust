@@ -1,5 +1,7 @@
 use std::convert::TryInto;
 
+use crate::shell::values::value::Type;
+
 pub mod lexer;
 
 use lexer::{
@@ -15,7 +17,7 @@ use ast::{
         binop::BinOp,
         command::Command,
         unop::UnOp,
-        Expr, Type,
+        Expr,
     },
     literal::Literal,
     statement::Statement,
@@ -544,7 +546,7 @@ impl Parser {
         let type_of = match token.token_type {
             TokenType::IntCast => Type::Int,
             TokenType::FloatCast => Type::Float,
-            TokenType::StrCast => Type::Str,
+            TokenType::StrCast => Type::String,
             TokenType::BoolCast => Type::Bool,
             _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
         };

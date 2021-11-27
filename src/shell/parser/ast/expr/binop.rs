@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::{convert::TryFrom, fmt};
 
 use crate::parser::{
     ast::{Direction, Precedence},
@@ -6,7 +6,7 @@ use crate::parser::{
     Token, TokenType,
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BinOp {
     Expo,
     Add,
@@ -16,12 +16,12 @@ pub enum BinOp {
     Mod,
     /// The == operator (equality)
     Eq,
+    /// The != operator (not equal to)
+    Ne,
     /// The < operator (less than)
     Lt,
     /// The <= operator (less than or equal to)
     Le,
-    /// The != operator (not equal to)
-    Ne,
     /// The >= operator (greater than or equal to)
     Ge,
     /// The > operator (greater than)
@@ -29,6 +29,34 @@ pub enum BinOp {
     And,
     Or,
     Range,
+}
+
+impl AsRef<str> for BinOp {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::Expo => "^",
+            Self::Add => "+",
+            Self::Sub => "-",
+            Self::Mul => "*",
+            Self::Div => "/",
+            Self::Mod => "%",
+            Self::Eq => "==",
+            Self::Ne => "!=",
+            Self::Lt => "<",
+            Self::Le => "<=",
+            Self::Ge => ">",
+            Self::Gt => ">=",
+            Self::And => "&&",
+            Self::Or => "||",
+            Self::Range => "..",
+        }
+    }
+}
+
+impl fmt::Display for BinOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_ref())
+    }
 }
 
 impl BinOp {
