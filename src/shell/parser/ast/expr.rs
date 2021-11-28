@@ -38,8 +38,8 @@ macro_rules! compare_impl {
                     Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as i64).into()),
                     _ => Err(RunTimeError::InvalidBinaryOperand(
                         binop,
-                        rhs.to_type(),
                         lhs.to_type(),
+                        rhs.to_type(),
                     )),
                 },
                 Value::Float(number) => match rhs.as_ref() {
@@ -48,8 +48,8 @@ macro_rules! compare_impl {
                     Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as i64 as f64).into()),
                     _ => Err(RunTimeError::InvalidBinaryOperand(
                         binop,
-                        rhs.to_type(),
                         lhs.to_type(),
+                        rhs.to_type(),
                     )),
                 },
                 Value::Bool(boolean) => match rhs.as_ref() {
@@ -58,22 +58,22 @@ macro_rules! compare_impl {
                     Value::Bool(rhs) => Ok(Value::Bool(*boolean $op *rhs).into()),
                     _ => Err(RunTimeError::InvalidBinaryOperand(
                         binop,
-                        rhs.to_type(),
                         lhs.to_type(),
+                        rhs.to_type(),
                     )),
                 },
                 Value::String(string) => match rhs.as_ref() {
                     Value::String(rhs) => Ok(Value::Bool(string $op rhs).into()),
                     _ => Err(RunTimeError::InvalidBinaryOperand(
                         binop,
-                        rhs.to_type(),
                         lhs.to_type(),
+                        rhs.to_type(),
                     )),
                 },
                 _ => Err(RunTimeError::InvalidBinaryOperand(
                     binop,
-                    rhs.to_type(),
                     lhs.to_type(),
+                    rhs.to_type(),
                 )),
             }
         }
@@ -236,8 +236,8 @@ impl Expr {
                         }
                         _ => Err(RunTimeError::InvalidBinaryOperand(
                             *binop,
-                            rhs.to_type(),
                             lhs.to_type(),
+                            rhs.to_type(),
                         )),
                     }
                 }
@@ -251,8 +251,8 @@ impl Expr {
                             Value::Float(rhs) => Ok(Value::Float(*number as f64 - rhs).into()),
                             _ => Err(RunTimeError::InvalidBinaryOperand(
                                 *binop,
-                                rhs.to_type(),
                                 lhs.to_type(),
+                                rhs.to_type(),
                             )),
                         },
                         Value::Float(number) => {
@@ -265,14 +265,14 @@ impl Expr {
                             }
                             _ => Err(RunTimeError::InvalidBinaryOperand(
                                 *binop,
-                                rhs.to_type(),
                                 lhs.to_type(),
+                                rhs.to_type(),
                             )),
                         },
                         _ => Err(RunTimeError::InvalidBinaryOperand(
                             *binop,
-                            rhs.to_type(),
                             lhs.to_type(),
+                            rhs.to_type(),
                         )),
                     }
                 }
@@ -293,8 +293,8 @@ impl Expr {
                             }
                             _ => Err(RunTimeError::InvalidBinaryOperand(
                                 *binop,
-                                rhs.to_type(),
                                 lhs.to_type(),
+                                rhs.to_type(),
                             )),
                         },
                         Value::Float(number) => {
@@ -314,8 +314,8 @@ impl Expr {
                             }
                             _ => Err(RunTimeError::InvalidBinaryOperand(
                                 *binop,
-                                rhs.to_type(),
                                 lhs.to_type(),
+                                rhs.to_type(),
                             )),
                         },
                         Value::String(string) => {
@@ -336,8 +336,8 @@ impl Expr {
                         }
                         _ => Err(RunTimeError::InvalidBinaryOperand(
                             *binop,
-                            rhs.to_type(),
                             lhs.to_type(),
+                            rhs.to_type(),
                         )),
                     }
                 }
@@ -357,8 +357,8 @@ impl Expr {
                         }
                         _ => Err(RunTimeError::InvalidBinaryOperand(
                             *binop,
-                            rhs.to_type(),
                             lhs.to_type(),
+                            rhs.to_type(),
                         )),
                     }
                 }
@@ -379,8 +379,8 @@ impl Expr {
                         .into()),
                         _ => Err(RunTimeError::InvalidBinaryOperand(
                             *binop,
-                            rhs.to_type(),
                             lhs.to_type(),
+                            rhs.to_type(),
                         )),
                     }
                 }
@@ -394,8 +394,8 @@ impl Expr {
                             Value::Float(rhs) => Ok(Value::Float(*number as f64 % rhs).into()),
                             _ => Err(RunTimeError::InvalidBinaryOperand(
                                 *binop,
-                                rhs.to_type(),
                                 lhs.to_type(),
+                                rhs.to_type(),
                             )),
                         },
                         Value::Float(number) => {
@@ -408,14 +408,14 @@ impl Expr {
                             }
                             _ => Err(RunTimeError::InvalidBinaryOperand(
                                 *binop,
-                                rhs.to_type(),
                                 lhs.to_type(),
+                                rhs.to_type(),
                             )),
                         },
                         _ => Err(RunTimeError::InvalidBinaryOperand(
                             *binop,
-                            rhs.to_type(),
                             lhs.to_type(),
+                            rhs.to_type(),
                         )),
                     }
                 }
@@ -459,8 +459,16 @@ impl Expr {
                     let rhs = rhs.eval(shell, false)?;
                     compare_impl!(lhs, rhs, *binop, >)
                 }
-                BinOp::And => todo!(),
-                BinOp::Or => todo!(),
+                BinOp::And => {
+                    let lhs = lhs.eval(shell, false)?;
+                    let rhs = rhs.eval(shell, false)?;
+                    Ok(Value::Bool(lhs.truthy() && rhs.truthy()).into())
+                }
+                BinOp::Or => {
+                    let lhs = lhs.eval(shell, false)?;
+                    let rhs = rhs.eval(shell, false)?;
+                    Ok(Value::Bool(lhs.truthy() || rhs.truthy()).into())
+                }
             },
             expr => todo!("expr not impl: {:?}", expr),
         }
