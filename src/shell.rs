@@ -34,7 +34,7 @@ pub struct Shell {
     home_dir: PathBuf,
     history_file: PathBuf,
     child_id: Arc<Mutex<Option<u32>>>,
-    variable_stack: Vec<Frame>,
+    stack: Vec<Frame>,
     aliases: HashMap<String, String>,
 }
 
@@ -76,7 +76,7 @@ impl Shell {
             home_dir,
             history_file,
             child_id,
-            variable_stack: vec![Frame::new()],
+            stack: vec![Frame::new()],
             aliases: HashMap::new(),
         }
     }
@@ -101,7 +101,7 @@ impl Shell {
                     editor.add_history_entry(&line);
                     let mut parser = Parser::new(line);
                     match parser.parse() {
-                        Ok(mut ast) => {
+                        Ok(ast) => {
                             let res = ast.eval(&mut self);
                             match res {
                                 Ok(values) => {
@@ -169,7 +169,7 @@ impl Shell {
 
 impl Drop for Shell {
     fn drop(&mut self) {
-        self.variable_stack.clear();
+        self.stack.clear();
     }
 }
 

@@ -81,7 +81,7 @@ macro_rules! compare_impl {
     }};
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Call(Command, Vec<Argument>),
     Pipe(P<Expr>, P<Expr>),

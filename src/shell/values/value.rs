@@ -6,7 +6,7 @@ use thin_vec::ThinVec;
 use super::HeapValue;
 use crate::parser::runtime_error::RunTimeError;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Type {
     Int,
     Float,

@@ -3,7 +3,7 @@ use crate::{
     Shell,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Identifier {
     Variable(Variable), // Should be expaned to variable value. Must be done before glob.
     Expand(Expand),     // Should be variable expanded.
@@ -24,7 +24,7 @@ impl Identifier {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Expand {
     pub content: Vec<ExpandKind>,
 }
@@ -43,14 +43,14 @@ impl Expand {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ExpandKind {
     String(String),
     Expr(P<Expr>),
     Variable(Variable),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Argument {
     pub parts: Vec<Identifier>,
 }

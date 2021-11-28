@@ -12,14 +12,14 @@ use crate::{
     Shell,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Variable {
     pub name: String,
 }
 
 impl Variable {
     pub fn eval(&self, shell: &mut Shell) -> Result<ValueKind, RunTimeError> {
-        for frame in shell.variable_stack.iter().rev() {
+        for frame in shell.stack.iter().rev() {
             if let Some(value) = frame.variables.get(&self.name) {
                 return Ok(value.clone().into());
             }

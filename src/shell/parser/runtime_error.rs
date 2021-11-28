@@ -3,15 +3,16 @@ use std::{error::Error, fmt, io};
 use glob::{GlobError, PatternError};
 
 use super::ast::expr::{binop::BinOp, unop::UnOp};
-use crate::shell::values::value::Type;
+use crate::shell::values::{value::Type, ValueKind};
 
 #[derive(Debug)]
 pub enum RunTimeError {
-    // exit, break, and return are not real errors and are only used to interrupt execution
+    // exit, break, continue, and return are not real errors and are only used to interrupt execution
     // this is a not so nice hack but it works
     Exit,
     Break,
-    Return,
+    Return(Option<ValueKind>),
+    Continue,
 
     // real errors
     NoMatch(String),
@@ -55,9 +56,11 @@ impl fmt::Display for RunTimeError {
             Self::IoError(error) => error.fmt(f),
             Self::GlobError(error) => error.fmt(f),
             Self::PatternError(error) => error.fmt(f),
+            // exit should always be handled and should therefore never be displayed
             Self::Exit => unreachable!(),
-            Self::Break => unreachable!(),
-            Self::Return => unreachable!(),
+            Self::Break => write!(f, "break must be used in loop"),
+            Self::Return(_) => write!(f, "return must be used in function"),
+            Self::Continue => write!(f, "continue must be used in loop"),
         }
     }
 }

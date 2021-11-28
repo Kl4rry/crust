@@ -10,7 +10,7 @@ use crate::{
     Shell,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Command {
     Expand(Expand),
     String(String),
