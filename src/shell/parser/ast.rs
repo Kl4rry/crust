@@ -1,6 +1,11 @@
+use std::collections::HashMap;
+
 use crate::{
     parser::runtime_error::RunTimeError,
-    shell::{values::ValueKind, Frame},
+    shell::{
+        values::{HeapValue, ValueKind},
+        Frame,
+    },
     Shell,
 };
 
@@ -55,8 +60,16 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn eval(&self, shell: &mut Shell) -> Result<(), RunTimeError> {
-        shell.stack.push(Frame::new());
+    pub fn eval(
+        &self,
+        shell: &mut Shell,
+        variables: Option<HashMap<String, HeapValue>>,
+    ) -> Result<(), RunTimeError> {
+        if let Some(vars) = variables {
+            shell.stack.push(Frame::with_variables(vars));
+        } else {
+            shell.stack.push(Frame::new());
+        }
         for compound in &self.sequence {
             match compound {
                 Compound::Expr(expr) => {

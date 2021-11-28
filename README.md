@@ -11,7 +11,9 @@ This readme contains notes to myself.
 | Blocks                          | ✅                            | ✅    |
 | Function Declarations           | ✅                            | ✅    |
 | If                              | ✅                            | ✅    |
-| Loops                           | ✅                            | ✅    |
+| loop                            | ✅                            | ✅    |
+| while                           | ✅                            | ✅    |
+| for                             | ✅                            | ❌    |
 | Break                           | ✅                            | ✅    |
 | Continue                        | ✅                            | ✅    |
 | Return                          | ✅                            | ✅    |
@@ -20,7 +22,7 @@ This readme contains notes to myself.
 | Export                          | ✅                            | ❌    |
 | Alias                           | ✅                            | ✅    |
 | Lists                           | ✅                            | ✅    |
-| Indexing                        | ❌                            | ❌    |
+| Indexing/Slicing                | ❌                            | ❌    |
 | Maps                            | ❌                            | ❌    |
 | Pipes                           | ✅ (Not \| & aka stderr pipe) | ❌    |
 | Redirects                       | ✅                            | ❌    |
