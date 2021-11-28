@@ -23,7 +23,7 @@ pub fn drop(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i64
 
     let name = matches.value_of("NAME").unwrap();
 
-    for frame in shell.variable_stack.iter_mut() {
+    for frame in shell.stack.iter_mut() {
         let value = frame.variables.remove(name);
         if value.is_some() {
             return Ok(0);
