@@ -470,7 +470,8 @@ impl Expr {
                     Ok(Value::Bool(lhs.truthy() || rhs.truthy()).into())
                 }
             },
-            expr => todo!("expr not impl: {:?}", expr),
+            Self::Pipe(_lhs, _rhs) => todo!("pipe not impl"),
+            Self::Redirect(_direction, _expr, _file) => todo!("redirect not impl"),
         }
     }
 }
