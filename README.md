@@ -1,7 +1,7 @@
 # Crust
 This readme contains notes to myself.
 
-# Parsing
+## Parsing
 | Syntax                          | Parsing                      | Eval |
 | ------------------------------- | ---------------------------- | ---- |
 | Literals                        | ✅                            | ✅    |
@@ -32,12 +32,13 @@ This readme contains notes to myself.
 | run in background using &       | ❌                            | ❌    |
 | Escapes sequences               | ❌                            | ❌    |
 
-# Builtin thoughts
+## Bugs
 Comparison operator chaining is currently permitted but should not be.
 
 Unary operators have no precedence.
 
+## Builtin thoughts
 Lists should become multiple arguments
 
-# Design rules
+## Design rules
 Data structures cannot be cyclic. This means that lists are cannot hold lists.
