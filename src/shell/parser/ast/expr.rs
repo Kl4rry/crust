@@ -155,8 +155,8 @@ impl Expr {
                 let value = expr.eval(shell, false)?;
                 match unop {
                     UnOp::Neg => match value.as_ref() {
-                        Value::Int(int) => Ok(Value::Int(*int).into()),
-                        Value::Float(float) => Ok(Value::Float(*float).into()),
+                        Value::Int(int) => Ok(Value::Int(-*int).into()),
+                        Value::Float(float) => Ok(Value::Float(-*float).into()),
                         _ => Err(RunTimeError::InvalidUnaryOperand(*unop, value.to_type())),
                     },
                     UnOp::Not => Ok(Value::Bool(!value.truthy()).into()),
