@@ -20,10 +20,7 @@ static BUILTIN_VARS: phf::Map<&'static str, BulitinVar> = phf_map! {
 };
 
 pub fn get_var(shell: &mut Shell, name: &str) -> Option<Value> {
-    match BUILTIN_VARS.get(name) {
-        Some(var) => Some(var(shell)),
-        None => None,
-    }
+    BUILTIN_VARS.get(name).map(|var| var(shell))
 }
 
 pub fn is_builtin(name: &str) -> bool {

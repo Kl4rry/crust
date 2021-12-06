@@ -74,21 +74,19 @@ impl Statement {
                         .expect("stack is empty this should be impossible")
                         .variables
                         .insert(var.name.clone(), value);
-                } else {
-                    if !shell
+                } else if !shell
+                    .stack
+                    .last_mut()
+                    .expect("stack is empty this should be impossible")
+                    .variables
+                    .contains_key(&var.name)
+                {
+                    shell
                         .stack
                         .last_mut()
                         .expect("stack is empty this should be impossible")
                         .variables
-                        .contains_key(&var.name)
-                    {
-                        shell
-                            .stack
-                            .last_mut()
-                            .expect("stack is empty this should be impossible")
-                            .variables
-                            .insert(var.name.clone(), Value::String(ThinString::from("")).into());
-                    }
+                        .insert(var.name.clone(), Value::String(ThinString::from("")).into());
                 }
             }
             Self::Export(_var, _expr) => todo!("export not impl"),
@@ -96,13 +94,11 @@ impl Statement {
                 let value = expr.eval(shell, false)?;
                 if value.truthy() {
                     block.eval(shell, None)?
-                } else {
-                    if let Some(statement) = else_clause {
-                        match &**statement {
-                            Self::Block(block) => block.eval(shell, None)?,
-                            Self::If(..) => statement.eval(shell)?,
-                            _ => (),
-                        }
+                } else if let Some(statement) = else_clause {
+                    match &**statement {
+                        Self::Block(block) => block.eval(shell, None)?,
+                        Self::If(..) => statement.eval(shell)?,
+                        _ => (),
                     }
                 }
             }
@@ -154,7 +150,7 @@ impl Statement {
                         }
                     }
                     Value::Range(range) => {
-                        for i in (**range).clone().into_iter() {
+                        for i in (**range).clone() {
                             let mut variables: HashMap<String, HeapValue> = HashMap::new();
                             let item: HeapValue = Value::Int(i).into();
                             variables.insert(name.clone(), item.clone());
