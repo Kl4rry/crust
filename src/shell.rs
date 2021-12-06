@@ -7,7 +7,7 @@ use std::{
 };
 
 use crossterm::{execute, style::Print, terminal::SetTitle};
-use rustyline::{error::ReadlineError, Editor, config::BellStyle};
+use rustyline::{config::BellStyle, error::ReadlineError, Editor};
 
 pub mod builtins;
 pub mod values;

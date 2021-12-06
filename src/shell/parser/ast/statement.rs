@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use thin_string::ThinString;
 
 use crate::{
@@ -6,7 +8,7 @@ use crate::{
         runtime_error::RunTimeError,
         P,
     },
-    shell::values::{Value, ValueKind},
+    shell::values::{HeapValue, Value, ValueKind},
     Shell,
 };
 
@@ -111,10 +113,50 @@ impl Statement {
                     }
                 }
             }
-            Self::For(_var, _expr, _block) => {
-                /*let name = var.name.clone();
-                let value_kind = expr.eval(shell, false)?;
-                let value = &*value_kind;*/
+            Self::For(var, expr, block) => {
+                let name = var.name.clone();
+                let value: HeapValue = expr.eval(shell, false)?.into();
+                match &*value {
+                    Value::List(list) => {
+                        for item in list.iter() {
+                            let mut variables: HashMap<String, HeapValue> = HashMap::new();
+                            variables.insert(name.clone(), item.clone());
+                            match block.eval(shell, Some(variables)) {
+                                Ok(_) => (),
+                                Err(RunTimeError::Break) => break,
+                                Err(RunTimeError::Continue) => continue,
+                                Err(error) => return Err(error),
+                            }
+                        }
+                    }
+                    Value::String(string) => {
+                        for c in string.chars() {
+                            let mut variables: HashMap<String, HeapValue> = HashMap::new();
+                            let item: HeapValue = Value::String(ThinString::from(c)).into();
+                            variables.insert(name.clone(), item.clone());
+                            match block.eval(shell, Some(variables)) {
+                                Ok(_) => (),
+                                Err(RunTimeError::Break) => break,
+                                Err(RunTimeError::Continue) => continue,
+                                Err(error) => return Err(error),
+                            }
+                        }
+                    }
+                    Value::Range(range) => {
+                        for i in (**range).clone().into_iter() {
+                            let mut variables: HashMap<String, HeapValue> = HashMap::new();
+                            let item: HeapValue = Value::Int(i).into();
+                            variables.insert(name.clone(), item.clone());
+                            match block.eval(shell, Some(variables)) {
+                                Ok(_) => (),
+                                Err(RunTimeError::Break) => break,
+                                Err(RunTimeError::Continue) => continue,
+                                Err(error) => return Err(error),
+                            }
+                        }
+                    }
+                    _ => return Err(RunTimeError::InvalidIterator(value.to_type())),
+                }
             }
             Self::Fn(name, params, block) => {
                 shell

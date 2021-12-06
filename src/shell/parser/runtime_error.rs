@@ -22,6 +22,7 @@ pub enum RunTimeError {
     VariableNotFound(String),
     InvalidBinaryOperand(BinOp, Type, Type),
     InvalidUnaryOperand(UnOp, Type),
+    InvalidIterator(Type),
     CommandNotFound(String),
     IoError(io::Error),
     GlobError(GlobError),
@@ -43,6 +44,9 @@ impl fmt::Display for RunTimeError {
             }
             Self::InvalidUnaryOperand(unop, value) => {
                 write!(f, "'{}' not supported for '{}'", unop, value)
+            }
+            Self::InvalidIterator(value) => {
+                write!(f, "cannot iterate over type '{}'", value)
             }
             Self::InvalidConversion { from, to } => {
                 write!(f, "cannot convert '{}' to '{}'", from, to)
