@@ -44,14 +44,6 @@ impl Highlighter for EditorHelper {
     fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
         Cow::Owned(Paint::new(hint).dimmed().to_string())
     }
-
-    fn highlight_candidate<'c>(
-        &self,
-        candidate: &'c str,
-        _completion: rustyline::CompletionType,
-    ) -> Cow<'c, str> {
-        Cow::Borrowed(candidate)
-    }
 }
 
 impl Hinter for EditorHelper {

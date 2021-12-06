@@ -7,7 +7,7 @@ use std::{
 };
 
 use crossterm::{execute, style::Print, terminal::SetTitle};
-use rustyline::{error::ReadlineError, Editor};
+use rustyline::{error::ReadlineError, Editor, config::BellStyle};
 
 pub mod builtins;
 pub mod values;
@@ -102,9 +102,9 @@ impl Shell {
 
         let config = rustyline::Config::builder()
             .color_mode(rustyline::ColorMode::Forced)
-            .bell_style(rustyline::config::BellStyle::None)
-            .completion_type(rustyline::config::CompletionType::List)
+            .bell_style(BellStyle::None)
             .build();
+
         let mut editor = Editor::with_config(config);
         editor.set_helper(Some(helper::EditorHelper::new()));
         let _ = editor.load_history(&self.history_file);
