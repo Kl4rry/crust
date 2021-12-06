@@ -11,6 +11,7 @@ static BUILTIN_VARS: phf::Map<&'static str, BulitinVar> = phf_map! {
     "user" => user,
     "hostname" => hostname,
     "os" => os,
+    "family" => family,
     "arch" => arch,
     "distro" => distro,
     "desktop" => desktop,
@@ -82,4 +83,8 @@ pub fn pwd(_: &mut Shell) -> Value {
 
 pub fn version(_: &mut Shell) -> Value {
     Value::String(env!("CARGO_PKG_VERSION").to_thin_string())
+}
+
+pub fn family(_: &mut Shell) -> Value {
+    Value::String(std::env::consts::FAMILY.to_thin_string())
 }
