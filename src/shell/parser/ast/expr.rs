@@ -124,7 +124,8 @@ impl Expr {
                     expanded_args = args;
                 }
 
-                if let Some(res) = builtins::run_builtin(shell, &command, &expanded_args) {
+                if let Some(res) = builtins::functions::run_builtin(shell, &command, &expanded_args)
+                {
                     return Ok(res?.into());
                 } else {
                     match shell.execute_command(&command, &expanded_args, piped) {

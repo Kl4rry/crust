@@ -8,7 +8,10 @@ use crate::{
         runtime_error::RunTimeError,
         syntax_error::SyntaxErrorKind,
     },
-    shell::values::{Value, ValueKind},
+    shell::{
+        builtins::variables,
+        values::{Value, ValueKind},
+    },
     Shell,
 };
 
@@ -19,6 +22,10 @@ pub struct Variable {
 
 impl Variable {
     pub fn eval(&self, shell: &mut Shell) -> Result<ValueKind, RunTimeError> {
+        if let Some(value) = variables::get_var(shell, &self.name) {
+            return Ok(value.into());
+        }
+
         for frame in shell.stack.iter().rev() {
             if let Some(value) = frame.variables.get(&self.name) {
                 return Ok(value.clone().into());

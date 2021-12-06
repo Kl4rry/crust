@@ -8,7 +8,10 @@ use crate::{
         runtime_error::RunTimeError,
         P,
     },
-    shell::values::{HeapValue, Value, ValueKind},
+    shell::{
+        builtins::variables::is_builtin,
+        values::{HeapValue, Value, ValueKind},
+    },
     Shell,
 };
 
@@ -32,6 +35,10 @@ impl Statement {
     pub fn eval(&self, shell: &mut Shell) -> Result<(), RunTimeError> {
         match self {
             Self::Assignment(var, expr) => {
+                if is_builtin(&var.name) {
+                    return Ok(());
+                }
+
                 let value = match expr.eval(shell, false)? {
                     ValueKind::Heap(value) => value,
                     ValueKind::Stack(value) => value.into(),
@@ -52,6 +59,10 @@ impl Statement {
                     .insert(var.name.clone(), value);
             }
             Self::Declaration(var, expr) => {
+                if is_builtin(&var.name) {
+                    return Ok(());
+                }
+
                 if let Some(expr) = expr {
                     let value = match expr.eval(shell, false)? {
                         ValueKind::Heap(value) => value,
