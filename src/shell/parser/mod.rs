@@ -349,17 +349,17 @@ impl Parser {
 
     fn parse_if(&mut self) -> Result<Statement> {
         self.eat()?;
-        self.skip_whitespace();
+        self.skip_optional_space();
         let expr = self.parse_expr(None)?;
-        self.skip_whitespace();
+        self.skip_optional_space();
         let block = self.parse_block()?;
-        self.skip_whitespace();
+        self.skip_optional_space();
 
         let statement = match self.peek() {
             Ok(token) => match token.token_type {
                 TokenType::Else => {
                     self.eat()?;
-                    self.skip_whitespace();
+                    self.skip_optional_space();
                     match self.peek()?.token_type {
                         TokenType::If => Some(P::new(self.parse_if()?)),
                         TokenType::LeftBrace => Some(P::new(Statement::Block(self.parse_block()?))),
