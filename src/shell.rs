@@ -40,13 +40,6 @@ pub struct Shell {
 
 impl Shell {
     pub fn new() -> Self {
-        (execute! {
-            stdout(),
-            Print(clear_str()),
-            SetTitle("Crust 🦀"),
-        })
-        .unwrap();
-
         let child_id = Arc::new(Mutex::new(None));
         let handler_child = child_id.clone();
         ctrlc::set_handler(move || {
@@ -81,10 +74,36 @@ impl Shell {
         }
     }
 
+    pub fn run_src(mut self, src: String) -> i64 {
+        let mut parser = Parser::new(src);
+        match parser.parse() {
+            Ok(ast) => {
+                let res = ast.eval(&mut self);
+                match res {
+                    Ok(_) => (),
+                    Err(RunTimeError::Exit) => (),
+                    Err(error) => eprintln!("{}", error),
+                }
+            }
+            Err(error) => {
+                eprintln!("{}", error)
+            }
+        };
+        self.exit_status
+    }
+
     pub fn run(mut self) -> i64 {
+        (execute! {
+            stdout(),
+            Print(clear_str()),
+            SetTitle("Crust 🦀"),
+        })
+        .unwrap();
+
         let config = rustyline::Config::builder()
             .color_mode(rustyline::ColorMode::Forced)
             .bell_style(rustyline::config::BellStyle::None)
+            .completion_type(rustyline::config::CompletionType::List)
             .build();
         let mut editor = Editor::with_config(config);
         editor.set_helper(Some(helper::EditorHelper::new()));

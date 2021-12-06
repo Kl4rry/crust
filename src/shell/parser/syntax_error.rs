@@ -1,6 +1,6 @@
 use std::{error::Error, fmt, iter};
 
-use colored::Colorize;
+use yansi::Paint;
 
 use super::lexer::token::{span::Span, Token};
 
@@ -23,8 +23,8 @@ impl Error for SyntaxErrorKind {}
 
 #[derive(Debug)]
 pub struct SyntaxError<'a> {
-    error: SyntaxErrorKind,
-    src: &'a str,
+    pub error: SyntaxErrorKind,
+    pub src: &'a str,
 }
 
 impl<'a> SyntaxError<'a> {
@@ -50,18 +50,18 @@ impl<'a> fmt::Display for SyntaxError<'a> {
 
                 let start = token.span.start() - line_span.start();
                 let marker_spacing = get_string(start, b' ');
-                let marker = get_string(token.span.length(), b'^').red();
+                let marker = Paint::red(get_string(token.span.length(), b'^'));
 
-                writeln!(f, "{}: Unexpected token", "Syntax error".red())?;
-                writeln!(f, "{}{}", spacing, "|".blue())?;
+                writeln!(f, "{}: Unexpected token", Paint::red("Syntax error"))?;
+                writeln!(f, "{}{}", spacing, Paint::blue("|"))?;
                 writeln!(
                     f,
                     "{} {} {}",
-                    line_number.to_string().blue(),
-                    "|".blue(),
+                    Paint::blue(line_number.to_string()),
+                    Paint::blue("|"),
                     line
                 )?;
-                write!(f, "{}{} ", spacing, "|".blue())?;
+                write!(f, "{}{} ", spacing, Paint::blue("|"))?;
                 writeln!(f, "{}{}", marker_spacing, marker)
             }
             SyntaxErrorKind::ExpectedToken => write!(f, "expected token"),
