@@ -18,7 +18,7 @@ This readme contains notes to myself.
 | Continue                        | ✅                            | ✅    |
 | Return                          | ✅                            | ✅    |
 | Assignment                      | ✅                            | ✅    |
-| Variable declaration            | ✅                            | ❌    |
+| Variable declaration            | ✅                            | ✅    |
 | Export                          | ✅                            | ❌    |
 | Alias                           | ✅                            | ✅    |
 | Lists                           | ✅                            | ✅    |
