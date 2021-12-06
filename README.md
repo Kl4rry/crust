@@ -13,7 +13,7 @@ This readme contains notes to myself.
 | If                              | ✅                            | ✅    |
 | loop                            | ✅                            | ✅    |
 | while                           | ✅                            | ✅    |
-| for                             | ✅                            | ❌    |
+| for                             | ✅                            | ✅    |
 | Break                           | ✅                            | ✅    |
 | Continue                        | ✅                            | ✅    |
 | Return                          | ✅                            | ✅    |
