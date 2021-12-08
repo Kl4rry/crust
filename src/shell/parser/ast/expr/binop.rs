@@ -97,19 +97,22 @@ impl Precedence for BinOp {
         match self {
             Self::Expo => (9, Direction::Right),
             Self::Mul => (8, Direction::Left),
-            Self::Div => (7, Direction::Left),
-            Self::Mod => (7, Direction::Left),
-            Self::Sub => (6, Direction::Left),
-            Self::Add => (6, Direction::Left),
-            Self::Range => (5, Direction::Left),
+            Self::Div => (8, Direction::Left),
+            Self::Mod => (8, Direction::Left),
+            Self::Sub => (7, Direction::Left),
+            Self::Add => (7, Direction::Left),
+            Self::Range => (6, Direction::Left),
+            
+            Self::Lt => (5, Direction::Left),
+            Self::Le => (5, Direction::Left),
+            Self::Ge => (5, Direction::Left),
+            Self::Gt => (5, Direction::Left),
+            
             Self::Eq => (4, Direction::Left),
-            Self::Lt => (4, Direction::Left),
-            Self::Le => (4, Direction::Left),
             Self::Ne => (4, Direction::Left),
-            Self::Ge => (4, Direction::Left),
-            Self::Gt => (4, Direction::Left),
+
             Self::And => (3, Direction::Left),
-            Self::Or => (3, Direction::Left),
+            Self::Or => (2, Direction::Left),
         }
     }
 }
