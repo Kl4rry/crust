@@ -178,7 +178,7 @@ impl Statement {
             Self::Continue => {
                 return Err(RunTimeError::Continue);
             }
-            statement => todo!("statement not impl: {:?}", statement),
+            Self::Block(block) => block.eval(shell, None)?,
         }
         Ok(())
     }
