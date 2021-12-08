@@ -1,5 +1,6 @@
 use phf::*;
 use thin_string::ToThinString;
+use rand::Rng;
 
 use crate::shell::{values::Value, Shell};
 
@@ -18,6 +19,7 @@ static BUILTIN_VARS: phf::Map<&'static str, BulitinVar> = phf_map! {
     "status" => status,
     "pwd" => pwd,
     "version" => version,
+    "random" => random,
 };
 
 pub fn get_var(shell: &mut Shell, name: &str) -> Option<Value> {
@@ -87,4 +89,9 @@ pub fn version(_: &mut Shell) -> Value {
 
 pub fn family(_: &mut Shell) -> Value {
     Value::String(std::env::consts::FAMILY.to_thin_string())
+}
+
+pub fn random(_: &mut Shell) -> Value {
+    let mut rng = rand::thread_rng();
+    Value::Int(rng.gen_range(0..i64::MAX))
 }

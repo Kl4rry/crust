@@ -122,6 +122,7 @@ dependencies = [
  "glob",
  "nix",
  "phf",
+ "rand",
  "rustyline",
  "slab",
  "thin-string",
