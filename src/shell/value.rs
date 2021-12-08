@@ -5,7 +5,7 @@ use thin_vec::ThinVec;
 
 use crate::parser::runtime_error::RunTimeError;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Type {
     Int,
     Float,
@@ -15,8 +15,8 @@ pub enum Type {
     Range,
 }
 
-impl AsRef<str> for Type {
-    fn as_ref(&self) -> &str {
+impl Type {
+    pub fn as_str(&self) -> &'static str {
         match self {
             Self::Int => "int",
             Self::Float => "float",
@@ -25,6 +25,12 @@ impl AsRef<str> for Type {
             Self::List => "list",
             Self::Range => "range",
         }
+    }
+}
+
+impl AsRef<str> for Type {
+    fn as_ref(&self) -> &str {
+        self.as_str()
     }
 }
 

@@ -1,3 +1,4 @@
+use crate::shell::value::Type;
 pub mod token;
 
 use token::{span::Span, Token, TokenType};
@@ -120,10 +121,11 @@ impl Lexer {
             "fn" => TokenType::Fn,
             "true" => TokenType::True,
             "false" => TokenType::False,
-            "int" => TokenType::IntCast,
-            "float" => TokenType::FloatCast,
-            "str" => TokenType::StrCast,
-            "bool" => TokenType::BoolCast,
+            "int" => TokenType::Cast(Type::Int),
+            "float" => TokenType::Cast(Type::Float),
+            "str" => TokenType::Cast(Type::String),
+            "bool" => TokenType::Cast(Type::Bool),
+            "list" => TokenType::Cast(Type::List),
             _ => {
                 return Token {
                     token_type: TokenType::Symbol(value),

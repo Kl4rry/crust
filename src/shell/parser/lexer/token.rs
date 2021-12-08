@@ -4,10 +4,13 @@ use std::{convert::TryInto, mem};
 
 use span::Span;
 
-use crate::parser::{
-    ast::expr::{argument::Identifier, binop::BinOp},
-    syntax_error::SyntaxErrorKind,
-    Result,
+use crate::{
+    parser::{
+        ast::expr::{argument::Identifier, binop::BinOp},
+        syntax_error::SyntaxErrorKind,
+        Result,
+    },
+    shell::value::Type,
 };
 
 #[derive(PartialEq, Debug, Clone)]
@@ -23,6 +26,7 @@ pub enum TokenType {
     String(String),
     Float(f64, String),
     Int(u128, String),
+    Cast(Type),
     Quote,
     NewLine,
     Space,
@@ -79,12 +83,6 @@ pub enum TokenType {
     Fn,
     True,
     False,
-
-    // casts
-    IntCast,
-    FloatCast,
-    StrCast,
-    BoolCast,
 }
 
 impl TokenType {
@@ -146,10 +144,7 @@ impl TokenType {
                 | TokenType::Int(_, _)
                 | TokenType::True
                 | TokenType::False
-                | TokenType::IntCast
-                | TokenType::FloatCast
-                | TokenType::StrCast
-                | TokenType::BoolCast
+                | TokenType::Cast(_)
         )
     }
 }
@@ -210,10 +205,7 @@ impl Token {
             TokenType::False => Ok("false"),
             TokenType::Mul => Ok("*"),
             TokenType::Colon => Ok(":"),
-            TokenType::IntCast => Ok("int"),
-            TokenType::FloatCast => Ok("float"),
-            TokenType::StrCast => Ok("str"),
-            TokenType::BoolCast => Ok("bool"),
+            TokenType::Cast(t) => Ok(t.as_str()),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self)),
         }
     }

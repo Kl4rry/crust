@@ -145,9 +145,41 @@ impl Expr {
             Self::TypeCast(type_of, expr) => {
                 let value = expr.eval(shell, false)?;
                 match type_of {
-                    Type::Int => todo!(),
-                    Type::Float => todo!(),
+                    Type::Int => match value {
+                        Value::String(string) => Ok(Value::Int(string.parse()?)),
+                        _ => Err(RunTimeError::InvalidConversion {
+                            from: value.to_type(),
+                            to: *type_of,
+                        }),
+                    },
+                    Type::Float => match value {
+                        Value::String(string) => Ok(Value::Float(string.parse()?)),
+                        _ => Err(RunTimeError::InvalidConversion {
+                            from: value.to_type(),
+                            to: *type_of,
+                        }),
+                    },
                     Type::String => Ok(Value::String(value.to_string().to_thin_string())),
+                    Type::List => match value {
+                        Value::String(string) => Ok(Value::List(
+                            string
+                                .chars()
+                                .map(|c| Value::String(ThinString::from(c)))
+                                .collect(),
+                        )),
+                        Value::Range(range) => Ok(Value::List(
+                            #[allow(clippy::redundant_closure)]
+                            (*range)
+                                .clone()
+                                .into_iter()
+                                .map(|n| Value::Int(n))
+                                .collect(),
+                        )),
+                        _ => Err(RunTimeError::InvalidConversion {
+                            from: value.to_type(),
+                            to: *type_of,
+                        }),
+                    },
                     Type::Bool => Ok(Value::Bool(value.truthy())),
                     _ => unreachable!(),
                 }

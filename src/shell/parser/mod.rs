@@ -1,7 +1,5 @@
 use std::convert::TryInto;
 
-use crate::shell::value::Type;
-
 pub mod lexer;
 
 use lexer::{
@@ -297,10 +295,7 @@ impl Parser {
             | TokenType::True
             | TokenType::False
             | TokenType::LeftBracket
-            | TokenType::BoolCast
-            | TokenType::IntCast
-            | TokenType::FloatCast
-            | TokenType::StrCast
+            | TokenType::Cast(_)
             | TokenType::Not => Ok(Compound::Expr(self.parse_expr(None)?)),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         }
@@ -419,10 +414,7 @@ impl Parser {
             TokenType::True | TokenType::False => {
                 Ok(Expr::Literal(self.eat()?.try_into()?).wrap(unop))
             }
-            TokenType::IntCast
-            | TokenType::FloatCast
-            | TokenType::StrCast
-            | TokenType::BoolCast => self.parse_cast(),
+            TokenType::Cast(_) => self.parse_cast(),
             TokenType::Symbol(_) => Ok(self.parse_call()?.wrap(unop)),
             TokenType::Exec => Ok(self.parse_call()?),
             TokenType::LeftParen => {
@@ -544,10 +536,7 @@ impl Parser {
     fn parse_cast(&mut self) -> Result<Expr> {
         let token = self.eat()?;
         let type_of = match token.token_type {
-            TokenType::IntCast => Type::Int,
-            TokenType::FloatCast => Type::Float,
-            TokenType::StrCast => Type::String,
-            TokenType::BoolCast => Type::Bool,
+            TokenType::Cast(t) => t,
             _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
         };
         self.skip_whitespace();

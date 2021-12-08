@@ -1,4 +1,8 @@
-use std::{error::Error, fmt, io};
+use std::{
+    error::Error,
+    fmt, io,
+    num::{ParseFloatError, ParseIntError},
+};
 
 use glob::{GlobError, PatternError};
 
@@ -25,8 +29,10 @@ pub enum RunTimeError {
     InvalidIterator(Type),
     CommandNotFound(String),
     IoError(io::Error),
-    GlobError(GlobError),
-    PatternError(PatternError),
+    Glob(GlobError),
+    Pattern(PatternError),
+    ParseInt(ParseIntError),
+    ParseFloat(ParseFloatError),
 }
 
 impl fmt::Display for RunTimeError {
@@ -58,8 +64,10 @@ impl fmt::Display for RunTimeError {
                 length, index
             ),
             Self::IoError(error) => error.fmt(f),
-            Self::GlobError(error) => error.fmt(f),
-            Self::PatternError(error) => error.fmt(f),
+            Self::Glob(error) => error.fmt(f),
+            Self::Pattern(error) => error.fmt(f),
+            Self::ParseInt(error) => error.fmt(f),
+            Self::ParseFloat(error) => error.fmt(f),
             // exit should always be handled and should therefore never be displayed
             Self::Exit => unreachable!(),
             Self::Break => write!(f, "break must be used in loop"),
@@ -71,19 +79,31 @@ impl fmt::Display for RunTimeError {
 
 impl From<PatternError> for RunTimeError {
     fn from(error: PatternError) -> Self {
-        RunTimeError::PatternError(error)
+        RunTimeError::Pattern(error)
     }
 }
 
 impl From<GlobError> for RunTimeError {
     fn from(error: GlobError) -> Self {
-        RunTimeError::GlobError(error)
+        RunTimeError::Glob(error)
     }
 }
 
 impl From<std::io::Error> for RunTimeError {
     fn from(error: std::io::Error) -> Self {
         RunTimeError::IoError(error)
+    }
+}
+
+impl From<ParseIntError> for RunTimeError {
+    fn from(error: ParseIntError) -> Self {
+        RunTimeError::ParseInt(error)
+    }
+}
+
+impl From<ParseFloatError> for RunTimeError {
+    fn from(error: ParseFloatError) -> Self {
+        RunTimeError::ParseFloat(error)
     }
 }
 
