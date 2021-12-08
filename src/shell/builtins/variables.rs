@@ -1,8 +1,8 @@
 use phf::*;
-use thin_string::ToThinString;
 use rand::Rng;
+use thin_string::ToThinString;
 
-use crate::shell::{values::Value, Shell};
+use crate::shell::{value::Value, Shell};
 
 type BulitinVar = fn(&mut Shell) -> Value;
 

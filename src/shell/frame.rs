@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use crate::{
     parser::ast::{variable::Variable, Block},
-    shell::HeapValue,
+    shell::value::Value,
 };
 
 pub struct Frame {
-    pub variables: HashMap<String, HeapValue>,
+    pub variables: HashMap<String, Value>,
     pub functions: HashMap<String, (Vec<Variable>, Block)>,
 }
 
@@ -18,7 +18,7 @@ impl Frame {
         }
     }
 
-    pub fn with_variables(variables: HashMap<String, HeapValue>) -> Self {
+    pub fn with_variables(variables: HashMap<String, Value>) -> Self {
         Frame {
             variables,
             functions: HashMap::new(),

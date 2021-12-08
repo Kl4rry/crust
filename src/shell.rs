@@ -10,9 +10,8 @@ use crossterm::{execute, style::Print, terminal::SetTitle};
 use rustyline::{config::BellStyle, error::ReadlineError, Editor};
 
 pub mod builtins;
-pub mod values;
-use values::HeapValue;
 pub mod parser;
+pub mod value;
 use parser::{runtime_error::RunTimeError, Parser};
 mod frame;
 use frame::Frame;

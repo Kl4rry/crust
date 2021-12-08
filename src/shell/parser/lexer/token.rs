@@ -186,7 +186,7 @@ impl Token {
             TokenType::Variable(_) => Ok(Identifier::Variable(self.try_into()?)),
             TokenType::Int(_, text) => Ok(Identifier::Bare(text)),
             TokenType::Float(_, text) => Ok(Identifier::Bare(text)),
-            _ => return Ok(Identifier::Bare(self.try_into_glob_str()?.into())),
+            _ => return Ok(Identifier::Bare(self.try_into_glob_str()?.to_string())),
         }
     }
 
@@ -198,7 +198,7 @@ impl Token {
             TokenType::Add => Ok("+"),
             TokenType::Sub => Ok("-"),
             TokenType::Div => Ok("/"),
-            TokenType::Expo => Ok("^"),
+            TokenType::Expo => Ok("**"),
             TokenType::Mod => Ok("%"),
             TokenType::Eq => Ok("=="),
             TokenType::Le => Ok("<="),

@@ -3,7 +3,6 @@ use std::{fmt, ops::Range};
 use thin_string::ThinString;
 use thin_vec::ThinVec;
 
-use super::HeapValue;
 use crate::parser::runtime_error::RunTimeError;
 
 #[derive(Debug, Clone, Copy)]
@@ -42,7 +41,7 @@ pub enum Value {
     Float(f64),
     Bool(bool),
     String(ThinString),
-    List(ThinVec<HeapValue>),
+    List(ThinVec<Value>),
     Range(Box<Range<i64>>),
 }
 

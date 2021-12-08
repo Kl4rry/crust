@@ -4,7 +4,7 @@ use phf::*;
 
 use crate::{
     parser::runtime_error::RunTimeError,
-    shell::{values::Value, Shell},
+    shell::{value::Value, Shell},
 };
 
 mod alias;

@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use crate::shell::values::value::Type;
+use crate::shell::value::Type;
 
 pub mod lexer;
 
@@ -684,7 +684,7 @@ impl Parser {
                             Some(Identifier::Bare(text)) => {
                                 text.push_str(string);
                             }
-                            _ => ids.push(Identifier::Bare(string.into())),
+                            _ => ids.push(Identifier::Bare(string.to_string())),
                         }
                     }
                 }

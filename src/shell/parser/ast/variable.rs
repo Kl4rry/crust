@@ -8,10 +8,7 @@ use crate::{
         runtime_error::RunTimeError,
         syntax_error::SyntaxErrorKind,
     },
-    shell::{
-        builtins::variables,
-        values::{Value, ValueKind},
-    },
+    shell::{builtins::variables, value::Value},
     Shell,
 };
 
@@ -21,19 +18,19 @@ pub struct Variable {
 }
 
 impl Variable {
-    pub fn eval(&self, shell: &mut Shell) -> Result<ValueKind, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<Value, RunTimeError> {
         if let Some(value) = variables::get_var(shell, &self.name) {
-            return Ok(value.into());
+            return Ok(value);
         }
 
         for frame in shell.stack.iter().rev() {
             if let Some(value) = frame.variables.get(&self.name) {
-                return Ok(value.clone().into());
+                return Ok(value.clone());
             }
         }
 
         match std::env::var(&self.name) {
-            Ok(value) => Ok(Value::String(value.to_thin_string()).into()),
+            Ok(value) => Ok(Value::String(value.to_thin_string())),
             Err(_) => Err(RunTimeError::VariableNotFound(self.name.clone())),
         }
     }

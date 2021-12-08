@@ -2,10 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     parser::runtime_error::RunTimeError,
-    shell::{
-        values::{HeapValue, ValueKind},
-        Frame,
-    },
+    shell::{value::Value, Frame},
     Shell,
 };
 
@@ -27,7 +24,7 @@ pub struct Ast {
 }
 
 impl Ast {
-    pub fn eval(&self, shell: &mut Shell) -> Result<Vec<ValueKind>, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<Vec<Value>, RunTimeError> {
         let mut values = Vec::new();
         for compound in &self.sequence {
             match compound {
@@ -63,7 +60,7 @@ impl Block {
     pub fn eval(
         &self,
         shell: &mut Shell,
-        variables: Option<HashMap<String, HeapValue>>,
+        variables: Option<HashMap<String, Value>>,
     ) -> Result<(), RunTimeError> {
         if let Some(vars) = variables {
             shell.stack.push(Frame::with_variables(vars));

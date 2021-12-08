@@ -10,10 +10,7 @@ use crate::{
         syntax_error::SyntaxErrorKind,
         Token, TokenType,
     },
-    shell::{
-        values::{HeapValue, Value, ValueKind},
-        Shell,
-    },
+    shell::{value::Value, Shell},
 };
 
 #[derive(Debug, Clone)]
@@ -27,31 +24,28 @@ pub enum Literal {
 }
 
 impl Literal {
-    pub fn eval(&self, shell: &mut Shell) -> Result<ValueKind, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<Value, RunTimeError> {
         match self {
-            Literal::String(string) => Ok(Value::String(string.to_thin_string()).into()),
-            Literal::Expand(expand) => {
-                Ok(Value::String(expand.eval(shell)?.to_thin_string()).into())
-            }
-
+            Literal::String(string) => Ok(Value::String(string.to_thin_string())),
+            Literal::Expand(expand) => Ok(Value::String(expand.eval(shell)?.to_thin_string())),
             Literal::List(list) => {
-                let mut values: ThinVec<HeapValue> = ThinVec::new();
+                let mut values: ThinVec<Value> = ThinVec::new();
                 for expr in list.iter() {
                     let value = expr.eval(shell, false)?;
-                    match *value {
+                    match value {
                         Value::List(ref list) => {
                             for item in list {
                                 values.push(item.clone());
                             }
                         }
-                        _ => values.push(value.into()),
+                        _ => values.push(value),
                     }
                 }
-                Ok(Value::List(values).into())
+                Ok(Value::List(values))
             }
-            Literal::Float(number) => Ok(Value::Float(*number).into()),
-            Literal::Int(number) => Ok(Value::Int(*number as i64).into()),
-            Literal::Bool(boolean) => Ok(Value::Bool(*boolean).into()),
+            Literal::Float(number) => Ok(Value::Float(*number)),
+            Literal::Int(number) => Ok(Value::Int(*number as i64)),
+            Literal::Bool(boolean) => Ok(Value::Bool(*boolean)),
         }
     }
 }

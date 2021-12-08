@@ -8,10 +8,7 @@ use crate::{
         runtime_error::RunTimeError,
         P,
     },
-    shell::{
-        builtins::variables::is_builtin,
-        values::{HeapValue, Value, ValueKind},
-    },
+    shell::{builtins::variables::is_builtin, value::Value},
     Shell,
 };
 
@@ -39,10 +36,7 @@ impl Statement {
                     return Ok(());
                 }
 
-                let value = match expr.eval(shell, false)? {
-                    ValueKind::Heap(value) => value,
-                    ValueKind::Stack(value) => value.into(),
-                };
+                let value = expr.eval(shell, false)?;
 
                 for frame in shell.stack.iter_mut().rev() {
                     if let Some(heap_value) = frame.variables.get_mut(&var.name) {
@@ -64,10 +58,7 @@ impl Statement {
                 }
 
                 if let Some(expr) = expr {
-                    let value = match expr.eval(shell, false)? {
-                        ValueKind::Heap(value) => value,
-                        ValueKind::Stack(value) => value.into(),
-                    };
+                    let value = expr.eval(shell, false)?;
                     shell
                         .stack
                         .last_mut()
@@ -86,7 +77,7 @@ impl Statement {
                         .last_mut()
                         .expect("stack is empty this should be impossible")
                         .variables
-                        .insert(var.name.clone(), Value::String(ThinString::from("")).into());
+                        .insert(var.name.clone(), Value::String(ThinString::from("")));
                 }
             }
             Self::Export(_var, _expr) => todo!("export not impl"),
@@ -122,11 +113,11 @@ impl Statement {
             }
             Self::For(var, expr, block) => {
                 let name = var.name.clone();
-                let value: HeapValue = expr.eval(shell, false)?.into();
-                match &*value {
+                let value = expr.eval(shell, false)?;
+                match value {
                     Value::List(list) => {
                         for item in list.iter() {
-                            let mut variables: HashMap<String, HeapValue> = HashMap::new();
+                            let mut variables: HashMap<String, Value> = HashMap::new();
                             variables.insert(name.clone(), item.clone());
                             match block.eval(shell, Some(variables)) {
                                 Ok(_) => (),
@@ -138,8 +129,8 @@ impl Statement {
                     }
                     Value::String(string) => {
                         for c in string.chars() {
-                            let mut variables: HashMap<String, HeapValue> = HashMap::new();
-                            let item: HeapValue = Value::String(ThinString::from(c)).into();
+                            let mut variables: HashMap<String, Value> = HashMap::new();
+                            let item: Value = Value::String(ThinString::from(c));
                             variables.insert(name.clone(), item.clone());
                             match block.eval(shell, Some(variables)) {
                                 Ok(_) => (),
@@ -150,9 +141,9 @@ impl Statement {
                         }
                     }
                     Value::Range(range) => {
-                        for i in (**range).clone() {
-                            let mut variables: HashMap<String, HeapValue> = HashMap::new();
-                            let item: HeapValue = Value::Int(i).into();
+                        for i in (*range).clone() {
+                            let mut variables: HashMap<String, Value> = HashMap::new();
+                            let item: Value = Value::Int(i);
                             variables.insert(name.clone(), item.clone());
                             match block.eval(shell, Some(variables)) {
                                 Ok(_) => (),

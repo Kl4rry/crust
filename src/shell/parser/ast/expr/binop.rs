@@ -34,7 +34,7 @@ pub enum BinOp {
 impl AsRef<str> for BinOp {
     fn as_ref(&self) -> &str {
         match self {
-            Self::Expo => "^",
+            Self::Expo => "**",
             Self::Add => "+",
             Self::Sub => "-",
             Self::Mul => "*",

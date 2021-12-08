@@ -3,7 +3,7 @@ use std::{error::Error, fmt, io};
 use glob::{GlobError, PatternError};
 
 use super::ast::expr::{binop::BinOp, unop::UnOp};
-use crate::shell::values::{value::Type, ValueKind};
+use crate::shell::value::{Type, Value};
 
 #[derive(Debug)]
 pub enum RunTimeError {
@@ -11,7 +11,7 @@ pub enum RunTimeError {
     // this is a not so nice hack but it works
     Exit,
     Break,
-    Return(Option<ValueKind>),
+    Return(Option<Value>),
     Continue,
 
     // real errors
