@@ -514,9 +514,9 @@ impl Parser {
             }
 
             let next_min = if assoc == Direction::Left {
-                precedence
-            } else {
                 precedence + 1
+            } else {
+                precedence
             };
 
             self.eat()?;
