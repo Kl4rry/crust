@@ -1,9 +1,9 @@
 use std::{fmt, ops::Range};
 
-use thin_string::ThinString;
-use thin_vec::ThinVec;
+use thin_string::{ThinString, ToThinString};
+use thin_vec::{thin_vec, ThinVec};
 
-use crate::parser::runtime_error::RunTimeError;
+use crate::parser::{ast::expr::binop::BinOp, runtime_error::RunTimeError};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Type {
@@ -132,6 +132,219 @@ impl ToString for Value {
 }
 
 impl Value {
+    pub fn try_add(self, rhs: Value) -> Result<Value, RunTimeError> {
+        match self.as_ref() {
+            Value::Int(number) => match rhs.as_ref() {
+                Value::List(rhs) => {
+                    let mut list: ThinVec<Value> = thin_vec![self];
+                    list.extend(rhs.iter().cloned());
+                    Ok(Value::List(list))
+                }
+                Value::String(string) => {
+                    let mut thin_string = number.to_thin_string();
+                    thin_string.push_str(string);
+                    Ok(Value::String(thin_string))
+                }
+                Value::Float(rhs) => Ok(Value::Float(*number as f64 + *rhs)),
+                _ => Ok(Value::Int(number + rhs.try_as_int()?)),
+            },
+            Value::Float(number) => match rhs.as_ref() {
+                Value::List(rhs) => {
+                    let mut list: ThinVec<Value> = thin_vec![self];
+                    list.extend(rhs.iter().cloned());
+                    Ok(Value::List(list))
+                }
+                Value::String(string) => {
+                    let mut thin_string = number.to_thin_string();
+                    thin_string.push_str(string);
+                    Ok(Value::String(thin_string))
+                }
+                _ => Ok(Value::Float(number + rhs.try_as_float()?)),
+            },
+            Value::Bool(boolean) => match rhs.as_ref() {
+                Value::List(rhs) => {
+                    let mut list: ThinVec<Value> = thin_vec![self];
+                    list.extend(rhs.iter().cloned());
+                    Ok(Value::List(list))
+                }
+                Value::Float(rhs) => Ok(Value::Float(*boolean as i64 as f64 + *rhs)),
+                Value::String(string) => {
+                    let mut thin_string = boolean.to_thin_string();
+                    thin_string.push_str(string);
+                    Ok(Value::String(thin_string))
+                }
+                _ => Ok(Value::Int(*boolean as i64 + self.try_as_int()?)),
+            },
+            Value::String(string) => {
+                if let Value::List(rhs) = rhs.as_ref() {
+                    let mut list: ThinVec<Value> = thin_vec![self.clone()];
+                    list.extend(rhs.iter().cloned());
+                    return Ok(Value::List(list));
+                }
+
+                let mut new = string.clone();
+                let rhs = rhs.to_string();
+                new.push_str(&rhs);
+                Ok(Value::String(new))
+            }
+            Value::List(lhs) => {
+                let mut list = lhs.clone();
+                list.push(rhs);
+                Ok(Value::List(list))
+            }
+            _ => Err(RunTimeError::InvalidBinaryOperand(
+                BinOp::Add,
+                self.to_type(),
+                rhs.to_type(),
+            )),
+        }
+    }
+
+    pub fn try_sub(self, rhs: Value) -> Result<Value, RunTimeError> {
+        match self.as_ref() {
+            Value::Int(number) => match rhs.as_ref() {
+                Value::Int(rhs) => Ok(Value::Int(number - rhs)),
+                Value::Float(rhs) => Ok(Value::Float(*number as f64 - rhs)),
+                _ => Err(RunTimeError::InvalidBinaryOperand(
+                    BinOp::Sub,
+                    self.to_type(),
+                    rhs.to_type(),
+                )),
+            },
+            Value::Float(number) => Ok(Value::Float(*number as f64 - rhs.try_as_float()?)),
+            Value::Bool(boolean) => match rhs.as_ref() {
+                Value::Int(rhs) => Ok(Value::Int(*boolean as i64 - rhs)),
+                Value::Float(rhs) => Ok(Value::Float(*boolean as i64 as f64 - rhs)),
+                _ => Err(RunTimeError::InvalidBinaryOperand(
+                    BinOp::Sub,
+                    self.to_type(),
+                    rhs.to_type(),
+                )),
+            },
+            _ => Err(RunTimeError::InvalidBinaryOperand(
+                BinOp::Sub,
+                self.to_type(),
+                rhs.to_type(),
+            )),
+        }
+    }
+
+    pub fn try_mul(self, rhs: Value) -> Result<Value, RunTimeError> {
+        match self.as_ref() {
+            Value::Int(number) => match rhs.as_ref() {
+                Value::Int(rhs) => Ok(Value::Int(number * rhs)),
+                Value::Float(rhs) => Ok(Value::Float(*number as f64 * rhs)),
+                Value::String(string) => {
+                    let mut new = ThinString::new();
+                    for _ in 0..*number {
+                        new.push_str(string);
+                    }
+                    Ok(Value::String(new))
+                }
+                _ => Err(RunTimeError::InvalidBinaryOperand(
+                    BinOp::Mul,
+                    self.to_type(),
+                    rhs.to_type(),
+                )),
+            },
+            Value::Float(number) => Ok(Value::Float(*number as f64 * rhs.try_as_float()?)),
+            Value::Bool(boolean) => match rhs.as_ref() {
+                Value::Int(rhs) => Ok(Value::Int(*boolean as i64 * rhs)),
+                Value::Float(rhs) => Ok(Value::Float(*boolean as i64 as f64 * rhs)),
+                Value::String(string) => {
+                    let mut new = ThinString::new();
+                    for _ in 0..*boolean as i64 {
+                        new.push_str(string);
+                    }
+                    Ok(Value::String(new))
+                }
+                _ => Err(RunTimeError::InvalidBinaryOperand(
+                    BinOp::Mul,
+                    self.to_type(),
+                    rhs.to_type(),
+                )),
+            },
+            Value::String(string) => {
+                let mut new = ThinString::new();
+                let mul = rhs.try_as_int()?;
+                for _ in 0..mul {
+                    new.push_str(string);
+                }
+                Ok(Value::String(new))
+            }
+            Value::List(list) => {
+                let mut new = ThinVec::new();
+                let mul = rhs.try_as_int()?;
+                for _ in 0..mul {
+                    new.extend_from_slice(list);
+                }
+                Ok(Value::List(new))
+            }
+            _ => Err(RunTimeError::InvalidBinaryOperand(
+                BinOp::Mul,
+                self.to_type(),
+                rhs.to_type(),
+            )),
+        }
+    }
+
+    pub fn try_div(self, rhs: Value) -> Result<Value, RunTimeError> {
+        match self.as_ref() {
+            Value::Int(number) => Ok(Value::Float(*number as f64 / rhs.try_as_float()?)),
+            Value::Float(number) => Ok(Value::Float(*number as f64 / rhs.try_as_float()?)),
+            Value::Bool(boolean) => Ok(Value::Float(*boolean as i64 as f64 / rhs.try_as_float()?)),
+            _ => Err(RunTimeError::InvalidBinaryOperand(
+                BinOp::Div,
+                self.to_type(),
+                rhs.to_type(),
+            )),
+        }
+    }
+
+    pub fn try_expo(self, rhs: Value) -> Result<Value, RunTimeError> {
+        match self.as_ref() {
+            Value::Int(number) => Ok(Value::Float((*number as f64).powf(rhs.try_as_float()?))),
+            Value::Float(number) => Ok(Value::Float((*number as f64).powf(rhs.try_as_float()?))),
+            Value::Bool(boolean) => Ok(Value::Float(
+                (*boolean as i64 as f64).powf(rhs.try_as_float()?),
+            )),
+            _ => Err(RunTimeError::InvalidBinaryOperand(
+                BinOp::Expo,
+                self.to_type(),
+                rhs.to_type(),
+            )),
+        }
+    }
+
+    pub fn try_mod(self, rhs: Value) -> Result<Value, RunTimeError> {
+        match self.as_ref() {
+            Value::Int(number) => match rhs.as_ref() {
+                Value::Int(rhs) => Ok(Value::Int(number % rhs)),
+                Value::Float(rhs) => Ok(Value::Float(*number as f64 % rhs)),
+                _ => Err(RunTimeError::InvalidBinaryOperand(
+                    BinOp::Mod,
+                    self.to_type(),
+                    rhs.to_type(),
+                )),
+            },
+            Value::Float(number) => Ok(Value::Float(*number as f64 % rhs.try_as_float()?)),
+            Value::Bool(boolean) => match rhs.as_ref() {
+                Value::Int(rhs) => Ok(Value::Int(*boolean as i64 % rhs)),
+                Value::Float(rhs) => Ok(Value::Float(*boolean as i64 as f64 % rhs)),
+                _ => Err(RunTimeError::InvalidBinaryOperand(
+                    BinOp::Mod,
+                    self.to_type(),
+                    rhs.to_type(),
+                )),
+            },
+            _ => Err(RunTimeError::InvalidBinaryOperand(
+                BinOp::Mod,
+                self.to_type(),
+                rhs.to_type(),
+            )),
+        }
+    }
+
     pub fn to_type(&self) -> Type {
         match self {
             Self::Int(_) => Type::Int,
@@ -154,6 +367,8 @@ impl Value {
         }
     }
 
+    // these functions are bad and return the wrong error types
+    // this results in unhelpful errors
     pub fn try_as_float(&self) -> Result<f64, RunTimeError> {
         match self {
             Self::Int(number) => Ok(*number as f64),
@@ -166,40 +381,6 @@ impl Value {
         }
     }
 
-    /*pub fn try_to_int(&self) -> Result<i64, RunTimeError> {
-        match self {
-            Self::Int(number) => Ok(*number),
-            Self::Float(number) => Ok(*number as i64),
-            Self::String(string) => {
-                let res = string.parse();
-                match res {
-                    Ok(number) => Ok(number),
-                    Err(_) => Err(RunTimeError::ConversionError),
-                }
-            }
-            Self::ExitStatus(number) => Ok(*number as i64),
-            Self::Bool(boolean) => Ok(*boolean as i64),
-            _ => Err(RunTimeError::ConversionError),
-        }
-    }
-
-    pub fn try_to_float(&self) -> Result<f64, RunTimeError> {
-        match self {
-            Self::Int(number) => Ok(*number as f64),
-            Self::Float(number) => Ok(*number),
-            Self::String(string) => {
-                let res = string.parse();
-                match res {
-                    Ok(number) => Ok(number),
-                    Err(_) => Err(RunTimeError::ConversionError),
-                }
-            }
-            Self::ExitStatus(number) => Ok(*number as f64),
-            Self::Bool(boolean) => Ok(*boolean as i64 as f64),
-            _ => Err(RunTimeError::ConversionError),
-        }
-    }*/
-
     pub fn truthy(&self) -> bool {
         match self {
             Self::Int(number) => *number != 0,
@@ -210,12 +391,4 @@ impl Value {
             Self::Range(range) => range.start != 0 && range.end != 0,
         }
     }
-
-    /*pub fn is_float_not_int(&self) -> bool {
-        match self {
-            Self::String(string) => string.parse::<f64>().is_ok(),
-            Self::Float(_) => true,
-            _ => false,
-        }
-    }*/
 }

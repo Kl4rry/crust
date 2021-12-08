@@ -6,7 +6,10 @@ use span::Span;
 
 use crate::{
     parser::{
-        ast::expr::{argument::Identifier, binop::BinOp},
+        ast::{
+            expr::{argument::Identifier, binop::BinOp},
+            statement::assign_op::AssignOp,
+        },
         syntax_error::SyntaxErrorKind,
         Result,
     },
@@ -44,6 +47,7 @@ pub enum TokenType {
     Dollar,
     Colon,
     SemiColon,
+
     // Binary operators
     /// The x..y operator (range)
     Range,
@@ -69,6 +73,20 @@ pub enum TokenType {
     Or,
     // Unary operators
     Not,
+
+    // Assign operators
+    /// The += operator
+    AddAssign,
+    /// The -= operator
+    SubAssign,
+    /// The *= operator
+    MulAssign,
+    /// The /= operator
+    DivAssign,
+    /// The **= operator
+    ExpoAssign,
+    /// The %= operator
+    ModAssign,
 
     // keywords
     If,
@@ -116,11 +134,30 @@ impl TokenType {
         )
     }
 
+    pub fn is_assign_op(&self) -> bool {
+        matches!(
+            *self,
+            Self::AddAssign
+                | Self::SubAssign
+                | Self::MulAssign
+                | Self::DivAssign
+                | Self::ExpoAssign
+                | Self::ModAssign
+        )
+    }
+
+    // check if token can be passed as a string arg to a call
     pub fn is_valid_id(&self) -> bool {
         matches!(
             *self,
             TokenType::Dollar
                 | TokenType::Quote
+                | TokenType::AddAssign
+                | TokenType::SubAssign
+                | TokenType::MulAssign
+                | TokenType::DivAssign
+                | TokenType::ExpoAssign
+                | TokenType::ModAssign
                 | TokenType::Assignment
                 | TokenType::Colon
                 | TokenType::RightBracket
@@ -187,6 +224,12 @@ impl Token {
 
     pub fn try_into_glob_str(self) -> Result<&'static str> {
         match self.token_type {
+            TokenType::AddAssign => Ok("+="),
+            TokenType::SubAssign => Ok("-="),
+            TokenType::MulAssign => Ok("*="),
+            TokenType::DivAssign => Ok("/="),
+            TokenType::ExpoAssign => Ok("**="),
+            TokenType::ModAssign => Ok("%="),
             TokenType::Assignment => Ok("="),
             TokenType::RightBracket => Ok("]"),
             TokenType::LeftBracket => Ok("["),
@@ -229,6 +272,19 @@ impl Token {
             TokenType::Or => BinOp::Or,
             TokenType::Range => BinOp::Range,
             _ => panic!("could not convert token {:?} to binop", self),
+        }
+    }
+
+    /// Get assign op from token. Will panic if token is not valid assign op.
+    pub fn to_assign_op(&self) -> AssignOp {
+        match self.token_type {
+            TokenType::AddAssign => AssignOp::Add,
+            TokenType::SubAssign => AssignOp::Sub,
+            TokenType::MulAssign => AssignOp::Mul,
+            TokenType::DivAssign => AssignOp::Div,
+            TokenType::ExpoAssign => AssignOp::Expo,
+            TokenType::ModAssign => AssignOp::Mod,
+            _ => panic!("could not convert token {:?} to assign op", self),
         }
     }
 }

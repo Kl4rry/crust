@@ -1,5 +1,3 @@
-use thin_vec::*;
-
 use crate::{
     parser::{
         ast::{Direction, Literal, Variable},
@@ -205,243 +203,32 @@ impl Expr {
                 BinOp::Add => {
                     let lhs = lhs.eval(shell, false)?;
                     let rhs = rhs.eval(shell, false)?;
-
-                    match lhs.as_ref() {
-                        Value::Int(number) => match rhs.as_ref() {
-                            Value::List(rhs) => {
-                                let mut list: ThinVec<Value> = thin_vec![lhs.clone()];
-                                list.extend(rhs.iter().cloned());
-                                Ok(Value::List(list))
-                            }
-                            Value::String(string) => {
-                                let mut thin_string = number.to_thin_string();
-                                thin_string.push_str(string);
-                                Ok(Value::String(thin_string))
-                            }
-                            Value::Float(rhs) => Ok(Value::Float(*number as f64 + *rhs)),
-                            _ => Ok(Value::Int(number + rhs.try_as_int()?)),
-                        },
-                        Value::Float(number) => match rhs.as_ref() {
-                            Value::List(rhs) => {
-                                let mut list: ThinVec<Value> = thin_vec![lhs.clone()];
-                                list.extend(rhs.iter().cloned());
-                                Ok(Value::List(list))
-                            }
-                            Value::String(string) => {
-                                let mut thin_string = number.to_thin_string();
-                                thin_string.push_str(string);
-                                Ok(Value::String(thin_string))
-                            }
-                            _ => Ok(Value::Float(number + rhs.try_as_float()?)),
-                        },
-                        Value::Bool(boolean) => match rhs.as_ref() {
-                            Value::List(rhs) => {
-                                let mut list: ThinVec<Value> = thin_vec![lhs.clone()];
-                                list.extend(rhs.iter().cloned());
-                                Ok(Value::List(list))
-                            }
-                            Value::Float(rhs) => Ok(Value::Float(*boolean as i64 as f64 + *rhs)),
-                            Value::String(string) => {
-                                let mut thin_string = boolean.to_thin_string();
-                                thin_string.push_str(string);
-                                Ok(Value::String(thin_string))
-                            }
-                            _ => Ok(Value::Int(*boolean as i64 + lhs.try_as_int()?)),
-                        },
-                        Value::String(string) => {
-                            if let Value::List(rhs) = rhs.as_ref() {
-                                let mut list: ThinVec<Value> = thin_vec![lhs.clone()];
-                                list.extend(rhs.iter().cloned());
-                                return Ok(Value::List(list));
-                            }
-
-                            let mut new = string.clone();
-                            let rhs = rhs.to_string();
-                            new.push_str(&rhs);
-                            Ok(Value::String(new))
-                        }
-                        Value::List(lhs) => {
-                            let mut list = lhs.clone();
-                            list.push(rhs);
-                            Ok(Value::List(list))
-                        }
-                        _ => Err(RunTimeError::InvalidBinaryOperand(
-                            *binop,
-                            lhs.to_type(),
-                            rhs.to_type(),
-                        )),
-                    }
+                    lhs.try_add(rhs)
                 }
                 BinOp::Sub => {
                     let lhs = lhs.eval(shell, false)?;
                     let rhs = rhs.eval(shell, false)?;
-
-                    match lhs.as_ref() {
-                        Value::Int(number) => match rhs.as_ref() {
-                            Value::Int(rhs) => Ok(Value::Int(number - rhs)),
-                            Value::Float(rhs) => Ok(Value::Float(*number as f64 - rhs)),
-                            _ => Err(RunTimeError::InvalidBinaryOperand(
-                                *binop,
-                                lhs.to_type(),
-                                rhs.to_type(),
-                            )),
-                        },
-                        Value::Float(number) => {
-                            Ok(Value::Float(*number as f64 - rhs.try_as_float()?))
-                        }
-                        Value::Bool(boolean) => match rhs.as_ref() {
-                            Value::Int(rhs) => Ok(Value::Int(*boolean as i64 - rhs)),
-                            Value::Float(rhs) => Ok(Value::Float(*boolean as i64 as f64 - rhs)),
-                            _ => Err(RunTimeError::InvalidBinaryOperand(
-                                *binop,
-                                lhs.to_type(),
-                                rhs.to_type(),
-                            )),
-                        },
-                        _ => Err(RunTimeError::InvalidBinaryOperand(
-                            *binop,
-                            lhs.to_type(),
-                            rhs.to_type(),
-                        )),
-                    }
+                    lhs.try_sub(rhs)
                 }
                 BinOp::Mul => {
                     let lhs = lhs.eval(shell, false)?;
                     let rhs = rhs.eval(shell, false)?;
-
-                    match lhs.as_ref() {
-                        Value::Int(number) => match rhs.as_ref() {
-                            Value::Int(rhs) => Ok(Value::Int(number * rhs)),
-                            Value::Float(rhs) => Ok(Value::Float(*number as f64 * rhs)),
-                            Value::String(string) => {
-                                let mut new = ThinString::new();
-                                for _ in 0..*number {
-                                    new.push_str(string);
-                                }
-                                Ok(Value::String(new))
-                            }
-                            _ => Err(RunTimeError::InvalidBinaryOperand(
-                                *binop,
-                                lhs.to_type(),
-                                rhs.to_type(),
-                            )),
-                        },
-                        Value::Float(number) => {
-                            Ok(Value::Float(*number as f64 * rhs.try_as_float()?))
-                        }
-                        Value::Bool(boolean) => match rhs.as_ref() {
-                            Value::Int(rhs) => Ok(Value::Int(*boolean as i64 * rhs)),
-                            Value::Float(rhs) => Ok(Value::Float(*boolean as i64 as f64 * rhs)),
-                            Value::String(string) => {
-                                let mut new = ThinString::new();
-                                for _ in 0..*boolean as i64 {
-                                    new.push_str(string);
-                                }
-                                Ok(Value::String(new))
-                            }
-                            _ => Err(RunTimeError::InvalidBinaryOperand(
-                                *binop,
-                                lhs.to_type(),
-                                rhs.to_type(),
-                            )),
-                        },
-                        Value::String(string) => {
-                            let mut new = ThinString::new();
-                            let mul = rhs.try_as_int()?;
-                            for _ in 0..mul {
-                                new.push_str(string);
-                            }
-                            Ok(Value::String(new))
-                        }
-                        Value::List(list) => {
-                            let mut new = ThinVec::new();
-                            let mul = rhs.try_as_int()?;
-                            for _ in 0..mul {
-                                new.extend_from_slice(list);
-                            }
-                            Ok(Value::List(new))
-                        }
-                        _ => Err(RunTimeError::InvalidBinaryOperand(
-                            *binop,
-                            lhs.to_type(),
-                            rhs.to_type(),
-                        )),
-                    }
+                    lhs.try_mul(rhs)
                 }
                 BinOp::Div => {
                     let lhs = lhs.eval(shell, false)?;
                     let rhs = rhs.eval(shell, false)?;
-
-                    match lhs.as_ref() {
-                        Value::Int(number) => {
-                            Ok(Value::Float(*number as f64 / rhs.try_as_float()?))
-                        }
-                        Value::Float(number) => {
-                            Ok(Value::Float(*number as f64 / rhs.try_as_float()?))
-                        }
-                        Value::Bool(boolean) => {
-                            Ok(Value::Float(*boolean as i64 as f64 / rhs.try_as_float()?))
-                        }
-                        _ => Err(RunTimeError::InvalidBinaryOperand(
-                            *binop,
-                            lhs.to_type(),
-                            rhs.to_type(),
-                        )),
-                    }
+                    lhs.try_div(rhs)
                 }
                 BinOp::Expo => {
                     let lhs = lhs.eval(shell, false)?;
                     let rhs = rhs.eval(shell, false)?;
-
-                    match lhs.as_ref() {
-                        Value::Int(number) => {
-                            Ok(Value::Float((*number as f64).powf(rhs.try_as_float()?)))
-                        }
-                        Value::Float(number) => {
-                            Ok(Value::Float((*number as f64).powf(rhs.try_as_float()?)))
-                        }
-                        Value::Bool(boolean) => Ok(Value::Float(
-                            (*boolean as i64 as f64).powf(rhs.try_as_float()?),
-                        )),
-                        _ => Err(RunTimeError::InvalidBinaryOperand(
-                            *binop,
-                            lhs.to_type(),
-                            rhs.to_type(),
-                        )),
-                    }
+                    lhs.try_expo(rhs)
                 }
                 BinOp::Mod => {
                     let lhs = lhs.eval(shell, false)?;
                     let rhs = rhs.eval(shell, false)?;
-
-                    match lhs.as_ref() {
-                        Value::Int(number) => match rhs.as_ref() {
-                            Value::Int(rhs) => Ok(Value::Int(number % rhs)),
-                            Value::Float(rhs) => Ok(Value::Float(*number as f64 % rhs)),
-                            _ => Err(RunTimeError::InvalidBinaryOperand(
-                                *binop,
-                                lhs.to_type(),
-                                rhs.to_type(),
-                            )),
-                        },
-                        Value::Float(number) => {
-                            Ok(Value::Float(*number as f64 % rhs.try_as_float()?))
-                        }
-                        Value::Bool(boolean) => match rhs.as_ref() {
-                            Value::Int(rhs) => Ok(Value::Int(*boolean as i64 % rhs)),
-                            Value::Float(rhs) => Ok(Value::Float(*boolean as i64 as f64 % rhs)),
-                            _ => Err(RunTimeError::InvalidBinaryOperand(
-                                *binop,
-                                lhs.to_type(),
-                                rhs.to_type(),
-                            )),
-                        },
-                        _ => Err(RunTimeError::InvalidBinaryOperand(
-                            *binop,
-                            lhs.to_type(),
-                            rhs.to_type(),
-                        )),
-                    }
+                    lhs.try_mod(rhs)
                 }
                 // The == operator (equality)
                 BinOp::Eq => {

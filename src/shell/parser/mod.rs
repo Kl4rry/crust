@@ -173,14 +173,22 @@ impl Parser {
                         TokenType::Assignment => {
                             self.eat()?.expect(TokenType::Assignment)?;
                             self.skip_optional_space();
-                            return Ok(Compound::Statement(Statement::Assignment(
+                            return Ok(Compound::Statement(Statement::Assign(
                                 var,
                                 self.parse_expr(None)?,
                             )));
                         }
                         TokenType::Space => drop(self.eat()?),
                         ref token_type => {
-                            if token_type.is_binop() {
+                            if token_type.is_assign_op() {
+                                let op = self.eat()?.to_assign_op();
+                                self.skip_optional_space();
+                                return Ok(Compound::Statement(Statement::AssignOp(
+                                    var,
+                                    op,
+                                    self.parse_expr(None)?,
+                                )));
+                            } else if token_type.is_binop() {
                                 return Ok(Compound::Expr(
                                     self.parse_sub_expr(Some(Expr::Variable(var)), 0)?,
                                 ));

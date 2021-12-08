@@ -272,17 +272,47 @@ impl Iterator for Lexer {
                         self.advance_with(TokenType::Assignment, 1)
                     }
                 }
-                b'+' => self.advance_with(TokenType::Add, 1),
-                b'-' => self.advance_with(TokenType::Sub, 1),
+                b'+' => {
+                    if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
+                        self.advance_with(TokenType::AddAssign, 2)
+                    } else {
+                        self.advance_with(TokenType::Add, 1)
+                    }
+                }
+                b'-' => {
+                    if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
+                        self.advance_with(TokenType::SubAssign, 2)
+                    } else {
+                        self.advance_with(TokenType::Sub, 1)
+                    }
+                }
+                b'/' => {
+                    if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
+                        self.advance_with(TokenType::DivAssign, 2)
+                    } else {
+                        self.advance_with(TokenType::Div, 1)
+                    }
+                }
+                b'%' => {
+                    if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
+                        self.advance_with(TokenType::ModAssign, 2)
+                    } else {
+                        self.advance_with(TokenType::Mod, 1)
+                    }
+                }
                 b'*' => {
                     if self.index + 1 < self.src.len() && self.peek(1) == b'*' {
-                        self.advance_with(TokenType::Expo, 2)
+                        if self.index + 2 < self.src.len() && self.peek(2) == b'=' {
+                            self.advance_with(TokenType::ExpoAssign, 3)
+                        } else {
+                            self.advance_with(TokenType::Expo, 2)
+                        }
+                    } else if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
+                        self.advance_with(TokenType::MulAssign, 2)
                     } else {
                         self.advance_with(TokenType::Mul, 1)
                     }
                 }
-                b'/' => self.advance_with(TokenType::Div, 1),
-                b'%' => self.advance_with(TokenType::Mod, 1),
 
                 b'<' => {
                     if self.index + 1 < self.src.len() && self.peek(1) == b'=' {

@@ -12,11 +12,15 @@ use crate::{
     Shell,
 };
 
+pub mod assign_op;
+use assign_op::AssignOp;
+
 #[derive(Debug, Clone)]
 pub enum Statement {
     Export(Variable, Option<Expr>),
     Declaration(Variable, Option<Expr>),
-    Assignment(Variable, Expr),
+    Assign(Variable, Expr),
+    AssignOp(Variable, AssignOp, Expr),
     If(Expr, Block, Option<P<Statement>>),
     Fn(String, Vec<Variable>, Block),
     Return(Option<Expr>),
@@ -31,7 +35,7 @@ pub enum Statement {
 impl Statement {
     pub fn eval(&self, shell: &mut Shell) -> Result<(), RunTimeError> {
         match self {
-            Self::Assignment(var, expr) => {
+            Self::Assign(var, expr) => {
                 if is_builtin(&var.name) {
                     return Ok(());
                 }
@@ -79,6 +83,35 @@ impl Statement {
                         .variables
                         .insert(var.name.clone(), Value::String(ThinString::from("")));
                 }
+            }
+            Self::AssignOp(var, op, expr) => {
+                let current = var.eval(shell)?;
+                let res = match op {
+                    AssignOp::Expo => current.try_expo(expr.eval(shell, false)?),
+                    AssignOp::Add => current.try_add(expr.eval(shell, false)?),
+                    AssignOp::Sub => current.try_sub(expr.eval(shell, false)?),
+                    AssignOp::Mul => current.try_mul(expr.eval(shell, false)?),
+                    AssignOp::Div => current.try_div(expr.eval(shell, false)?),
+                    AssignOp::Mod => current.try_mod(expr.eval(shell, false)?),
+                }?;
+
+                if is_builtin(&var.name) {
+                    return Ok(());
+                }
+
+                for frame in shell.stack.iter_mut().rev() {
+                    if let Some(heap_value) = frame.variables.get_mut(&var.name) {
+                        *heap_value = res;
+                        return Ok(());
+                    }
+                }
+
+                shell
+                    .stack
+                    .last_mut()
+                    .expect("stack is empty this should be impossible")
+                    .variables
+                    .insert(var.name.clone(), res);
             }
             Self::Export(_var, _expr) => todo!("export not impl"),
             Self::If(expr, block, else_clause) => {
