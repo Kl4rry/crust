@@ -6,7 +6,7 @@ This readme contains notes to myself.
 | ------------------------------- | ---------------------------- | ---- |
 | Literals                        | ✅                            | ✅    |
 | Binary operators                | ✅                            | ✅    |
-| Unary operators                 | ✅ (Precedence broken)        | ✅    |
+| Unary operators                 | ✅                            | ✅    |
 | Function/Command calls          | ✅                            | ❌    |
 | Blocks                          | ✅                            | ✅    |
 | Function Declarations           | ✅                            | ✅    |
