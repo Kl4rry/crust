@@ -102,12 +102,12 @@ impl Precedence for BinOp {
             Self::Sub => (7, Direction::Left),
             Self::Add => (7, Direction::Left),
             Self::Range => (6, Direction::Left),
-            
+
             Self::Lt => (5, Direction::Left),
             Self::Le => (5, Direction::Left),
             Self::Ge => (5, Direction::Left),
             Self::Gt => (5, Direction::Left),
-            
+
             Self::Eq => (4, Direction::Left),
             Self::Ne => (4, Direction::Left),
 

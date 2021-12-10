@@ -7,6 +7,7 @@ use crate::parser::{ast::expr::binop::BinOp, runtime_error::RunTimeError};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Type {
+    Null,
     Int,
     Float,
     Bool,
@@ -18,6 +19,7 @@ pub enum Type {
 impl Type {
     pub fn as_str(&self) -> &'static str {
         match self {
+            Self::Null => "null",
             Self::Int => "int",
             Self::Float => "float",
             Self::Bool => "bool",

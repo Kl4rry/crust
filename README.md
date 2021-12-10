@@ -36,8 +36,7 @@ This readme contains notes to myself.
 
 ## Bugs
 Comparison operator chaining is currently permitted but should not be.
-
-Unary operators have no precedence.
+&& and || should short circuit.
 
 ## Builtin thoughts
 Lists should become multiple arguments
