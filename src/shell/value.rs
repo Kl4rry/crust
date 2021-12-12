@@ -3,6 +3,7 @@ use std::{fmt, ops::Range};
 use thin_string::{ThinString, ToThinString};
 use thin_vec::{thin_vec, ThinVec};
 
+use super::stream::OutputStream;
 use crate::parser::{ast::expr::binop::BinOp, runtime_error::RunTimeError};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -14,6 +15,7 @@ pub enum Type {
     String,
     List,
     Range,
+    OutputStream,
 }
 
 impl Type {
@@ -26,6 +28,7 @@ impl Type {
             Self::String => "string",
             Self::List => "list",
             Self::Range => "range",
+            Self::OutputStream => "output stream",
         }
     }
 }
@@ -45,12 +48,14 @@ impl fmt::Display for Type {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum Value {
+    Null,
     Int(i64),
     Float(f64),
     Bool(bool),
     String(ThinString),
     List(ThinVec<Value>),
     Range(Box<Range<i64>>),
+    OutputStream(OutputStream),
 }
 
 impl PartialEq for Value {
@@ -75,6 +80,8 @@ impl PartialEq for Value {
                 Value::String(string) => string.is_empty() != *boolean,
                 Value::List(list) => list.is_empty() != *boolean,
                 Value::Range(range) => (range.start == 0 && range.end == 0) != *boolean,
+                Value::Null => false,
+                Value::OutputStream(stream) => stream.status == 0,
             },
             Value::String(string) => match other {
                 Value::String(rhs) => string == rhs,
@@ -91,6 +98,11 @@ impl PartialEq for Value {
                 Value::Bool(rhs) => (range.start == 0 && range.end == 0) != *rhs,
                 _ => false,
             },
+            Value::Null => match other {
+                Value::Null => true,
+                _ => false,
+            },
+            Value::OutputStream(_) => false,
         }
     }
 }
@@ -129,6 +141,16 @@ impl ToString for Value {
                     .collect()
             }
             Self::Bool(boolean) => boolean.to_string(),
+            Self::Null => String::from(""),
+            Self::OutputStream(output) => {
+                let mut string = String::new();
+                for val in &output.stream.values {
+                    if !matches!(val, Value::Null) {
+                        string.push_str(&val.to_string());
+                    }
+                }
+                string
+            }
         }
     }
 }
@@ -355,6 +377,8 @@ impl Value {
             Self::String(_) => Type::String,
             Self::List(_) => Type::List,
             Self::Range(_) => Type::Range,
+            Self::Null => Type::Null,
+            Self::OutputStream(_) => Type::OutputStream,
         }
     }
 
@@ -391,6 +415,8 @@ impl Value {
             Self::Bool(boolean) => *boolean,
             Self::List(list) => !list.is_empty(),
             Self::Range(range) => range.start != 0 && range.end != 0,
+            Self::Null => false,
+            Self::OutputStream(stream) => stream.status == 0,
         }
     }
 }

@@ -213,7 +213,7 @@ impl Token {
 
     pub fn try_into_id(self) -> Result<Identifier> {
         match self.token_type {
-            TokenType::String(text) => Ok(Identifier::String(text)),
+            TokenType::String(text) => Ok(Identifier::Quoted(text)),
             TokenType::Symbol(text) => Ok(Identifier::Bare(text)),
             TokenType::Variable(_) => Ok(Identifier::Variable(self.try_into()?)),
             TokenType::Int(_, text) => Ok(Identifier::Bare(text)),

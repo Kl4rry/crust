@@ -1,8 +1,7 @@
 use std::{
     collections::HashMap,
-    io::stdout,
+    io::{stdout, Write},
     path::PathBuf,
-    process::{Command, Output, Stdio},
     sync::{Arc, Mutex, MutexGuard},
 };
 
@@ -11,20 +10,18 @@ use rustyline::{config::BellStyle, error::ReadlineError, Editor};
 
 pub mod builtins;
 pub mod parser;
+pub mod stream;
 pub mod value;
 use parser::{runtime_error::RunTimeError, Parser};
+use value::Value;
 mod frame;
 use frame::Frame;
+
 mod helper;
 
 #[inline(always)]
 pub fn clear_str() -> &'static str {
     "\x1b[2J\x1b[3J\x1b[H"
-}
-
-#[inline(always)]
-fn dir() -> PathBuf {
-    std::env::current_dir().unwrap()
 }
 
 pub struct Shell {
@@ -124,7 +121,10 @@ impl Shell {
                             match res {
                                 Ok(values) => {
                                     for value in values {
-                                        println!("{}", value.to_string());
+                                        let output = value.to_string();
+                                        if !output.is_empty() {
+                                            print!("{}", output);
+                                        }
                                     }
                                 }
                                 Err(RunTimeError::Exit) => (),
@@ -165,23 +165,8 @@ impl Shell {
         format!("{} {} {}", name, dir, "> ",)
     }
 
-    pub fn execute_command(
-        &mut self,
-        cmd_name: &str,
-        args: &[String],
-        piped: bool,
-    ) -> Result<Output, std::io::Error> {
-        let stdout = if piped {
-            Stdio::piped()
-        } else {
-            Stdio::inherit()
-        };
-
-        let child = Command::new(cmd_name).args(args).stdout(stdout).spawn()?;
-        *self.child_id.lock().unwrap() = Some(child.id());
-        let output = child.wait_with_output();
-        *self.child_id.lock().unwrap() = None;
-        output
+    pub fn set_child(&mut self, pid: Option<u32>) {
+        *self.child_id.lock().unwrap() = pid;
     }
 }
 

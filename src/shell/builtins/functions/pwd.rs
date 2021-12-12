@@ -1,24 +1,32 @@
-use std::io::Write;
+use thin_string::ThinString;
 
 use crate::{
     parser::runtime_error::RunTimeError,
-    shell::{dir, Shell},
+    shell::{
+        stream::{OutputStream, ValueStream},
+        Shell, Value,
+    },
 };
 
-pub fn pwd(_: &mut Shell, args: &[String], out: &mut dyn Write) -> Result<i64, RunTimeError> {
+pub fn pwd(_: &mut Shell, args: &[String], _: ValueStream) -> Result<OutputStream, RunTimeError> {
     let matches = clap::App::new("pwd")
         .about("print working directory")
         .settings(&[clap::AppSettings::NoBinaryName])
         .get_matches_from_safe(args.iter());
 
-    let _ = match matches {
-        Ok(matches) => matches,
+    let mut output = OutputStream::default();
+
+    match matches {
+        Ok(_) => output
+            .stream
+            .values
+            .push_back(Value::String(ThinString::from(
+                std::env::current_dir().unwrap().to_str().unwrap(),
+            ))),
         Err(clap::Error { message, .. }) => {
             eprintln!("{}", message);
-            return Ok(-1);
+            output.status = -1;
         }
     };
-
-    writeln!(out, "{}", dir().to_string_lossy())?;
-    Ok(0)
+    Ok(output)
 }

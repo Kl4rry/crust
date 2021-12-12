@@ -25,7 +25,6 @@ This readme contains notes to myself.
 | Indexing/Slicing                | ❌                            | ❌    |
 | Maps                            | ❌                            | ❌    |
 | Pipes                           | ✅ (Not \| & aka stderr pipe) | ❌    |
-| Redirects                       | ✅                            | ❌    |
 | Glob                            | ✅                            | ✅    |
 | Questionmark / single char glob | ✅                            | ✅    |
 | Bracket globing char            | ✅                            | ✅    |

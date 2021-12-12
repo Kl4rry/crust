@@ -5,6 +5,7 @@ use std::{
 };
 
 use glob::{GlobError, PatternError};
+use subprocess::{CommunicateError, PopenError};
 
 use super::ast::expr::{binop::BinOp, unop::UnOp};
 use crate::shell::value::{Type, Value};
@@ -28,11 +29,13 @@ pub enum RunTimeError {
     InvalidUnaryOperand(UnOp, Type),
     InvalidIterator(Type),
     CommandNotFound(String),
-    IoError(io::Error),
+    Io(io::Error),
     Glob(GlobError),
     Pattern(PatternError),
     ParseInt(ParseIntError),
     ParseFloat(ParseFloatError),
+    Popen(PopenError),
+    Communicate(CommunicateError),
 }
 
 impl fmt::Display for RunTimeError {
@@ -63,11 +66,13 @@ impl fmt::Display for RunTimeError {
                 "index is out of bounds, length is {} but the index is {}",
                 length, index
             ),
-            Self::IoError(error) => error.fmt(f),
+            Self::Io(error) => error.fmt(f),
             Self::Glob(error) => error.fmt(f),
             Self::Pattern(error) => error.fmt(f),
             Self::ParseInt(error) => error.fmt(f),
             Self::ParseFloat(error) => error.fmt(f),
+            Self::Communicate(error) => error.fmt(f),
+            Self::Popen(error) => error.fmt(f),
             // exit should always be handled and should therefore never be displayed
             Self::Exit => unreachable!(),
             Self::Break => write!(f, "break must be used in loop"),
@@ -91,7 +96,7 @@ impl From<GlobError> for RunTimeError {
 
 impl From<std::io::Error> for RunTimeError {
     fn from(error: std::io::Error) -> Self {
-        RunTimeError::IoError(error)
+        RunTimeError::Io(error)
     }
 }
 
@@ -104,6 +109,18 @@ impl From<ParseIntError> for RunTimeError {
 impl From<ParseFloatError> for RunTimeError {
     fn from(error: ParseFloatError) -> Self {
         RunTimeError::ParseFloat(error)
+    }
+}
+
+impl From<PopenError> for RunTimeError {
+    fn from(error: PopenError) -> Self {
+        RunTimeError::Popen(error)
+    }
+}
+
+impl From<CommunicateError> for RunTimeError {
+    fn from(error: CommunicateError) -> Self {
+        RunTimeError::Communicate(error)
     }
 }
 

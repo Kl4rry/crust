@@ -423,8 +423,7 @@ impl Parser {
                 Ok(Expr::Literal(self.eat()?.try_into()?).wrap(unop))
             }
             TokenType::Cast(_) => self.parse_cast(),
-            TokenType::Symbol(_) => Ok(self.parse_call()?.wrap(unop)),
-            TokenType::Exec => Ok(self.parse_call()?),
+            TokenType::Symbol(_) | TokenType::Exec => Ok(self.parse_pipe()?.wrap(unop)),
             TokenType::LeftParen => {
                 self.eat()?.expect(TokenType::LeftParen)?;
                 self.skip_whitespace();
@@ -555,6 +554,21 @@ impl Parser {
         Ok(Expr::TypeCast(type_of, P::new(expr)))
     }
 
+    fn parse_pipe(&mut self) -> Result<Expr> {
+        let mut calls = vec![self.parse_call()?];
+
+        self.skip_optional_space();
+        if let Ok(token) = self.peek() {
+            if token.token_type == TokenType::Pipe {
+                self.eat()?;
+                self.skip_whitespace();
+                calls.push(self.parse_call()?);
+            }
+        }
+
+        return Ok(Expr::Pipe(calls));
+    }
+
     fn parse_call(&mut self) -> Result<Expr> {
         let command = self.parse_command()?;
         let mut args = Vec::new();
@@ -573,40 +587,7 @@ impl Parser {
                 }
             }
         }
-        let mut lhs = Expr::Call(command, args);
-
-        self.skip_optional_space();
-
-        if let Ok(token) = self.peek() {
-            match token.token_type {
-                TokenType::Lt => {
-                    self.eat()?;
-                    self.skip_whitespace();
-                    let rhs = self.parse_argument()?;
-                    lhs = Expr::Redirect(Direction::Left, P::new(lhs), rhs);
-                }
-                TokenType::Gt => {
-                    self.eat()?;
-                    self.skip_whitespace();
-                    let rhs = self.parse_argument()?;
-                    lhs = Expr::Redirect(Direction::Right, P::new(lhs), rhs);
-                }
-                _ => (),
-            }
-        }
-
-        self.skip_optional_space();
-
-        if let Ok(token) = self.peek() {
-            if token.token_type == TokenType::Pipe {
-                self.eat()?;
-                self.skip_whitespace();
-                let rhs = self.parse_call()?;
-                return Ok(Expr::Pipe(P::new(lhs), P::new(rhs)));
-            }
-        }
-
-        Ok(lhs)
+        Ok(Expr::Call(command, args))
     }
 
     fn parse_command(&mut self) -> Result<Command> {
@@ -651,10 +632,10 @@ impl Parser {
                 let token = self.eat()?;
                 match token.token_type {
                     TokenType::String(string) => match ids.last_mut() {
-                        Some(Identifier::String(text)) => {
+                        Some(Identifier::Quoted(text)) => {
                             text.push_str(&string);
                         }
-                        _ => ids.push(Identifier::String(string)),
+                        _ => ids.push(Identifier::Quoted(string)),
                     },
                     TokenType::Symbol(string) => match ids.last_mut() {
                         Some(Identifier::Bare(text)) => {

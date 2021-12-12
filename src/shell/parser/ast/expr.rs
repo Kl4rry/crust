@@ -1,11 +1,16 @@
+use std::{collections::VecDeque, mem, thread};
+
+use subprocess::{CommunicateError, Exec, Pipeline, Redirection};
+
 use crate::{
     parser::{
-        ast::{Direction, Literal, Variable},
+        ast::{Literal, Variable},
         runtime_error::RunTimeError,
         P,
     },
     shell::{
-        builtins,
+        builtins::{self, functions::BulitinFn},
+        stream::{OutputStream, ValueStream},
         value::{Type, Value},
         Shell,
     },
@@ -82,8 +87,7 @@ macro_rules! compare_impl {
 #[derive(Debug, Clone)]
 pub enum Expr {
     Call(Command, Vec<Argument>),
-    Pipe(P<Expr>, P<Expr>),
-    Redirect(Direction, P<Expr>, Argument),
+    Pipe(Vec<Expr>),
     Variable(Variable),
     Binary(BinOp, P<Expr>, P<Expr>),
     Paren(P<Expr>),
@@ -101,27 +105,10 @@ impl Expr {
         }
     }
 
-    pub fn eval(&self, shell: &mut Shell, piped: bool) -> Result<Value, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell, sub_expr: bool) -> Result<Value, RunTimeError> {
         match self {
-            Self::Call(command, args) => {
-                let mut expanded_args = Vec::new();
-                for arg in args {
-                    let arg = arg.eval(shell)?;
-                    match arg {
-                        ArgumentValue::Single(string) => expanded_args.push(string),
-                        ArgumentValue::Multi(vec) => expanded_args.extend(vec.into_iter()),
-                    }
-                }
-                let mut command = command.eval(shell)?;
-
-                if let Some(alias) = shell.aliases.get(&command) {
-                    let mut split = alias.split_whitespace();
-                    command = split.next().unwrap().to_string();
-                    let mut args: Vec<_> = split.map(|s| s.to_string()).collect();
-                    args.extend(expanded_args.into_iter());
-                    expanded_args = args;
-                }
-
+            Self::Call(_, _) => unreachable!(),
+            /*Self::Call(command, args) => {
                 if let Some(res) = builtins::functions::run_builtin(shell, &command, &expanded_args)
                 {
                     return res;
@@ -137,7 +124,7 @@ impl Expr {
                     }
                 }
                 Ok(Value::Int(0))
-            }
+            }*/
             Self::Literal(literal) => literal.eval(shell),
             Self::Variable(variable) => variable.eval(shell),
             Self::TypeCast(type_of, expr) => {
@@ -281,8 +268,142 @@ impl Expr {
                     Ok(Value::Bool(lhs.truthy() || rhs.truthy()))
                 }
             },
-            Self::Pipe(_lhs, _rhs) => todo!("pipe not impl"),
-            Self::Redirect(_direction, _expr, _file) => todo!("redirect not impl"),
+            Self::Pipe(calls) => {
+                let mut expanded_calls = VecDeque::new();
+                for callable in calls {
+                    match callable {
+                        Self::Call(cmd, args) => {
+                            let (cmd, args) = expand_call(shell, cmd, args)?;
+                            expanded_calls.push_back(get_call_type(cmd, args));
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+
+                let mut execs = Vec::new();
+                let mut output = OutputStream::default();
+                while let Some(call_type) = expanded_calls.pop_front() {
+                    match call_type {
+                        CallType::External(exec) => {
+                            execs.push(exec);
+                        }
+                        CallType::Builtin(builtin, args) => {
+                            if execs.is_empty() {
+                                let mut stream = ValueStream::default();
+                                mem::swap(&mut output.stream, &mut stream);
+                                output = builtin(shell, &args, stream)?;
+                            } else {
+                                let value = Value::String(
+                                    run_pipeline(shell, execs, true)?.unwrap().to_thin_string(),
+                                );
+                                execs = Vec::new();
+                                output = builtin(shell, &args, ValueStream::from_value(value))?;
+                            }
+                        }
+                        _ => todo!(),
+                    }
+                }
+
+                // capture output should be true if this is sub expr.
+                if !execs.is_empty() {
+                    if sub_expr {
+                        let value = Value::String(
+                            run_pipeline(shell, execs, true)?.unwrap().to_thin_string(),
+                        );
+                        Ok(Value::OutputStream(OutputStream::new(
+                            ValueStream::from_value(value),
+                            0,
+                        )))
+                    } else {
+                        run_pipeline(shell, execs, false)?;
+                        Ok(Value::OutputStream(OutputStream::default()))
+                    }
+                } else {
+                    Ok(Value::OutputStream(output))
+                }
+            }
         }
     }
+}
+
+fn run_pipeline(
+    shell: &mut Shell,
+    mut execs: Vec<Exec>,
+    capture_output: bool,
+) -> Result<Option<String>, RunTimeError> {
+    if execs.len() == 1 {
+        let exec = if capture_output {
+            execs.pop().unwrap().stdout(Redirection::Pipe)
+        } else {
+            execs.pop().unwrap()
+        };
+
+        let mut child = exec.popen()?;
+        shell.set_child(child.pid());
+        // the exit status should be set to the status variable
+        if capture_output {
+            let mut com = child.communicate_start(None);
+            let t = thread::spawn::<_, Result<Option<String>, CommunicateError>>(move || {
+                let (out, _) = com.read_string()?;
+                Ok(out)
+            });
+            let _status = child.wait()?;
+            Ok(t.join().unwrap()?)
+        } else {
+            let _ = child.wait()?;
+            Ok(None)
+        }
+    } else {
+        let mut children = Pipeline::from_exec_iter(execs).popen()?;
+        let last = children.last_mut().unwrap();
+        shell.set_child(last.pid());
+
+        if capture_output {
+            shell.set_child(None);
+            Ok(None)
+        } else {
+            let _ = last.wait()?;
+            shell.set_child(None);
+            Ok(None)
+        }
+    }
+}
+
+fn get_call_type(cmd: String, args: Vec<String>) -> CallType {
+    if let Some(builtin) = builtins::functions::get_builtin(&cmd) {
+        CallType::Builtin(builtin, args)
+    } else {
+        CallType::External(Exec::cmd(cmd).args(&args))
+    }
+}
+
+fn expand_call(
+    shell: &mut Shell,
+    command: &Command,
+    args: &Vec<Argument>,
+) -> Result<(String, Vec<String>), RunTimeError> {
+    let mut expanded_args = Vec::new();
+    for arg in args {
+        let arg = arg.eval(shell)?;
+        match arg {
+            ArgumentValue::Single(string) => expanded_args.push(string),
+            ArgumentValue::Multi(vec) => expanded_args.extend(vec.into_iter()),
+        }
+    }
+    let mut command = command.eval(shell)?;
+
+    if let Some(alias) = shell.aliases.get(&command) {
+        let mut split = alias.split_whitespace();
+        command = split.next().unwrap().to_string();
+        let mut args: Vec<_> = split.map(|s| s.to_string()).collect();
+        args.extend(expanded_args.into_iter());
+        expanded_args = args;
+    }
+    return Ok((command, expanded_args));
+}
+
+pub enum CallType {
+    Builtin(BulitinFn, Vec<String>),
+    External(Exec),
+    Internal,
 }

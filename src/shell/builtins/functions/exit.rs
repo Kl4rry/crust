@@ -1,21 +1,32 @@
-use std::io::Write;
-
 use thin_string::ToThinString;
 
-use crate::{parser::runtime_error::RunTimeError, shell::Shell};
+use crate::{
+    parser::runtime_error::RunTimeError,
+    shell::{
+        stream::{OutputStream, ValueStream},
+        Shell,
+    },
+};
 
-pub fn exit(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i64, RunTimeError> {
+pub fn exit(
+    shell: &mut Shell,
+    args: &[String],
+    _: ValueStream,
+) -> Result<OutputStream, RunTimeError> {
     let matches = clap::App::new("exit")
         .about("exit the shell")
         .arg(clap::Arg::with_name("STATUS").help("The exit status of the shell"))
         .settings(&[clap::AppSettings::NoBinaryName])
         .get_matches_from_safe(args.iter());
 
+    let mut output = OutputStream::default();
+
     let matches = match matches {
         Ok(matches) => matches,
         Err(clap::Error { message, .. }) => {
             eprintln!("{}", message);
-            return Ok(-1);
+            output.status = -1;
+            return Ok(output);
         }
     };
 
@@ -24,7 +35,8 @@ pub fn exit(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i64
             Ok(number) => number,
             Err(_) => {
                 eprintln!("exit: STATUS must be integer");
-                return Ok(-1);
+                output.status = -1;
+                return Ok(output);
             }
         };
     }

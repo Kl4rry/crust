@@ -8,7 +8,7 @@ pub enum Identifier {
     Variable(Variable), // Should be expaned to variable value. Must be done before glob.
     Expand(Expand),     // Should be variable expanded.
     Bare(String),
-    String(String),
+    Quoted(String),
     Expr(P<Expr>),
 }
 
@@ -18,7 +18,7 @@ impl Identifier {
             Identifier::Variable(var) => Ok(var.eval(shell)?.to_string()),
             Identifier::Expand(expand) => Ok(expand.eval(shell)?),
             Identifier::Bare(string) => Ok(string.clone()),
-            Identifier::String(string) => Ok(string.clone()),
+            Identifier::Quoted(string) => Ok(string.clone()),
             Identifier::Expr(expr) => Ok(expr.eval(shell, false)?.to_string()),
         }
     }
