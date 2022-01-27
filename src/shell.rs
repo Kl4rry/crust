@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    io::{stdout, Write},
+    io::stdout,
     path::PathBuf,
     sync::{Arc, Mutex, MutexGuard},
 };
@@ -52,7 +52,7 @@ impl Shell {
                 }
             }
         })
-        .expect("Error setting Ctrl-C handler");
+        .unwrap();
 
         let dirs = directories::UserDirs::new().unwrap();
         let home_dir = dirs.home_dir().to_path_buf();
@@ -123,7 +123,7 @@ impl Shell {
                                     for value in values {
                                         let output = value.to_string();
                                         if !output.is_empty() {
-                                            print!("{}", output);
+                                            println!("{}", output);
                                         }
                                     }
                                 }

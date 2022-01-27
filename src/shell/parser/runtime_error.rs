@@ -22,13 +22,24 @@ pub enum RunTimeError {
     // real errors
     NoMatch(String),
     MaxRecursion(usize),
-    IndexOutOfBounds { length: usize, index: usize },
-    InvalidConversion { from: Type, to: Type },
+    IndexOutOfBounds {
+        length: usize,
+        index: usize,
+    },
+    InvalidConversion {
+        from: Type,
+        to: Type,
+    },
     VariableNotFound(String),
     InvalidBinaryOperand(BinOp, Type, Type),
     InvalidUnaryOperand(UnOp, Type),
     InvalidIterator(Type),
     CommandNotFound(String),
+    ToFewArguments {
+        name: String,
+        expected: usize,
+        recived: usize,
+    },
     Io(io::Error),
     Glob(GlobError),
     Pattern(PatternError),
@@ -44,6 +55,17 @@ impl fmt::Display for RunTimeError {
             Self::CommandNotFound(name) => write!(f, "{}: command not found", name),
             Self::NoMatch(pattern) => write!(f, "no match found for pattern: '{}'", pattern),
             Self::VariableNotFound(name) => write!(f, "variable with name: '{}' not found", name),
+            Self::ToFewArguments {
+                name,
+                expected,
+                recived,
+            } => {
+                write!(
+                    f,
+                    "{} expected {} arguments, recived {}",
+                    name, expected, recived
+                )
+            }
             Self::InvalidBinaryOperand(binop, lhs, rhs) => {
                 write!(
                     f,
@@ -73,11 +95,11 @@ impl fmt::Display for RunTimeError {
             Self::ParseFloat(error) => error.fmt(f),
             Self::Communicate(error) => error.fmt(f),
             Self::Popen(error) => error.fmt(f),
-            // exit should always be handled and should therefore never be displayed
-            Self::Exit => unreachable!(),
             Self::Break => write!(f, "break must be used in loop"),
             Self::Return(_) => write!(f, "return must be used in function"),
             Self::Continue => write!(f, "continue must be used in loop"),
+            // exit should always be handled and should therefore never be displayed
+            Self::Exit => unreachable!(),
         }
     }
 }

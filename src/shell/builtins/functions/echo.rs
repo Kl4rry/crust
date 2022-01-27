@@ -1,12 +1,21 @@
-use std::io::Write;
+use thin_string::ToThinString;
 
-use crate::{parser::runtime_error::RunTimeError, shell::Shell};
+use crate::{
+    parser::runtime_error::RunTimeError,
+    shell::{
+        stream::{OutputStream, ValueStream},
+        value::Value,
+        Shell,
+    },
+};
 
-pub fn echo(_: &mut Shell, args: &[String], out: &mut dyn Write) -> Result<i64, RunTimeError> {
+pub fn echo(_: &mut Shell, args: &[String], _: ValueStream) -> Result<OutputStream, RunTimeError> {
+    let mut output = OutputStream::default();
     for arg in args {
-        write!(out, "{} ", arg)?;
+        output
+            .stream
+            .values
+            .push_back(Value::String(arg.to_thin_string()));
     }
-    writeln!(out)?;
-    out.flush()?;
-    Ok(0)
+    Ok(output)
 }

@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use std::{convert::TryInto, rc::Rc};
 
 pub mod lexer;
 
@@ -232,7 +232,10 @@ impl Parser {
                 }
                 self.skip_whitespace();
                 let block = self.parse_block()?;
-                Ok(Compound::Statement(Statement::Fn(name, vars, block)))
+                Ok(Compound::Statement(Statement::Fn(
+                    name,
+                    Rc::new((vars, block)),
+                )))
             }
             TokenType::Loop => {
                 self.eat()?;

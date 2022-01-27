@@ -1,4 +1,9 @@
-use std::{collections::VecDeque, mem, thread};
+use std::{
+    collections::{HashMap, VecDeque},
+    mem,
+    rc::Rc,
+    thread,
+};
 
 use subprocess::{CommunicateError, Exec, Pipeline, Redirection};
 
@@ -28,6 +33,8 @@ use command::Command;
 
 pub mod argument;
 use argument::{Argument, ArgumentValue};
+
+use super::Block;
 
 // used to implement comparison operators without duplciating code
 macro_rules! compare_impl {
@@ -127,6 +134,7 @@ impl Expr {
             }*/
             Self::Literal(literal) => literal.eval(shell),
             Self::Variable(variable) => variable.eval(shell),
+            // casting syntax will be reworke and turned into builtins
             Self::TypeCast(type_of, expr) => {
                 let value = expr.eval(shell, false)?;
                 match type_of {
@@ -258,14 +266,10 @@ impl Expr {
                     compare_impl!(lhs, rhs, *binop, >)
                 }
                 BinOp::And => {
-                    let lhs = lhs.eval(shell, false)?;
-                    let rhs = rhs.eval(shell, false)?;
-                    Ok(Value::Bool(lhs.truthy() && rhs.truthy()))
+                    Ok(Value::Bool(lhs.eval(shell, false)?.truthy() && rhs.eval(shell, false)?.truthy()))
                 }
                 BinOp::Or => {
-                    let lhs = lhs.eval(shell, false)?;
-                    let rhs = rhs.eval(shell, false)?;
-                    Ok(Value::Bool(lhs.truthy() || rhs.truthy()))
+                    Ok(Value::Bool(lhs.eval(shell, false)?.truthy() || rhs.eval(shell, false)?.truthy()))
                 }
             },
             Self::Pipe(calls) => {
@@ -274,7 +278,7 @@ impl Expr {
                     match callable {
                         Self::Call(cmd, args) => {
                             let (cmd, args) = expand_call(shell, cmd, args)?;
-                            expanded_calls.push_back(get_call_type(cmd, args));
+                            expanded_calls.push_back(get_call_type(shell, cmd, args));
                         }
                         _ => unreachable!(),
                     }
@@ -300,7 +304,29 @@ impl Expr {
                                 output = builtin(shell, &args, ValueStream::from_value(value))?;
                             }
                         }
-                        _ => todo!(),
+                        CallType::Internal(func, args) => {
+                            let (vars, block) = &*func;
+                            let mut input_vars = HashMap::new();
+                            for (i, var) in vars.iter().enumerate() {
+                                match args.get(i) {
+                                    Some(arg) => {
+                                        input_vars.insert(
+                                            var.name.clone(),
+                                            Value::String(arg.to_thin_string()),
+                                        );
+                                    }
+                                    None => {
+                                        return Err(RunTimeError::ToFewArguments {
+                                            // this should be function name
+                                            name: String::from("function"),
+                                            expected: vars.len(),
+                                            recived: args.len(),
+                                        });
+                                    }
+                                }
+                            }
+                            block.eval(shell, Some(input_vars))?;
+                        }
                     }
                 }
 
@@ -310,16 +336,16 @@ impl Expr {
                         let value = Value::String(
                             run_pipeline(shell, execs, true)?.unwrap().to_thin_string(),
                         );
-                        Ok(Value::OutputStream(OutputStream::new(
+                        Ok(Value::OutputStream(Box::new(OutputStream::new(
                             ValueStream::from_value(value),
                             0,
-                        )))
+                        ))))
                     } else {
                         run_pipeline(shell, execs, false)?;
-                        Ok(Value::OutputStream(OutputStream::default()))
+                        Ok(Value::OutputStream(Box::new(OutputStream::default())))
                     }
                 } else {
-                    Ok(Value::OutputStream(output))
+                    Ok(Value::OutputStream(Box::new(output)))
                 }
             }
         }
@@ -369,12 +395,18 @@ fn run_pipeline(
     }
 }
 
-fn get_call_type(cmd: String, args: Vec<String>) -> CallType {
+fn get_call_type(shell: &Shell, cmd: String, args: Vec<String>) -> CallType {
     if let Some(builtin) = builtins::functions::get_builtin(&cmd) {
-        CallType::Builtin(builtin, args)
-    } else {
-        CallType::External(Exec::cmd(cmd).args(&args))
+        return CallType::Builtin(builtin, args);
     }
+
+    for frame in shell.stack.iter().rev() {
+        if let Some(func) = frame.functions.get(&cmd) {
+            return CallType::Internal(func.clone(), args);
+        }
+    }
+
+    CallType::External(Exec::cmd(cmd).args(&args))
 }
 
 fn expand_call(
@@ -404,6 +436,6 @@ fn expand_call(
 
 pub enum CallType {
     Builtin(BulitinFn, Vec<String>),
+    Internal(Rc<(Vec<Variable>, Block)>, Vec<String>),
     External(Exec),
-    Internal,
 }

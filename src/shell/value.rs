@@ -55,7 +55,7 @@ pub enum Value {
     String(ThinString),
     List(ThinVec<Value>),
     Range(Box<Range<i64>>),
-    OutputStream(OutputStream),
+    OutputStream(Box<OutputStream>),
 }
 
 impl PartialEq for Value {

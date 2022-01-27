@@ -2,7 +2,7 @@ use std::io::Write;
 
 use crate::{parser::runtime_error::RunTimeError, shell::Shell};
 
-pub fn size(_: &mut Shell, args: &[String], out: &mut dyn Write) -> Result<i64, RunTimeError> {
+pub fn _size(_: &mut Shell, args: &[String], out: &mut dyn Write) -> Result<i64, RunTimeError> {
     let matches = clap::App::new("size")
         .about("print size of terminal window")
         .settings(&[clap::AppSettings::NoBinaryName])

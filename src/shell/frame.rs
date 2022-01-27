@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     parser::ast::{variable::Variable, Block},
@@ -7,7 +7,7 @@ use crate::{
 
 pub struct Frame {
     pub variables: HashMap<String, Value>,
-    pub functions: HashMap<String, (Vec<Variable>, Block)>,
+    pub functions: HashMap<String, Rc<(Vec<Variable>, Block)>>,
 }
 
 impl Frame {

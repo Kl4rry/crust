@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use thin_string::ThinString;
 
@@ -22,14 +22,14 @@ pub enum Statement {
     Assign(Variable, Expr),
     AssignOp(Variable, AssignOp, Expr),
     If(Expr, Block, Option<P<Statement>>),
-    Fn(String, Vec<Variable>, Block),
+    Fn(String, Rc<(Vec<Variable>, Block)>),
     Return(Option<Expr>),
-    Loop(Block),
-    While(Expr, Block),
     For(Variable, Expr, Block),
-    Break,
-    Continue,
+    While(Expr, Block),
+    Loop(Block),
     Block(Block),
+    Continue,
+    Break,
 }
 
 impl Statement {
@@ -122,7 +122,7 @@ impl Statement {
                     match &**statement {
                         Self::Block(block) => block.eval(shell, None)?,
                         Self::If(..) => statement.eval(shell)?,
-                        _ => (),
+                        _ => unreachable!(),
                     }
                 }
             }
@@ -189,13 +189,13 @@ impl Statement {
                     _ => return Err(RunTimeError::InvalidIterator(value.to_type())),
                 }
             }
-            Self::Fn(name, params, block) => {
+            Self::Fn(name, func) => {
                 shell
                     .stack
                     .last_mut()
                     .unwrap()
                     .functions
-                    .insert(name.clone(), (params.clone(), block.clone()));
+                    .insert(name.clone(), func.clone());
             }
             Self::Return(expr) => {
                 if let Some(expr) = expr {
