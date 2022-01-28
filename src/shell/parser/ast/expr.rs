@@ -114,27 +114,12 @@ impl Expr {
 
     pub fn eval(&self, shell: &mut Shell, sub_expr: bool) -> Result<Value, RunTimeError> {
         match self {
-            Self::Call(_, _) => unreachable!(),
-            /*Self::Call(command, args) => {
-                if let Some(res) = builtins::functions::run_builtin(shell, &command, &expanded_args)
-                {
-                    return res;
-                } else {
-                    match shell.execute_command(&command, &expanded_args, piped) {
-                        Ok(_) => (),
-                        Err(error) => match error.kind() {
-                            std::io::ErrorKind::NotFound => {
-                                return Err(RunTimeError::CommandNotFound(command))
-                            }
-                            _ => return Err(RunTimeError::IoError(error)),
-                        },
-                    }
-                }
-                Ok(Value::Int(0))
-            }*/
+            Self::Call(_, _) => {
+                unreachable!("calls must always be in a pipeline, bare calls are not allowed")
+            }
             Self::Literal(literal) => literal.eval(shell),
             Self::Variable(variable) => variable.eval(shell),
-            // casting syntax will be reworke and turned into builtins
+            // casting syntax will be reworked in favor of builtin
             Self::TypeCast(type_of, expr) => {
                 let value = expr.eval(shell, false)?;
                 match type_of {
@@ -161,6 +146,7 @@ impl Expr {
                                 .collect(),
                         )),
                         Value::Range(range) => Ok(Value::List(
+                            // clippy thinks Value::Int(n) is a function call
                             #[allow(clippy::redundant_closure)]
                             (*range)
                                 .clone()
@@ -265,12 +251,12 @@ impl Expr {
                     let rhs = rhs.eval(shell, false)?;
                     compare_impl!(lhs, rhs, *binop, >)
                 }
-                BinOp::And => {
-                    Ok(Value::Bool(lhs.eval(shell, false)?.truthy() && rhs.eval(shell, false)?.truthy()))
-                }
-                BinOp::Or => {
-                    Ok(Value::Bool(lhs.eval(shell, false)?.truthy() || rhs.eval(shell, false)?.truthy()))
-                }
+                BinOp::And => Ok(Value::Bool(
+                    lhs.eval(shell, false)?.truthy() && rhs.eval(shell, false)?.truthy(),
+                )),
+                BinOp::Or => Ok(Value::Bool(
+                    lhs.eval(shell, false)?.truthy() || rhs.eval(shell, false)?.truthy(),
+                )),
             },
             Self::Pipe(calls) => {
                 let mut expanded_calls = VecDeque::new();
@@ -292,19 +278,36 @@ impl Expr {
                             execs.push(exec);
                         }
                         CallType::Builtin(builtin, args) => {
-                            if execs.is_empty() {
+                            let stream = if execs.is_empty() {
                                 let mut stream = ValueStream::default();
                                 mem::swap(&mut output.stream, &mut stream);
-                                output = builtin(shell, &args, stream)?;
+                                stream
                             } else {
                                 let value = Value::String(
-                                    run_pipeline(shell, execs, true)?.unwrap().to_thin_string(),
+                                    run_pipeline(shell, execs, true, output.stream)?
+                                        .unwrap()
+                                        .to_thin_string(),
                                 );
                                 execs = Vec::new();
-                                output = builtin(shell, &args, ValueStream::from_value(value))?;
-                            }
+                                ValueStream::from_value(value)
+                            };
+                            output = builtin(shell, &args, stream)?;
                         }
                         CallType::Internal(func, args) => {
+                            let stream = if execs.is_empty() {
+                                let mut stream = ValueStream::default();
+                                mem::swap(&mut output.stream, &mut stream);
+                                stream
+                            } else {
+                                let value = Value::String(
+                                    run_pipeline(shell, execs, true, output.stream)?
+                                        .unwrap()
+                                        .to_thin_string(),
+                                );
+                                execs = Vec::new();
+                                ValueStream::from_value(value)
+                            };
+
                             let (vars, block) = &*func;
                             let mut input_vars = HashMap::new();
                             for (i, var) in vars.iter().enumerate() {
@@ -325,7 +328,7 @@ impl Expr {
                                     }
                                 }
                             }
-                            block.eval(shell, Some(input_vars))?;
+                            output = block.eval(shell, Some(input_vars), Some(stream))?;
                         }
                     }
                 }
@@ -334,14 +337,16 @@ impl Expr {
                 if !execs.is_empty() {
                     if sub_expr {
                         let value = Value::String(
-                            run_pipeline(shell, execs, true)?.unwrap().to_thin_string(),
+                            run_pipeline(shell, execs, true, output.stream)?
+                                .unwrap()
+                                .to_thin_string(),
                         );
                         Ok(Value::OutputStream(Box::new(OutputStream::new(
                             ValueStream::from_value(value),
                             0,
                         ))))
                     } else {
-                        run_pipeline(shell, execs, false)?;
+                        run_pipeline(shell, execs, false, output.stream)?;
                         Ok(Value::OutputStream(Box::new(OutputStream::default())))
                     }
                 } else {
@@ -356,31 +361,49 @@ fn run_pipeline(
     shell: &mut Shell,
     mut execs: Vec<Exec>,
     capture_output: bool,
+    input: ValueStream,
 ) -> Result<Option<String>, RunTimeError> {
+    let mut input_string = String::new();
+    for value in input {
+        match value {
+            Value::String(text) => {
+                input_string.push_str(&text);
+                input_string.push('\n');
+            }
+            _ => panic!("expected string input"),
+        }
+    }
     if execs.len() == 1 {
         let exec = if capture_output {
             execs.pop().unwrap().stdout(Redirection::Pipe)
         } else {
             execs.pop().unwrap()
-        };
+        }
+        .stdin(Redirection::Pipe);
 
         let mut child = exec.popen()?;
         shell.set_child(child.pid());
-        // the exit status should be set to the status variable
         if capture_output {
-            let mut com = child.communicate_start(None);
+            let mut com = child.communicate_start(Some(input_string.into()));
             let t = thread::spawn::<_, Result<Option<String>, CommunicateError>>(move || {
                 let (out, _) = com.read_string()?;
                 Ok(out)
             });
+            // the exit status should be set to the status variable
             let _status = child.wait()?;
             Ok(t.join().unwrap()?)
         } else {
+            let _ = child.communicate_start(Some(input_string.into()));
             let _ = child.wait()?;
             Ok(None)
         }
     } else {
-        let mut children = Pipeline::from_exec_iter(execs).popen()?;
+        let pipeline = Pipeline::from_exec_iter(execs).stdin(Redirection::Pipe);
+        let mut children = pipeline.popen()?;
+        children
+            .first_mut()
+            .unwrap()
+            .communicate_bytes(Some(input_string.as_bytes()))?;
         let last = children.last_mut().unwrap();
         shell.set_child(last.pid());
 
@@ -412,7 +435,7 @@ fn get_call_type(shell: &Shell, cmd: String, args: Vec<String>) -> CallType {
 fn expand_call(
     shell: &mut Shell,
     command: &Command,
-    args: &Vec<Argument>,
+    args: &[Argument],
 ) -> Result<(String, Vec<String>), RunTimeError> {
     let mut expanded_args = Vec::new();
     for arg in args {
@@ -431,7 +454,7 @@ fn expand_call(
         args.extend(expanded_args.into_iter());
         expanded_args = args;
     }
-    return Ok((command, expanded_args));
+    Ok((command, expanded_args))
 }
 
 pub enum CallType {

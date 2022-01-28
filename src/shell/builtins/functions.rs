@@ -35,5 +35,5 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
 };
 
 pub fn get_builtin(command: &str) -> Option<BulitinFn> {
-    BUILTIN_FUNCTIONS.get(command).map(|f| f.clone())
+    BUILTIN_FUNCTIONS.get(command).copied()
 }

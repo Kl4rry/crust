@@ -98,10 +98,7 @@ impl PartialEq for Value {
                 Value::Bool(rhs) => (range.start == 0 && range.end == 0) != *rhs,
                 _ => false,
             },
-            Value::Null => match other {
-                Value::Null => true,
-                _ => false,
-            },
+            Value::Null => matches!(other, Value::Null),
             Value::OutputStream(_) => false,
         }
     }
@@ -144,7 +141,7 @@ impl ToString for Value {
             Self::Null => String::from(""),
             Self::OutputStream(output) => {
                 let mut string = String::new();
-                for val in &output.stream.values {
+                for val in output.stream.iter() {
                     if !matches!(val, Value::Null) {
                         string.push_str(&val.to_string());
                     }

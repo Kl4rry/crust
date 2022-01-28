@@ -17,12 +17,9 @@ pub fn pwd(_: &mut Shell, args: &[String], _: ValueStream) -> Result<OutputStrea
     let mut output = OutputStream::default();
 
     match matches {
-        Ok(_) => output
-            .stream
-            .values
-            .push_back(Value::String(ThinString::from(
-                std::env::current_dir().unwrap().to_str().unwrap(),
-            ))),
+        Ok(_) => output.stream.push(Value::String(ThinString::from(
+            std::env::current_dir().unwrap().to_str().unwrap(),
+        ))),
         Err(clap::Error { message, .. }) => {
             eprintln!("{}", message);
             output.status = -1;

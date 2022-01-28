@@ -2,7 +2,11 @@ use std::collections::HashMap;
 
 use crate::{
     parser::runtime_error::RunTimeError,
-    shell::{value::Value, Frame},
+    shell::{
+        stream::{OutputStream, ValueStream},
+        value::Value,
+        Frame,
+    },
     Shell,
 };
 
@@ -24,24 +28,20 @@ pub struct Ast {
 }
 
 impl Ast {
-    pub fn eval(&self, shell: &mut Shell) -> Result<Vec<Value>, RunTimeError> {
-        let mut values = Vec::new();
+    pub fn eval(&self, shell: &mut Shell) -> Result<OutputStream, RunTimeError> {
+        let mut output = OutputStream::default();
         for compound in &self.sequence {
-            match compound {
-                Compound::Expr(expr) => {
-                    // this is a wacky hack to avoid echoing status codes while still echoing other values
-                    if matches!(expr, Expr::Call(..)) {
-                        expr.eval(shell, false)?;
-                    } else {
-                        values.push(expr.eval(shell, false)?);
-                    }
-                }
-                Compound::Statement(statement) => {
-                    statement.eval(shell)?;
-                }
+            let value = match compound {
+                Compound::Expr(expr) => expr.eval(shell, false)?,
+                Compound::Statement(statement) => statement.eval(shell)?,
+            };
+            match value {
+                Value::Null => (),
+                Value::OutputStream(stream) => output.extend(stream.into_iter()),
+                value => output.push(value),
             }
         }
-        Ok(values)
+        Ok(output)
     }
 }
 
@@ -61,24 +61,27 @@ impl Block {
         &self,
         shell: &mut Shell,
         variables: Option<HashMap<String, Value>>,
-    ) -> Result<(), RunTimeError> {
-        if let Some(vars) = variables {
-            shell.stack.push(Frame::with_variables(vars));
-        } else {
-            shell.stack.push(Frame::new());
-        }
+        input: Option<ValueStream>,
+    ) -> Result<OutputStream, RunTimeError> {
+        shell.stack.push(Frame::new(
+            variables.unwrap_or_default(),
+            HashMap::new(),
+            input.unwrap_or_default(),
+        ));
+        let mut output = OutputStream::default();
         for compound in &self.sequence {
-            match compound {
-                Compound::Expr(expr) => {
-                    expr.eval(shell, false)?;
-                }
-                Compound::Statement(statement) => {
-                    statement.eval(shell)?;
-                }
+            let value = match compound {
+                Compound::Expr(expr) => expr.eval(shell, false)?,
+                Compound::Statement(statement) => statement.eval(shell)?,
+            };
+            match value {
+                Value::Null => (),
+                Value::OutputStream(stream) => output.extend(stream.into_iter()),
+                value => output.push(value),
             }
         }
-        shell.stack.pop();
-        Ok(())
+        shell.stack.pop().unwrap();
+        Ok(output)
     }
 }
 

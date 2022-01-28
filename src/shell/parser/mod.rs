@@ -561,15 +561,16 @@ impl Parser {
         let mut calls = vec![self.parse_call()?];
 
         self.skip_optional_space();
-        if let Ok(token) = self.peek() {
+        while let Ok(token) = self.peek() {
             if token.token_type == TokenType::Pipe {
                 self.eat()?;
                 self.skip_whitespace();
                 calls.push(self.parse_call()?);
+            } else {
+                break;
             }
         }
-
-        return Ok(Expr::Pipe(calls));
+        Ok(Expr::Pipe(calls))
     }
 
     fn parse_call(&mut self) -> Result<Expr> {

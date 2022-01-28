@@ -65,7 +65,7 @@ impl Shell {
             home_dir,
             history_file,
             child_id,
-            stack: vec![Frame::new()],
+            stack: vec![Frame::default()],
             aliases: HashMap::new(),
         }
     }
@@ -76,7 +76,18 @@ impl Shell {
             Ok(ast) => {
                 let res = ast.eval(&mut self);
                 match res {
-                    Ok(_) => (),
+                    Ok(values) => {
+                        for value in values {
+                            let output = value.to_string();
+                            if !output.is_empty() {
+                                if output == clear_str() {
+                                    print!("{}", output);
+                                } else {
+                                    println!("{}", output);
+                                }
+                            }
+                        }
+                    }
                     Err(RunTimeError::Exit) => (),
                     Err(error) => eprintln!("{}", error),
                 }
@@ -123,7 +134,14 @@ impl Shell {
                                     for value in values {
                                         let output = value.to_string();
                                         if !output.is_empty() {
-                                            println!("{}", output);
+                                            // this is clearly retarded
+                                            // there should not be a special case for clearing the terminal window
+                                            // also in run_src
+                                            if output == clear_str() {
+                                                print!("{}", output);
+                                            } else {
+                                                println!("{}", output);
+                                            }
                                         }
                                     }
                                 }
