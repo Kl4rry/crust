@@ -77,16 +77,7 @@ impl Shell {
                 let res = ast.eval(&mut self);
                 match res {
                     Ok(values) => {
-                        for value in values {
-                            let output = value.to_string();
-                            if !output.is_empty() {
-                                if output == clear_str() {
-                                    print!("{}", output);
-                                } else {
-                                    println!("{}", output);
-                                }
-                            }
-                        }
+                        print!("{}", values);
                     }
                     Err(RunTimeError::Exit) => (),
                     Err(error) => eprintln!("{}", error),
@@ -131,19 +122,7 @@ impl Shell {
                             let res = ast.eval(&mut self);
                             match res {
                                 Ok(values) => {
-                                    for value in values {
-                                        let output = value.to_string();
-                                        if !output.is_empty() {
-                                            // this is clearly retarded
-                                            // there should not be a special case for clearing the terminal window
-                                            // also in run_src
-                                            if output == clear_str() {
-                                                print!("{}", output);
-                                            } else {
-                                                println!("{}", output);
-                                            }
-                                        }
-                                    }
+                                    print!("{}", values);
                                 }
                                 Err(RunTimeError::Exit) => (),
                                 Err(error) => eprintln!("{}", error),

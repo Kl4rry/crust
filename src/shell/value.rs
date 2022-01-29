@@ -1,10 +1,10 @@
-use std::{fmt, ops::Range};
+use std::{fmt::{self, Write}, ops::Range};
 
 use thin_string::{ThinString, ToThinString};
 use thin_vec::{thin_vec, ThinVec};
 
 use super::stream::OutputStream;
-use crate::parser::{ast::expr::binop::BinOp, runtime_error::RunTimeError};
+use crate::parser::{ast::expr::binop::BinOp, runtime_error::RunTimeError, P};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Type {
@@ -54,8 +54,37 @@ pub enum Value {
     Bool(bool),
     String(ThinString),
     List(ThinVec<Value>),
-    Range(Box<Range<i64>>),
-    OutputStream(Box<OutputStream>),
+    Range(P<Range<i64>>),
+    OutputStream(P<OutputStream>),
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Int(number) => number.fmt(f),
+            Self::Float(number) => number.fmt(f),
+            Self::String(string) => string.fmt(f),
+            Self::List(list) => {
+                //f.write_char('[')?;
+                for value in list.into_iter() {
+                    value.fmt(f)?;
+                    f.write_char(' ')?;
+                }
+                //f.write_char(']')?;
+                Ok(())
+            }
+            Self::Range(range) => {
+                for i in range.clone().into_iter() {
+                    i.fmt(f)?;
+                }
+                Ok(())
+            }
+            Self::Bool(boolean) => boolean.fmt(f),
+            Self::Null => Ok(()),
+            Self::OutputStream(output) => output.fmt(f),
+        }
+        
+    }
 }
 
 impl PartialEq for Value {
@@ -108,47 +137,6 @@ impl AsRef<Value> for Value {
     #[inline(always)]
     fn as_ref(&self) -> &Value {
         self
-    }
-}
-
-impl ToString for Value {
-    fn to_string(&self) -> String {
-        match self {
-            Self::Int(number) => number.to_string(),
-            Self::Float(number) => number.to_string(),
-            Self::String(string) => string.to_string(),
-            Self::List(list) => {
-                let mut string = String::new();
-                for value in list.into_iter() {
-                    string.push_str(&value.as_ref().to_string());
-                    string.push(' ');
-                }
-                string
-            }
-            Self::Range(range) => {
-                let mut vec: Vec<i64> = Vec::new();
-                vec.extend(range.clone().into_iter());
-
-                vec.into_iter()
-                    .map(|x| {
-                        let mut string = x.to_string();
-                        string.push(' ');
-                        string
-                    })
-                    .collect()
-            }
-            Self::Bool(boolean) => boolean.to_string(),
-            Self::Null => String::from(""),
-            Self::OutputStream(output) => {
-                let mut string = String::new();
-                for val in output.stream.iter() {
-                    if !matches!(val, Value::Null) {
-                        string.push_str(&val.to_string());
-                    }
-                }
-                string
-            }
-        }
     }
 }
 

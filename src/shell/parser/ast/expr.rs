@@ -101,6 +101,7 @@ pub enum Expr {
     Unary(UnOp, P<Expr>),
     Literal(Literal),
     TypeCast(Type, P<Expr>),
+    SubExpr(P<Expr>),
 }
 
 impl Expr {
@@ -119,7 +120,7 @@ impl Expr {
             }
             Self::Literal(literal) => literal.eval(shell),
             Self::Variable(variable) => variable.eval(shell),
-            // casting syntax will be reworked in favor of builtin
+            // casting syntax will be reworked in favor of builtins
             Self::TypeCast(type_of, expr) => {
                 let value = expr.eval(shell, false)?;
                 match type_of {
@@ -174,7 +175,7 @@ impl Expr {
                     UnOp::Not => Ok(Value::Bool(!value.truthy())),
                 }
             }
-            Self::Paren(expr) => expr.eval(shell, false),
+            Self::Paren(expr) => expr.eval(shell, sub_expr),
             Self::Binary(binop, lhs, rhs) => match binop {
                 BinOp::Range => {
                     let lhs = lhs.eval(shell, false)?.try_as_int()?;
@@ -333,7 +334,6 @@ impl Expr {
                     }
                 }
 
-                // capture output should be true if this is sub expr.
                 if !execs.is_empty() {
                     if sub_expr {
                         let value = Value::String(
@@ -341,18 +341,24 @@ impl Expr {
                                 .unwrap()
                                 .to_thin_string(),
                         );
-                        Ok(Value::OutputStream(Box::new(OutputStream::new(
+                        Ok(Value::OutputStream(P::new(OutputStream::new(
                             ValueStream::from_value(value),
                             0,
                         ))))
                     } else {
                         run_pipeline(shell, execs, false, output.stream)?;
-                        Ok(Value::OutputStream(Box::new(OutputStream::default())))
+                        Ok(Value::OutputStream(P::new(OutputStream::default())))
                     }
                 } else {
-                    Ok(Value::OutputStream(Box::new(output)))
+                    if sub_expr {
+                        Ok(Value::OutputStream(P::new(output)))
+                    } else {
+                        print!("{}", output);
+                        Ok(Value::Null)
+                    }
                 }
             }
+            Self::SubExpr(expr) => expr.eval(shell, true),
         }
     }
 }

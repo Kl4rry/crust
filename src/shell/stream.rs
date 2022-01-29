@@ -1,4 +1,5 @@
 use std::collections::{vec_deque, VecDeque};
+use std::fmt;
 
 use super::value::Value;
 
@@ -16,7 +17,9 @@ impl ValueStream {
 
     pub fn from_value(value: Value) -> Self {
         let mut values = VecDeque::with_capacity(1);
-        values.push_back(value);
+        if value != Value::Null {
+            values.push_back(value);
+        }
         Self { values }
     }
 
@@ -31,13 +34,27 @@ impl ValueStream {
     pub fn extend<T: IntoIterator<Item = Value>>(&mut self, iter: T) {
         self.values.extend(iter)
     }
+
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+}
+
+impl fmt::Display for ValueStream {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for value in self.values.iter() {
+            value.fmt(f)?;
+            write!(f, "\n")?;
+        }
+        Ok(())
+    }
 }
 
 impl IntoIterator for ValueStream {
     type Item = Value;
-    type IntoIter = vec_deque::IntoIter<Value>;
+    type IntoIter = impl Iterator<Item = Value>;
     fn into_iter(self) -> Self::IntoIter {
-        self.values.into_iter()
+        self.values.into_iter().filter(|value| *value != Value::Null)
     }
 }
 
@@ -45,6 +62,12 @@ impl IntoIterator for ValueStream {
 pub struct OutputStream {
     pub stream: ValueStream,
     pub status: i32,
+}
+
+impl fmt::Display for OutputStream {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.stream.fmt(f)
+    }
 }
 
 impl OutputStream {
@@ -63,7 +86,7 @@ impl OutputStream {
 
 impl IntoIterator for OutputStream {
     type Item = Value;
-    type IntoIter = vec_deque::IntoIter<Value>;
+    type IntoIter = impl Iterator<Item = Value>;
     fn into_iter(self) -> Self::IntoIter {
         self.stream.into_iter()
     }

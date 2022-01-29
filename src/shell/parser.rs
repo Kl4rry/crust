@@ -314,7 +314,7 @@ impl Parser {
 
     fn parse_expr_expand(&mut self) -> Result<Expr> {
         self.eat()?.expect(TokenType::Dollar)?;
-        let expr = self.parse_expr(None)?;
+        let expr = Expr::SubExpr(P::new(self.parse_expr(None)?));
         Ok(expr)
     }
 

@@ -1,7 +1,8 @@
 # Crust
+Crust is a experimental crossplatform exotic shell.  
 This readme contains notes to myself.
 
-## Parsing
+## Progress
 | Syntax                          | Parsing                      | Eval |
 | ------------------------------- | ---------------------------- | ---- |
 | Literals                        | ✅                            | ✅    |
@@ -42,9 +43,8 @@ Parser can overflow when parsing number bigger then u128::MAX.
 Exit status is ignored everywere.
 Output is only printed when the program reaches its end because all output is caputured even if it is not in a subexpr or pipe.
 Null should be filter out when combining outputstreams (Maybe make a combine method on output stream and/or stream).
+Streams cannot be used like normal return values. They should be unpacked when used in a sub expr.
+Ctrl-C only works for external programs not infinte loops. Must insert points where the script can be preempted.
 
-## Builtin thoughts
-Lists should become multiple arguments
-
-## Design rules
-Data structures cannot be cyclic. This means that lists are cannot hold lists.
+## Questions to be answered
+Should lists expand to multiple arguments when passed to a function. Should this depend on if it is an internal or external command?

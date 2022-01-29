@@ -1,4 +1,5 @@
 #![feature(drain_filter)]
+#![feature(type_alias_impl_trait)]
 use std::fs;
 
 use clap::{App, Arg};

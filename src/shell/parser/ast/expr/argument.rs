@@ -19,7 +19,7 @@ impl Identifier {
             Identifier::Expand(expand) => Ok(expand.eval(shell)?),
             Identifier::Bare(string) => Ok(string.clone()),
             Identifier::Quoted(string) => Ok(string.clone()),
-            Identifier::Expr(expr) => Ok(expr.eval(shell, false)?.to_string()),
+            Identifier::Expr(expr) => Ok(expr.eval(shell, true)?.to_string()),
         }
     }
 }
