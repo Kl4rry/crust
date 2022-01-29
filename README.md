@@ -41,7 +41,6 @@ Capture output stream in each stack frame.
 Comparison operator chaining is currently permitted but should not be.  
 Parser can overflow when parsing number bigger then u128::MAX.
 Exit status is ignored everywere.
-Output is only printed when the program reaches its end because all output is caputured even if it is not in a subexpr or pipe.
 Null should be filter out when combining outputstreams (Maybe make a combine method on output stream and/or stream).
 Streams cannot be used like normal return values. They should be unpacked when used in a sub expr.
 Ctrl-C only works for external programs not infinte loops. Must insert points where the script can be preempted.
