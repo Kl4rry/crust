@@ -20,6 +20,8 @@ static BUILTIN_VARS: phf::Map<&'static str, BulitinVar> = phf_map! {
     "pwd" => pwd,
     "version" => version,
     "random" => random,
+    "lines" => lines,
+    "columns" => columns,
 };
 
 pub fn get_var(shell: &mut Shell, name: &str) -> Option<Value> {
@@ -94,4 +96,14 @@ pub fn family(_: &mut Shell) -> Value {
 pub fn random(_: &mut Shell) -> Value {
     let mut rng = rand::thread_rng();
     Value::Int(rng.gen_range(0..i64::MAX))
+}
+
+pub fn lines(_: &mut Shell) -> Value {
+    let (_, h) = crossterm::terminal::size().unwrap();
+    Value::Int(h as i64)
+}
+
+pub fn columns(_: &mut Shell) -> Value {
+    let (w, _) = crossterm::terminal::size().unwrap();
+    Value::Int(w as i64)
 }

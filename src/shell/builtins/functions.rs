@@ -16,7 +16,6 @@ mod echo;
 mod env;
 mod exit;
 mod pwd;
-mod size;
 mod unalias;
 
 pub type BulitinFn = fn(&mut Shell, &[String], ValueStream) -> Result<OutputStream, RunTimeError>;
@@ -27,8 +26,7 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "exit" => exit::exit,
     "cd" => cd::cd,
     "echo" => echo::echo,
-    /*"size" => size::size,
-    "alias" => alias::alias,
+    /*"alias" => alias::alias,
     "unalias" => unalias::unalias,
     "drop" => drop::drop,
     "env" => env::env,*/
