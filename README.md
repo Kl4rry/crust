@@ -29,7 +29,7 @@ This readme contains notes to myself.
 | Glob                            | ✅                            | ✅    |
 | Questionmark / single char glob | ✅                            | ✅    |
 | Bracket globing char            | ✅                            | ✅    |
-| $(expr)                         | ✅                            | ✅    |
+| Subexpr $(expr)                 | ✅                            | ✅    |
 | Assign and modify += *= etc     | ✅                            | ✅    |
 | run in background using &       | ❌                            | ❌    |
 | Escapes sequences               | ❌                            | ❌    |
