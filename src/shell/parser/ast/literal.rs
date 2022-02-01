@@ -1,5 +1,7 @@
 use std::convert::TryFrom;
 
+use num_bigint::BigUint;
+use num_traits::cast::ToPrimitive;
 use thin_string::ToThinString;
 use thin_vec::ThinVec;
 
@@ -19,7 +21,7 @@ pub enum Literal {
     Expand(Expand),
     List(Vec<Expr>),
     Float(f64),
-    Int(u128),
+    Int(BigUint),
     Bool(bool),
 }
 
@@ -44,7 +46,10 @@ impl Literal {
                 Ok(Value::List(values))
             }
             Literal::Float(number) => Ok(Value::Float(*number)),
-            Literal::Int(number) => Ok(Value::Int(*number as i64)),
+            Literal::Int(number) => match number.to_i64() {
+                Some(number) => Ok(Value::Int(number)),
+                None => Err(RunTimeError::IntegerOverFlow),
+            },
             Literal::Bool(boolean) => Ok(Value::Bool(*boolean)),
         }
     }

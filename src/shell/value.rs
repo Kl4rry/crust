@@ -1,4 +1,7 @@
-use std::{fmt::{self, Write}, ops::Range};
+use std::{
+    fmt::{self, Write},
+    ops::Range,
+};
 
 use thin_string::{ThinString, ToThinString};
 use thin_vec::{thin_vec, ThinVec};
@@ -74,7 +77,7 @@ impl fmt::Display for Value {
                 Ok(())
             }
             Self::Range(range) => {
-                for i in range.clone().into_iter() {
+                for i in range.clone() {
                     i.fmt(f)?;
                 }
                 Ok(())
@@ -83,7 +86,6 @@ impl fmt::Display for Value {
             Self::Null => Ok(()),
             Self::OutputStream(output) => output.fmt(f),
         }
-        
     }
 }
 

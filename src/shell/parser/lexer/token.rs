@@ -1,3 +1,4 @@
+use num_bigint::BigUint;
 pub mod span;
 
 use std::{convert::TryInto, mem};
@@ -28,7 +29,7 @@ pub enum TokenType {
     Variable(String),
     String(String),
     Float(f64, String),
-    Int(u128, String),
+    Int(BigUint, String),
     Cast(Type),
     Quote,
     NewLine,

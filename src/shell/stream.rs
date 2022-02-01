@@ -1,5 +1,7 @@
-use std::collections::{vec_deque, VecDeque};
-use std::fmt;
+use std::{
+    collections::{vec_deque, VecDeque},
+    fmt,
+};
 
 use super::value::Value;
 
@@ -44,7 +46,7 @@ impl fmt::Display for ValueStream {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for value in self.values.iter() {
             value.fmt(f)?;
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
         Ok(())
     }
@@ -54,7 +56,9 @@ impl IntoIterator for ValueStream {
     type Item = Value;
     type IntoIter = impl Iterator<Item = Value>;
     fn into_iter(self) -> Self::IntoIter {
-        self.values.into_iter().filter(|value| *value != Value::Null)
+        self.values
+            .into_iter()
+            .filter(|value| *value != Value::Null)
     }
 }
 

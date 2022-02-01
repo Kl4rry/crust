@@ -349,13 +349,11 @@ impl Expr {
                         run_pipeline(shell, execs, false, output.stream)?;
                         Ok(Value::OutputStream(P::new(OutputStream::default())))
                     }
+                } else if sub_expr {
+                    Ok(Value::OutputStream(P::new(output)))
                 } else {
-                    if sub_expr {
-                        Ok(Value::OutputStream(P::new(output)))
-                    } else {
-                        print!("{}", output);
-                        Ok(Value::Null)
-                    }
+                    print!("{}", output);
+                    Ok(Value::Null)
                 }
             }
             Self::SubExpr(expr) => expr.eval(shell, true),
