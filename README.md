@@ -44,6 +44,7 @@ Null should be filter out when combining outputstreams (Maybe make a combine met
 Streams cannot be used like normal return values. They should be unpacked when used in a sub expr.  
 Ctrl-C only works for external programs not infinte loops. Must insert points where the script can be preempted.  
 Arguments are always passed as strings to functions they should be passed as values (Building my own CLI arg parser?).  
+Some binary operations have unhelpful errors when the wrong types are used.  
 
 ## Questions to be answered
 Should lists expand to multiple arguments when passed to a function. Should this depend on if it is an internal or external command?
