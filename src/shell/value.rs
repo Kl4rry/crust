@@ -66,7 +66,7 @@ impl fmt::Display for Value {
             Self::String(string) => string.fmt(f),
             Self::List(list) => {
                 //f.write_char('[')?;
-                for value in list.into_iter() {
+                for value in list.iter() {
                     value.fmt(f)?;
                     f.write_char(' ')?;
                 }

@@ -28,7 +28,7 @@ impl Variable {
         }
 
         match std::env::var(&self.name) {
-            Ok(value) => Ok(Value::String(value.to_string())),
+            Ok(value) => Ok(Value::String(value)),
             Err(_) => Err(RunTimeError::VariableNotFound(self.name.clone())),
         }
     }

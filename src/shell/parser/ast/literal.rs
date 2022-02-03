@@ -27,7 +27,7 @@ impl Literal {
     pub fn eval(&self, shell: &mut Shell) -> Result<Value, RunTimeError> {
         match self {
             Literal::String(string) => Ok(Value::String(string.to_string())),
-            Literal::Expand(expand) => Ok(Value::String(expand.eval(shell)?.to_string())),
+            Literal::Expand(expand) => Ok(Value::String(expand.eval(shell)?)),
             Literal::List(list) => {
                 let mut values: Vec<Value> = Vec::new();
                 for expr in list.iter() {

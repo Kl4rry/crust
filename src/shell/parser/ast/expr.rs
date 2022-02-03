@@ -137,7 +137,7 @@ impl Expr {
                             to: *type_of,
                         }),
                     },
-                    Type::String => Ok(Value::String(value.to_string().to_string())),
+                    Type::String => Ok(Value::String(value.to_string())),
                     Type::List => match value {
                         Value::String(string) => Ok(Value::List(
                             string
@@ -337,8 +337,7 @@ impl Expr {
                     if sub_expr {
                         let value = Value::String(
                             run_pipeline(shell, execs, true, output.stream)?
-                                .unwrap()
-                                .to_string(),
+                                .unwrap(),
                         );
                         Ok(Value::OutputStream(P::new(OutputStream::new(
                             ValueStream::from_value(value),

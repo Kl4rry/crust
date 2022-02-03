@@ -32,7 +32,7 @@ pub fn is_builtin(name: &str) -> bool {
 }
 
 pub fn user(_: &mut Shell) -> Value {
-    Value::String(whoami::username().to_string())
+    Value::String(whoami::username())
 }
 
 pub fn pid(_: &mut Shell) -> Value {
@@ -40,7 +40,7 @@ pub fn pid(_: &mut Shell) -> Value {
 }
 
 pub fn hostname(_: &mut Shell) -> Value {
-    Value::String(whoami::devicename().to_string())
+    Value::String(whoami::devicename())
 }
 
 pub fn home(shell: &mut Shell) -> Value {
@@ -63,7 +63,7 @@ pub fn arch(_: &mut Shell) -> Value {
 }
 
 pub fn distro(_: &mut Shell) -> Value {
-    Value::String(whoami::distro().to_string())
+    Value::String(whoami::distro())
 }
 
 pub fn desktop(_: &mut Shell) -> Value {
