@@ -25,7 +25,6 @@ pub mod binop;
 use binop::BinOp;
 
 pub mod unop;
-use thin_string::{ThinString, ToThinString};
 use unop::UnOp;
 
 pub mod command;
@@ -138,12 +137,12 @@ impl Expr {
                             to: *type_of,
                         }),
                     },
-                    Type::String => Ok(Value::String(value.to_string().to_thin_string())),
+                    Type::String => Ok(Value::String(value.to_string().to_string())),
                     Type::List => match value {
                         Value::String(string) => Ok(Value::List(
                             string
                                 .chars()
-                                .map(|c| Value::String(ThinString::from(c)))
+                                .map(|c| Value::String(String::from(c)))
                                 .collect(),
                         )),
                         Value::Range(range) => Ok(Value::List(
@@ -287,7 +286,7 @@ impl Expr {
                                 let value = Value::String(
                                     run_pipeline(shell, execs, true, output.stream)?
                                         .unwrap()
-                                        .to_thin_string(),
+                                        .to_string(),
                                 );
                                 execs = Vec::new();
                                 ValueStream::from_value(value)
@@ -303,7 +302,7 @@ impl Expr {
                                 let value = Value::String(
                                     run_pipeline(shell, execs, true, output.stream)?
                                         .unwrap()
-                                        .to_thin_string(),
+                                        .to_string(),
                                 );
                                 execs = Vec::new();
                                 ValueStream::from_value(value)
@@ -316,7 +315,7 @@ impl Expr {
                                     Some(arg) => {
                                         input_vars.insert(
                                             var.name.clone(),
-                                            Value::String(arg.to_thin_string()),
+                                            Value::String(arg.to_string()),
                                         );
                                     }
                                     None => {
@@ -339,7 +338,7 @@ impl Expr {
                         let value = Value::String(
                             run_pipeline(shell, execs, true, output.stream)?
                                 .unwrap()
-                                .to_thin_string(),
+                                .to_string(),
                         );
                         Ok(Value::OutputStream(P::new(OutputStream::new(
                             ValueStream::from_value(value),

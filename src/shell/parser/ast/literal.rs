@@ -1,9 +1,7 @@
 use std::convert::TryFrom;
 
-use num_bigint::BigUint;
+use bigdecimal::num_bigint::BigUint;
 use num_traits::cast::ToPrimitive;
-use thin_string::ToThinString;
-use thin_vec::ThinVec;
 
 use crate::{
     parser::{
@@ -28,10 +26,10 @@ pub enum Literal {
 impl Literal {
     pub fn eval(&self, shell: &mut Shell) -> Result<Value, RunTimeError> {
         match self {
-            Literal::String(string) => Ok(Value::String(string.to_thin_string())),
-            Literal::Expand(expand) => Ok(Value::String(expand.eval(shell)?.to_thin_string())),
+            Literal::String(string) => Ok(Value::String(string.to_string())),
+            Literal::Expand(expand) => Ok(Value::String(expand.eval(shell)?.to_string())),
             Literal::List(list) => {
-                let mut values: ThinVec<Value> = ThinVec::new();
+                let mut values: Vec<Value> = Vec::new();
                 for expr in list.iter() {
                     let value = expr.eval(shell, false)?;
                     match value {

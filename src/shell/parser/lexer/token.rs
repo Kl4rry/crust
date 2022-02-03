@@ -1,4 +1,4 @@
-use num_bigint::BigUint;
+use bigdecimal::num_bigint::BigUint;
 pub mod span;
 
 use std::{convert::TryInto, mem};

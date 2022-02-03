@@ -1,7 +1,5 @@
 use std::convert::TryFrom;
 
-use thin_string::ToThinString;
-
 use crate::{
     parser::{
         lexer::token::{Token, TokenType},
@@ -30,7 +28,7 @@ impl Variable {
         }
 
         match std::env::var(&self.name) {
-            Ok(value) => Ok(Value::String(value.to_thin_string())),
+            Ok(value) => Ok(Value::String(value.to_string())),
             Err(_) => Err(RunTimeError::VariableNotFound(self.name.clone())),
         }
     }

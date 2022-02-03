@@ -1,6 +1,5 @@
 use phf::*;
 use rand::Rng;
-use thin_string::ToThinString;
 
 use crate::shell::{value::Value, Shell};
 
@@ -33,7 +32,7 @@ pub fn is_builtin(name: &str) -> bool {
 }
 
 pub fn user(_: &mut Shell) -> Value {
-    Value::String(whoami::username().to_thin_string())
+    Value::String(whoami::username().to_string())
 }
 
 pub fn pid(_: &mut Shell) -> Value {
@@ -41,7 +40,7 @@ pub fn pid(_: &mut Shell) -> Value {
 }
 
 pub fn hostname(_: &mut Shell) -> Value {
-    Value::String(whoami::devicename().to_thin_string())
+    Value::String(whoami::devicename().to_string())
 }
 
 pub fn home(shell: &mut Shell) -> Value {
@@ -51,24 +50,24 @@ pub fn home(shell: &mut Shell) -> Value {
             .as_os_str()
             .to_string_lossy()
             .as_ref()
-            .to_thin_string(),
+            .to_string(),
     )
 }
 
 pub fn os(_: &mut Shell) -> Value {
-    Value::String(std::env::consts::OS.to_thin_string())
+    Value::String(std::env::consts::OS.to_string())
 }
 
 pub fn arch(_: &mut Shell) -> Value {
-    Value::String(std::env::consts::ARCH.to_thin_string())
+    Value::String(std::env::consts::ARCH.to_string())
 }
 
 pub fn distro(_: &mut Shell) -> Value {
-    Value::String(whoami::distro().to_thin_string())
+    Value::String(whoami::distro().to_string())
 }
 
 pub fn desktop(_: &mut Shell) -> Value {
-    Value::String(whoami::desktop_env().to_thin_string())
+    Value::String(whoami::desktop_env().to_string())
 }
 
 pub fn status(shell: &mut Shell) -> Value {
@@ -81,16 +80,16 @@ pub fn pwd(_: &mut Shell) -> Value {
             .unwrap()
             .to_str()
             .unwrap()
-            .to_thin_string(),
+            .to_string(),
     )
 }
 
 pub fn version(_: &mut Shell) -> Value {
-    Value::String(env!("CARGO_PKG_VERSION").to_thin_string())
+    Value::String(env!("CARGO_PKG_VERSION").to_string())
 }
 
 pub fn family(_: &mut Shell) -> Value {
-    Value::String(std::env::consts::FAMILY.to_thin_string())
+    Value::String(std::env::consts::FAMILY.to_string())
 }
 
 pub fn random(_: &mut Shell) -> Value {

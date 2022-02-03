@@ -1,5 +1,3 @@
-use thin_string::ToThinString;
-
 use crate::{
     parser::runtime_error::RunTimeError,
     shell::{
@@ -31,7 +29,7 @@ pub fn exit(
     };
 
     if let Some(status) = matches.value_of("STATUS") {
-        shell.exit_status = match status.to_thin_string().parse() {
+        shell.exit_status = match status.to_string().parse() {
             Ok(number) => number,
             Err(_) => {
                 eprintln!("exit: STATUS must be integer");

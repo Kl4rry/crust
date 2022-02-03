@@ -1,5 +1,3 @@
-use thin_string::ThinString;
-
 use crate::{
     parser::runtime_error::RunTimeError,
     shell::{
@@ -17,7 +15,7 @@ pub fn pwd(_: &mut Shell, args: &[String], _: ValueStream) -> Result<OutputStrea
     let mut output = OutputStream::default();
 
     match matches {
-        Ok(_) => output.stream.push(Value::String(ThinString::from(
+        Ok(_) => output.stream.push(Value::String(String::from(
             std::env::current_dir().unwrap().to_str().unwrap(),
         ))),
         Err(clap::Error { message, .. }) => {

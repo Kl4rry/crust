@@ -3,9 +3,6 @@ use std::{
     ops::Range,
 };
 
-use thin_string::{ThinString, ToThinString};
-use thin_vec::{thin_vec, ThinVec};
-
 use super::stream::OutputStream;
 use crate::parser::{ast::expr::binop::BinOp, runtime_error::RunTimeError, P};
 
@@ -55,8 +52,8 @@ pub enum Value {
     Int(i64),
     Float(f64),
     Bool(bool),
-    String(ThinString),
-    List(ThinVec<Value>),
+    String(String),
+    List(Vec<Value>),
     Range(P<Range<i64>>),
     OutputStream(P<OutputStream>),
 }
@@ -147,12 +144,12 @@ impl Value {
         match self.as_ref() {
             Value::Int(number) => match rhs.as_ref() {
                 Value::List(rhs) => {
-                    let mut list: ThinVec<Value> = thin_vec![self];
+                    let mut list: Vec<Value> = vec![self];
                     list.extend(rhs.iter().cloned());
                     Ok(Value::List(list))
                 }
                 Value::String(string) => {
-                    let mut thin_string = number.to_thin_string();
+                    let mut thin_string = number.to_string();
                     thin_string.push_str(string);
                     Ok(Value::String(thin_string))
                 }
@@ -161,12 +158,12 @@ impl Value {
             },
             Value::Float(number) => match rhs.as_ref() {
                 Value::List(rhs) => {
-                    let mut list: ThinVec<Value> = thin_vec![self];
+                    let mut list: Vec<Value> = vec![self];
                     list.extend(rhs.iter().cloned());
                     Ok(Value::List(list))
                 }
                 Value::String(string) => {
-                    let mut thin_string = number.to_thin_string();
+                    let mut thin_string = number.to_string();
                     thin_string.push_str(string);
                     Ok(Value::String(thin_string))
                 }
@@ -174,13 +171,13 @@ impl Value {
             },
             Value::Bool(boolean) => match rhs.as_ref() {
                 Value::List(rhs) => {
-                    let mut list: ThinVec<Value> = thin_vec![self];
+                    let mut list: Vec<Value> = vec![self];
                     list.extend(rhs.iter().cloned());
                     Ok(Value::List(list))
                 }
                 Value::Float(rhs) => Ok(Value::Float(*boolean as i64 as f64 + *rhs)),
                 Value::String(string) => {
-                    let mut thin_string = boolean.to_thin_string();
+                    let mut thin_string = boolean.to_string();
                     thin_string.push_str(string);
                     Ok(Value::String(thin_string))
                 }
@@ -188,7 +185,7 @@ impl Value {
             },
             Value::String(string) => {
                 if let Value::List(rhs) = rhs.as_ref() {
-                    let mut list: ThinVec<Value> = thin_vec![self.clone()];
+                    let mut list: Vec<Value> = vec![self.clone()];
                     list.extend(rhs.iter().cloned());
                     return Ok(Value::List(list));
                 }
@@ -246,7 +243,7 @@ impl Value {
                 Value::Int(rhs) => Ok(Value::Int(number * rhs)),
                 Value::Float(rhs) => Ok(Value::Float(*number as f64 * rhs)),
                 Value::String(string) => {
-                    let mut new = ThinString::new();
+                    let mut new = String::new();
                     for _ in 0..*number {
                         new.push_str(string);
                     }
@@ -263,7 +260,7 @@ impl Value {
                 Value::Int(rhs) => Ok(Value::Int(*boolean as i64 * rhs)),
                 Value::Float(rhs) => Ok(Value::Float(*boolean as i64 as f64 * rhs)),
                 Value::String(string) => {
-                    let mut new = ThinString::new();
+                    let mut new = String::new();
                     for _ in 0..*boolean as i64 {
                         new.push_str(string);
                     }
@@ -276,7 +273,7 @@ impl Value {
                 )),
             },
             Value::String(string) => {
-                let mut new = ThinString::new();
+                let mut new = String::new();
                 let mul = rhs.try_as_int()?;
                 for _ in 0..mul {
                     new.push_str(string);
@@ -284,7 +281,7 @@ impl Value {
                 Ok(Value::String(new))
             }
             Value::List(list) => {
-                let mut new = ThinVec::new();
+                let mut new = Vec::new();
                 let mul = rhs.try_as_int()?;
                 for _ in 0..mul {
                     new.extend_from_slice(list);

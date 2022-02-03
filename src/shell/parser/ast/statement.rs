@@ -1,7 +1,5 @@
 use std::{collections::HashMap, rc::Rc};
 
-use thin_string::ThinString;
-
 use crate::{
     parser::{
         ast::{expr::Expr, Block, Variable},
@@ -83,7 +81,7 @@ impl Statement {
                         .last_mut()
                         .expect("stack is empty this should be impossible")
                         .variables
-                        .insert(var.name.clone(), Value::String(ThinString::from("")));
+                        .insert(var.name.clone(), Value::String(String::from("")));
                 }
                 Ok(Value::Null)
             }
@@ -176,7 +174,7 @@ impl Statement {
                     Value::String(string) => {
                         for c in string.chars() {
                             let mut variables: HashMap<String, Value> = HashMap::new();
-                            let item: Value = Value::String(ThinString::from(c));
+                            let item: Value = Value::String(String::from(c));
                             variables.insert(name.clone(), item.clone());
                             match block.eval(shell, Some(variables), None) {
                                 Ok(stream) => collection.extend(stream.into_iter()),

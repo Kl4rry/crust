@@ -35,6 +35,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
+name = "bigdecimal"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6aaf33151a6429fe9211d1b276eafdf70cdff28b071e76c0b0e1503221ea3744"
+dependencies = [
+ "num-bigint",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -120,6 +131,7 @@ name = "crust"
 version = "0.1.0"
 dependencies = [
  "ansi-escapes",
+ "bigdecimal",
  "bytecount",
  "clap",
  "crossterm",
@@ -128,15 +140,12 @@ dependencies = [
  "dirs",
  "glob",
  "nix 0.22.3",
- "num-bigint",
  "num-traits",
  "phf",
  "rand",
  "rustyline",
  "slab",
  "subprocess",
- "thin-string",
- "thin-vec",
  "timing",
  "whoami",
  "winapi",
@@ -752,21 +761,6 @@ checksum = "d326610f408c7a4eb6f51c37c330e496b08506c9457c9d34287ecc38809fb060"
 dependencies = [
  "unicode-width",
 ]
-
-[[package]]
-name = "thin-string"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "775bece8430d29006cdab96224a2156bb2c678afdd71e87b0c29b714e3721ab3"
-dependencies = [
- "thin-vec",
-]
-
-[[package]]
-name = "thin-vec"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0579a04d7334e62fa087222544f379bbe99d4c9b2f13f2b4737f717a1ea627ea"
 
 [[package]]
 name = "timing"
