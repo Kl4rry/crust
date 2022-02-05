@@ -24,7 +24,7 @@ This readme contains notes to myself.
 | Alias                           | ✅                            | ✅    |
 | Lists                           | ✅                            | ✅    |
 | Indexing/Slicing                | ❌                            | ❌    |
-| Maps/Tables                            | ❌                            | ❌    |
+| Maps/Tables                     | ❌                            | ❌    |
 | Pipes                           | ✅ (Not \| & aka stderr pipe) | ❌    |
 | Glob                            | ✅                            | ✅    |
 | Questionmark / single char glob | ✅                            | ✅    |
