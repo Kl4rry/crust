@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use bigdecimal::num_bigint::BigUint;
+use bigdecimal::{num_bigint::BigUint, BigDecimal};
 use num_traits::cast::ToPrimitive;
 
 use crate::{
@@ -18,7 +18,7 @@ pub enum Literal {
     String(String),
     Expand(Expand),
     List(Vec<Expr>),
-    Float(f64),
+    Float(BigDecimal),
     Int(BigUint),
     Bool(bool),
 }
@@ -43,7 +43,7 @@ impl Literal {
                 }
                 Ok(Value::List(values))
             }
-            Literal::Float(number) => Ok(Value::Float(*number)),
+            Literal::Float(number) => Ok(Value::Float(number.to_f64().unwrap())),
             Literal::Int(number) => match number.to_i64() {
                 Some(number) => Ok(Value::Int(number)),
                 None => Err(RunTimeError::IntegerOverFlow),

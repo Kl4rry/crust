@@ -1,4 +1,4 @@
-use bigdecimal::num_bigint::BigUint;
+use bigdecimal::{num_bigint::BigUint, BigDecimal};
 pub mod span;
 
 use std::{convert::TryInto, mem};
@@ -28,7 +28,7 @@ pub enum TokenType {
     Symbol(String),
     Variable(String),
     String(String),
-    Float(f64, String),
+    Float(BigDecimal, String),
     Int(BigUint, String),
     Cast(Type),
     Quote,
