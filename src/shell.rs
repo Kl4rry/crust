@@ -26,7 +26,7 @@ pub fn clear_str() -> &'static str {
 
 pub struct Shell {
     running: bool,
-    exit_status: i64,
+    exit_status: i128,
     home_dir: PathBuf,
     history_file: PathBuf,
     child_id: Arc<Mutex<Option<u32>>>,
@@ -70,7 +70,7 @@ impl Shell {
         }
     }
 
-    pub fn run_src(mut self, src: String) -> i64 {
+    pub fn run_src(mut self, src: String) -> i128 {
         let mut parser = Parser::new(src);
         match parser.parse() {
             Ok(ast) => {
@@ -90,7 +90,7 @@ impl Shell {
         self.exit_status
     }
 
-    pub fn run(mut self) -> i64 {
+    pub fn run(mut self) -> i128 {
         (execute! {
             stdout(),
             Print(clear_str()),

@@ -51,12 +51,12 @@ impl fmt::Display for Type {
 #[derive(Debug, Clone)]
 pub enum Value {
     Null,
-    Int(i64),
+    Int(i128),
     Float(f64),
     Bool(bool),
     String(String),
     List(Vec<Value>),
-    Range(P<Range<i64>>),
+    Range(P<Range<i128>>),
     OutputStream(P<OutputStream>),
 }
 
@@ -94,7 +94,7 @@ impl PartialEq for Value {
             Value::Int(number) => match other {
                 Value::Float(rhs) => *number as f64 == *rhs,
                 Value::Int(rhs) => number == rhs,
-                Value::Bool(rhs) => *number == *rhs as i64,
+                Value::Bool(rhs) => *number == *rhs as i128,
                 _ => false,
             },
             Value::Float(number) => match other {
@@ -105,7 +105,7 @@ impl PartialEq for Value {
             },
             Value::Bool(boolean) => match other {
                 Value::Float(rhs) => *boolean as u8 as f64 == *rhs,
-                Value::Int(rhs) => *boolean as i64 == *rhs,
+                Value::Int(rhs) => *boolean as i128 == *rhs,
                 Value::Bool(rhs) => boolean == rhs,
                 Value::String(string) => string.is_empty() != *boolean,
                 Value::List(list) => list.is_empty() != *boolean,
@@ -183,7 +183,7 @@ impl Value {
                 }
                 Value::Float(rhs) => Ok(Value::Float(*boolean as u8 as f64 + *rhs)),
                 _ => match rhs.try_as_int() {
-                    Some(rhs) => Ok(Value::Int((*boolean as i64).wrapping_add(rhs))),
+                    Some(rhs) => Ok(Value::Int((*boolean as i128).wrapping_add(rhs))),
                     None => Err(RunTimeError::InvalidBinaryOperand(
                         BinOp::Add,
                         self.to_type(),
@@ -246,7 +246,7 @@ impl Value {
                 )),
             },
             Value::Bool(boolean) => match rhs.as_ref() {
-                Value::Int(rhs) => Ok(Value::Int((*boolean as i64).wrapping_sub(*rhs))),
+                Value::Int(rhs) => Ok(Value::Int((*boolean as i128).wrapping_sub(*rhs))),
                 Value::Float(rhs) => Ok(Value::Float(*boolean as u8 as f64 - rhs)),
                 _ => Err(RunTimeError::InvalidBinaryOperand(
                     BinOp::Sub,
@@ -315,11 +315,11 @@ impl Value {
                 )),
             },
             Value::Bool(boolean) => match rhs.as_ref() {
-                Value::Int(rhs) => Ok(Value::Int((*boolean as i64).wrapping_mul(*rhs))),
+                Value::Int(rhs) => Ok(Value::Int((*boolean as i128).wrapping_mul(*rhs))),
                 Value::Float(rhs) => Ok(Value::Float(*boolean as u8 as f64 * rhs)),
                 Value::String(string) => {
                     let mut new = String::new();
-                    for _ in 0..*boolean as i64 {
+                    for _ in 0..*boolean as i128 {
                         new.push_str(string);
                     }
                     Ok(Value::String(new))
@@ -494,10 +494,10 @@ impl Value {
         }
     }
 
-    pub fn try_as_int(&self) -> Option<i64> {
+    pub fn try_as_int(&self) -> Option<i128> {
         match self {
             Self::Int(number) => Some(*number),
-            Self::Bool(boolean) => Some(*boolean as i64),
+            Self::Bool(boolean) => Some(*boolean as i128),
             _ => None,
         }
     }

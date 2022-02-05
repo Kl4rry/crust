@@ -2,7 +2,7 @@ use std::io::Write;
 
 use crate::{parser::runtime_error::RunTimeError, shell::Shell};
 
-pub fn _env(_: &mut Shell, args: &[String], out: &mut dyn Write) -> Result<i64, RunTimeError> {
+pub fn _env(_: &mut Shell, args: &[String], out: &mut dyn Write) -> Result<i128, RunTimeError> {
     let matches = clap::App::new("env")
         .about("List all environment variable")
         .settings(&[clap::AppSettings::NoBinaryName])

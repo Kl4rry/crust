@@ -44,7 +44,7 @@ impl Literal {
                 Ok(Value::List(values))
             }
             Literal::Float(number) => Ok(Value::Float(number.to_f64().unwrap())),
-            Literal::Int(number) => match number.to_i64() {
+            Literal::Int(number) => match number.to_i128() {
                 Some(number) => Ok(Value::Int(number)),
                 None => Err(RunTimeError::IntegerOverFlow),
             },

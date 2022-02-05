@@ -6,7 +6,7 @@ pub fn _unalias(
     shell: &mut Shell,
     args: &[String],
     _: &mut dyn Write,
-) -> Result<i64, RunTimeError> {
+) -> Result<i128, RunTimeError> {
     let matches = clap::App::new("unalias")
         .about("set alias")
         .arg(

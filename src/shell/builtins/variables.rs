@@ -41,7 +41,7 @@ pub fn user(_: &mut Shell) -> Value {
 }
 
 pub fn pid(_: &mut Shell) -> Value {
-    Value::Int(std::process::id() as i64)
+    Value::Int(std::process::id() as i128)
 }
 
 pub fn hostname(_: &mut Shell) -> Value {
@@ -99,15 +99,15 @@ pub fn family(_: &mut Shell) -> Value {
 
 pub fn random(_: &mut Shell) -> Value {
     let mut rng = rand::thread_rng();
-    Value::Int(rng.gen_range(0..i64::MAX))
+    Value::Int(rng.gen_range(0..i128::MAX))
 }
 
 pub fn lines(_: &mut Shell) -> Value {
     let (_, h) = crossterm::terminal::size().unwrap();
-    Value::Int(h as i64)
+    Value::Int(h as i128)
 }
 
 pub fn columns(_: &mut Shell) -> Value {
     let (w, _) = crossterm::terminal::size().unwrap();
-    Value::Int(w as i64)
+    Value::Int(w as i128)
 }

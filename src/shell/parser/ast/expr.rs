@@ -44,7 +44,7 @@ macro_rules! compare_impl {
                 Value::Int(number) => match rhs.as_ref() {
                     Value::Int(rhs) => Ok(Value::Bool(number $op rhs)),
                     Value::Float(rhs) => Ok(Value::Bool((*number as f64) $op *rhs)),
-                    Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as i64)),
+                    Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as i128)),
                     _ => Err(RunTimeError::InvalidBinaryOperand(
                         binop,
                         lhs.to_type(),
@@ -62,7 +62,7 @@ macro_rules! compare_impl {
                     )),
                 },
                 Value::Bool(boolean) => match rhs.as_ref() {
-                    Value::Int(rhs) => Ok(Value::Bool((*boolean as i64) $op *rhs)),
+                    Value::Int(rhs) => Ok(Value::Bool((*boolean as i128) $op *rhs)),
                     Value::Float(rhs) => Ok(Value::Bool((*boolean as u8 as f64) $op *rhs)),
                     Value::Bool(rhs) => Ok(Value::Bool(*boolean $op *rhs)),
                     _ => Err(RunTimeError::InvalidBinaryOperand(
