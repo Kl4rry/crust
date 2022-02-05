@@ -6,6 +6,7 @@ use std::{
 };
 
 use crossterm::{execute, style::Print, terminal::SetTitle};
+use miette::{Diagnostic, GraphicalReportHandler};
 use rustyline::{config::BellStyle, error::ReadlineError, Editor};
 
 pub mod builtins;
@@ -70,8 +71,8 @@ impl Shell {
         }
     }
 
-    pub fn run_src(mut self, src: String) -> i128 {
-        let mut parser = Parser::new(src);
+    pub fn run_src(mut self, src: String, name: String) -> i128 {
+        let mut parser = Parser::new(src, name);
         match parser.parse() {
             Ok(ast) => {
                 let res = ast.eval(&mut self);
@@ -83,9 +84,7 @@ impl Shell {
                     Err(error) => eprintln!("{}", error),
                 }
             }
-            Err(error) => {
-                eprintln!("{}", error)
-            }
+            Err(error) => report_error(error),
         };
         self.exit_status
     }
@@ -116,7 +115,7 @@ impl Shell {
                     }
 
                     editor.add_history_entry(&line);
-                    let mut parser = Parser::new(line);
+                    let mut parser = Parser::new(line, String::from("shell"));
                     match parser.parse() {
                         Ok(ast) => {
                             let res = ast.eval(&mut self);
@@ -128,9 +127,7 @@ impl Shell {
                                 Err(error) => eprintln!("{}", error),
                             }
                         }
-                        Err(error) => {
-                            eprintln!("{}", error)
-                        }
+                        Err(error) => report_error(error),
                     };
                 }
                 Err(ReadlineError::Interrupted) => {
@@ -177,4 +174,11 @@ impl Default for Shell {
     fn default() -> Self {
         Self::new()
     }
+}
+
+pub fn report_error(error: impl Diagnostic) {
+    let mut output = String::new();
+    let report = GraphicalReportHandler::new();
+    report.render_report(&mut output, &error).unwrap();
+    eprintln!("{}", output);
 }

@@ -34,13 +34,14 @@ pub type P<T> = Box<T>;
 pub struct Parser {
     token: Option<Token>,
     lexer: Lexer,
+    name: String,
 }
 
 impl Parser {
-    pub fn new(src: String) -> Self {
+    pub fn new(src: String, name: String) -> Self {
         let mut lexer = Lexer::new(src);
         let token = lexer.next();
-        Self { lexer, token }
+        Self { lexer, token, name }
     }
 
     fn src(&self) -> &str {
@@ -120,7 +121,11 @@ impl Parser {
     pub fn parse(&mut self) -> std::result::Result<Ast, SyntaxError> {
         match self.parse_sequence(false) {
             Ok(sequence) => Ok(Ast { sequence }),
-            Err(error) => Err(SyntaxError::new(error, self.src())),
+            Err(error) => Err(SyntaxError::new(
+                error,
+                self.src().to_string(),
+                self.name.clone(),
+            )),
         }
     }
 

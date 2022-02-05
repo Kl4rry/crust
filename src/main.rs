@@ -17,12 +17,26 @@ fn main() -> Result<(), std::io::Error> {
                 .help("Input script file")
                 .required(false),
         )
+        .arg(
+            Arg::with_name("COMMAND")
+                .short("c")
+                .long("command")
+                .help("Command")
+                .conflicts_with("INPUT")
+                .takes_value(true)
+                .required(false),
+        )
         .get_matches();
 
     let shell = Shell::new();
+
     let status = match matches.value_of("INPUT") {
-        Some(input) => shell.run_src(fs::read_to_string(input)?),
-        None => shell.run(),
+        Some(input) => shell.run_src(fs::read_to_string(input)?, String::from(input)),
+        None => match matches.value_of("COMMAND") {
+            Some(command) => shell.run_src(command.to_string(), String::from("shell")),
+            None => shell.run(),
+        },
     };
+
     std::process::exit(status as i32);
 }

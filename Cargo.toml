@@ -15,6 +15,7 @@ ctrlc = "3.2.0"
 directories = "3.0.1"
 dirs = "3.0.1"
 glob = "0.3.0"
+miette = { version = "3.3.0", features = ["fancy"] }
 num-traits = "0.2.14"
 phf = { version = "0.10.0", features = ["macros"] }
 rand = "0.8.4"
@@ -24,6 +25,7 @@ subprocess = "0.2.8"
 timing = "*"
 whoami = "1.1.1"
 yansi = "0.5.0"
+thiserror = "1.0.30"
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.3.9"
