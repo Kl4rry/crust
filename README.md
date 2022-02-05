@@ -48,4 +48,8 @@ Check for overflowing, div by zero and use wrapping/checked arthimetic operation
 
 ## Questions to be answered
 Should lists expand to multiple arguments when passed to a function. Should this depend on if it is an internal or external command?  
-Should return take a expr as optional parameter?
+Should return take a expr as optional parameter?  
+
+## Ideas
+All env variables should be stored in the same way as normal variable only with a flag. When a process is started all env variables in scope should be collected and passed to the child.
+
