@@ -3,6 +3,8 @@ use std::{
     ops::Range,
 };
 
+use num_traits::ops::wrapping::{WrappingAdd, WrappingMul, WrappingSub};
+
 use super::stream::OutputStream;
 use crate::parser::{ast::expr::binop::BinOp, runtime_error::RunTimeError, P};
 
@@ -150,7 +152,7 @@ impl Value {
                 }
                 Value::Float(rhs) => Ok(Value::Float(*number as f64 + *rhs)),
                 _ => match rhs.try_as_int() {
-                    Some(rhs) => Ok(Value::Int(number + rhs)),
+                    Some(rhs) => Ok(Value::Int(number.wrapping_add(&rhs))),
                     None => Err(RunTimeError::InvalidBinaryOperand(
                         BinOp::Add,
                         self.to_type(),
@@ -181,7 +183,7 @@ impl Value {
                 }
                 Value::Float(rhs) => Ok(Value::Float(*boolean as u8 as f64 + *rhs)),
                 _ => match rhs.try_as_int() {
-                    Some(rhs) => Ok(Value::Int(*boolean as i64 + rhs)),
+                    Some(rhs) => Ok(Value::Int((*boolean as i64).wrapping_add(rhs))),
                     None => Err(RunTimeError::InvalidBinaryOperand(
                         BinOp::Add,
                         self.to_type(),
@@ -227,7 +229,7 @@ impl Value {
     pub fn try_sub(self, rhs: Value) -> Result<Value, RunTimeError> {
         match self.as_ref() {
             Value::Int(number) => match rhs.as_ref() {
-                Value::Int(rhs) => Ok(Value::Int(number - rhs)),
+                Value::Int(rhs) => Ok(Value::Int(number.wrapping_sub(rhs))),
                 Value::Float(rhs) => Ok(Value::Float(*number as f64 - rhs)),
                 _ => Err(RunTimeError::InvalidBinaryOperand(
                     BinOp::Sub,
@@ -244,7 +246,7 @@ impl Value {
                 )),
             },
             Value::Bool(boolean) => match rhs.as_ref() {
-                Value::Int(rhs) => Ok(Value::Int(*boolean as i64 - rhs)),
+                Value::Int(rhs) => Ok(Value::Int((*boolean as i64).wrapping_sub(*rhs))),
                 Value::Float(rhs) => Ok(Value::Float(*boolean as u8 as f64 - rhs)),
                 _ => Err(RunTimeError::InvalidBinaryOperand(
                     BinOp::Sub,
@@ -263,7 +265,7 @@ impl Value {
     pub fn try_mul(self, rhs: Value) -> Result<Value, RunTimeError> {
         match self.as_ref() {
             Value::Int(number) => match rhs.as_ref() {
-                Value::Int(rhs) => Ok(Value::Int(number * rhs)),
+                Value::Int(rhs) => Ok(Value::Int(number.wrapping_mul(rhs))),
                 Value::Float(rhs) => Ok(Value::Float(*number as f64 * rhs)),
                 Value::String(string) => {
                     if string.is_empty() {
@@ -313,7 +315,7 @@ impl Value {
                 )),
             },
             Value::Bool(boolean) => match rhs.as_ref() {
-                Value::Int(rhs) => Ok(Value::Int(*boolean as i64 * rhs)),
+                Value::Int(rhs) => Ok(Value::Int((*boolean as i64).wrapping_mul(*rhs))),
                 Value::Float(rhs) => Ok(Value::Float(*boolean as u8 as f64 * rhs)),
                 Value::String(string) => {
                     let mut new = String::new();
