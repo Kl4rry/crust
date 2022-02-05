@@ -54,7 +54,7 @@ macro_rules! compare_impl {
                 Value::Float(number) => match rhs.as_ref() {
                     Value::Int(rhs) => Ok(Value::Bool(*number $op *rhs as f64)),
                     Value::Float(rhs) => Ok(Value::Bool(number $op rhs)),
-                    Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as i64 as f64)),
+                    Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as u8 as f64)),
                     _ => Err(RunTimeError::InvalidBinaryOperand(
                         binop,
                         lhs.to_type(),
@@ -63,7 +63,7 @@ macro_rules! compare_impl {
                 },
                 Value::Bool(boolean) => match rhs.as_ref() {
                     Value::Int(rhs) => Ok(Value::Bool((*boolean as i64) $op *rhs)),
-                    Value::Float(rhs) => Ok(Value::Bool((*boolean as i64 as f64) $op *rhs)),
+                    Value::Float(rhs) => Ok(Value::Bool((*boolean as u8 as f64) $op *rhs)),
                     Value::Bool(rhs) => Ok(Value::Bool(*boolean $op *rhs)),
                     _ => Err(RunTimeError::InvalidBinaryOperand(
                         binop,
@@ -177,9 +177,25 @@ impl Expr {
             Self::Paren(expr) => expr.eval(shell, sub_expr),
             Self::Binary(binop, lhs, rhs) => match binop {
                 BinOp::Range => {
-                    let lhs = lhs.eval(shell, false)?.try_as_int()?;
-                    let rhs = rhs.eval(shell, false)?.try_as_int()?;
-                    Ok(Value::Range(P::new(lhs..rhs)))
+                    let lhs_value = lhs.eval(shell, false)?;
+                    let rhs_value = rhs.eval(shell, false)?;
+
+                    let lhs = lhs_value.try_as_int();
+                    let rhs = rhs_value.try_as_int();
+
+                    if lhs.is_none() || rhs.is_none() {
+                        return Err(RunTimeError::InvalidBinaryOperand(
+                            BinOp::Range,
+                            lhs_value.to_type(),
+                            rhs_value.to_type(),
+                        ));
+                    }
+
+                    unsafe {
+                        let lhs = lhs.unwrap_unchecked();
+                        let rhs = rhs.unwrap_unchecked();
+                        Ok(Value::Range(P::new(lhs..rhs)))
+                    }
                 }
                 BinOp::Add => {
                     let lhs = lhs.eval(shell, false)?;
