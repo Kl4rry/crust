@@ -336,8 +336,7 @@ impl Expr {
                 if !execs.is_empty() {
                     if sub_expr {
                         let value = Value::String(
-                            run_pipeline(shell, execs, true, output.stream)?
-                                .unwrap(),
+                            run_pipeline(shell, execs, true, output.stream)?.unwrap(),
                         );
                         Ok(Value::OutputStream(P::new(OutputStream::new(
                             ValueStream::from_value(value),

@@ -181,6 +181,13 @@ impl Lexer {
             && !self.eof
         {
             if self.current == b'.' {
+                if float {
+                    let end = self.index;
+                    return Token {
+                        token_type: TokenType::Symbol(self.src[start..end].to_string()),
+                        span: Span::new(start, end),
+                    };
+                }
                 float = true;
             }
             if self.current != b'_' {
