@@ -448,7 +448,7 @@ impl Value {
     pub fn try_mod(self, rhs: Value) -> Result<Value, RunTimeError> {
         match self.as_ref() {
             Value::Int(number) => match rhs.as_ref() {
-                Value::Int(rhs) => Ok(Value::Int(number % rhs)),
+                Value::Int(rhs) => Ok(Value::Float(*number as f64 % *rhs as f64)),
                 Value::Float(rhs) => Ok(Value::Float(*number as f64 % rhs)),
                 _ => Err(RunTimeError::InvalidBinaryOperand(
                     BinOp::Mod,
@@ -465,7 +465,7 @@ impl Value {
                 )),
             },
             Value::Bool(boolean) => match rhs.as_ref() {
-                Value::Int(rhs) => Ok(Value::Int(*boolean as i64 % rhs)),
+                Value::Int(rhs) => Ok(Value::Float(*boolean as u8 as f64 % *rhs as f64)),
                 Value::Float(rhs) => Ok(Value::Float(*boolean as u8 as f64 % rhs)),
                 _ => Err(RunTimeError::InvalidBinaryOperand(
                     BinOp::Mod,
