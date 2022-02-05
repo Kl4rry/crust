@@ -63,6 +63,9 @@ impl Block {
         variables: Option<HashMap<String, Value>>,
         input: Option<ValueStream>,
     ) -> Result<OutputStream, RunTimeError> {
+        if shell.stack.len() == shell.recursion_limit {
+            return Err(RunTimeError::MaxRecursion(shell.recursion_limit));
+        } 
         shell.stack.push(Frame::new(
             variables.unwrap_or_default(),
             HashMap::new(),

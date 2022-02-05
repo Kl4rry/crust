@@ -33,6 +33,7 @@ pub struct Shell {
     child_id: Arc<Mutex<Option<u32>>>,
     stack: Vec<Frame>,
     aliases: HashMap<String, String>,
+    recursion_limit: usize,
 }
 
 impl Shell {
@@ -68,6 +69,7 @@ impl Shell {
             child_id,
             stack: vec![Frame::default()],
             aliases: HashMap::new(),
+            recursion_limit: 1000,
         }
     }
 
