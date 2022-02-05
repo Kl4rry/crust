@@ -186,7 +186,6 @@ dependencies = [
  "rustyline",
  "slab",
  "subprocess",
- "thiserror",
  "timing",
  "whoami",
  "winapi",

@@ -1,7 +1,6 @@
 use std::{error::Error, fmt};
 
 use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
-use thiserror::Error;
 
 use super::lexer::token::{span::Span, Token};
 
@@ -22,13 +21,14 @@ impl fmt::Display for SyntaxErrorKind {
 
 impl Error for SyntaxErrorKind {}
 
-#[derive(Error, Debug)]
-#[error("Syntax Error")]
+#[derive(Debug)]
 pub struct SyntaxError {
     pub error: SyntaxErrorKind,
     pub src: NamedSource,
     pub len: usize,
 }
+
+impl Error for SyntaxError {}
 
 impl Diagnostic for SyntaxError {
     fn labels(&self) -> Option<Box<dyn Iterator<Item = LabeledSpan> + '_>> {
@@ -44,12 +44,12 @@ impl Diagnostic for SyntaxError {
         Some(Box::new(vec![label].into_iter()))
     }
 
-    fn severity(&self) -> Option<miette::Severity> {
-        None
+    fn code<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+        Some(Box::new("Syntax Error")) 
     }
 
-    fn help<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
-        None
+    fn severity(&self) -> Option<miette::Severity> {
+        Some(miette::Severity::Error)
     }
 
     fn source_code(&self) -> Option<&dyn miette::SourceCode> {
@@ -63,6 +63,15 @@ impl SyntaxError {
             error,
             len: src.len(),
             src: NamedSource::new(name, src),
+        }
+    }
+}
+
+impl fmt::Display for SyntaxError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        match self.error {
+            SyntaxErrorKind::UnexpectedToken(_) => f.write_str("Unexpected token"),
+            SyntaxErrorKind::ExpectedToken => f.write_str("Expected token"),
         }
     }
 }
