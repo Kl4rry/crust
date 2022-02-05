@@ -19,6 +19,9 @@ pub enum RunTimeError {
     Return(Option<Value>),
     Continue,
 
+    // Interrupt indicates that the user has pressed ctrl-c
+    Interrupt,
+
     // real errors
     NoMatch(String),
     MaxRecursion(usize),
@@ -61,6 +64,7 @@ impl fmt::Display for RunTimeError {
             Self::NoMatch(pattern) => write!(f, "no match found for pattern: '{}'", pattern),
             Self::VariableNotFound(name) => write!(f, "variable with name: '{}' not found", name),
             Self::IntegerOverFlow => write!(f, "integer literal too large"),
+            Self::Interrupt => write!(f, "^C"),
             Self::InvalidPipelineInput { expected, got } => {
                 write!(f, "pipeline expected '{}' recived '{}'", expected, got)
             }

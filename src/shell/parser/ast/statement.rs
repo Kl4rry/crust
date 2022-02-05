@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, rc::Rc, sync::atomic::Ordering};
 
 use crate::{
     parser::{
@@ -134,6 +134,9 @@ impl Statement {
                 }
             }
             Self::Loop(block) => loop {
+                if shell.interrupt.load(Ordering::SeqCst) {
+                    return Err(RunTimeError::Interrupt);
+                }
                 let mut collection = OutputStream::default();
                 match block.eval(shell, None, None) {
                     Ok(stream) => collection.extend(stream.into_iter()),
@@ -145,6 +148,10 @@ impl Statement {
             Self::While(condition, block) => {
                 let mut collection = OutputStream::default();
                 while condition.eval(shell, false)?.truthy() {
+                    if shell.interrupt.load(Ordering::SeqCst) {
+                        return Err(RunTimeError::Interrupt);
+                    }
+
                     match block.eval(shell, None, None) {
                         Ok(stream) => collection.extend(stream.into_iter()),
                         Err(RunTimeError::Break) => break,
@@ -161,6 +168,10 @@ impl Statement {
                 match value {
                     Value::List(list) => {
                         for item in list.iter() {
+                            if shell.interrupt.load(Ordering::SeqCst) {
+                                return Err(RunTimeError::Interrupt);
+                            }
+
                             let mut variables: HashMap<String, Value> = HashMap::new();
                             variables.insert(name.clone(), item.clone());
                             match block.eval(shell, Some(variables), None) {
@@ -173,6 +184,10 @@ impl Statement {
                     }
                     Value::String(string) => {
                         for c in string.chars() {
+                            if shell.interrupt.load(Ordering::SeqCst) {
+                                return Err(RunTimeError::Interrupt);
+                            }
+
                             let mut variables: HashMap<String, Value> = HashMap::new();
                             let item: Value = Value::String(String::from(c));
                             variables.insert(name.clone(), item.clone());
@@ -186,6 +201,10 @@ impl Statement {
                     }
                     Value::Range(range) => {
                         for i in (*range).clone() {
+                            if shell.interrupt.load(Ordering::SeqCst) {
+                                return Err(RunTimeError::Interrupt);
+                            }
+
                             let mut variables: HashMap<String, Value> = HashMap::new();
                             let item: Value = Value::Int(i);
                             variables.insert(name.clone(), item.clone());

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::atomic::Ordering};
 
 use crate::{
     parser::runtime_error::RunTimeError,
@@ -65,7 +65,7 @@ impl Block {
     ) -> Result<OutputStream, RunTimeError> {
         if shell.stack.len() == shell.recursion_limit {
             return Err(RunTimeError::MaxRecursion(shell.recursion_limit));
-        } 
+        }
         shell.stack.push(Frame::new(
             variables.unwrap_or_default(),
             HashMap::new(),
@@ -73,6 +73,9 @@ impl Block {
         ));
         let mut output = OutputStream::default();
         for compound in &self.sequence {
+            if shell.interrupt.load(Ordering::SeqCst) {
+                return Err(RunTimeError::Interrupt);
+            }
             let value = match compound {
                 Compound::Expr(expr) => expr.eval(shell, false)?,
                 Compound::Statement(statement) => statement.eval(shell)?,

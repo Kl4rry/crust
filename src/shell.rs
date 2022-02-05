@@ -2,7 +2,10 @@ use std::{
     collections::HashMap,
     io::stdout,
     path::PathBuf,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex, MutexGuard,
+    },
 };
 
 use crossterm::{execute, style::Print, terminal::SetTitle};
@@ -34,13 +37,17 @@ pub struct Shell {
     stack: Vec<Frame>,
     aliases: HashMap<String, String>,
     recursion_limit: usize,
+    interrupt: Arc<AtomicBool>,
 }
 
 impl Shell {
     pub fn new() -> Self {
         let child_id = Arc::new(Mutex::new(None));
         let handler_child = child_id.clone();
+        let interrupt = Arc::new(AtomicBool::new(false));
+        let handle = interrupt.clone();
         ctrlc::set_handler(move || {
+            handle.store(true, Ordering::SeqCst);
             let guard: MutexGuard<Option<u32>> = handler_child.lock().unwrap();
             if let Some(id) = &*guard {
                 #[cfg(target_family = "windows")]
@@ -70,6 +77,7 @@ impl Shell {
             stack: vec![Frame::default()],
             aliases: HashMap::new(),
             recursion_limit: 1000,
+            interrupt,
         }
     }
 
@@ -120,6 +128,7 @@ impl Shell {
                     let mut parser = Parser::new(line, String::from("shell"));
                     match parser.parse() {
                         Ok(ast) => {
+                            self.interrupt.store(false, Ordering::SeqCst);
                             let res = ast.eval(&mut self);
                             match res {
                                 Ok(values) => {
