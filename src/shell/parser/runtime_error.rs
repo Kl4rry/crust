@@ -41,6 +41,10 @@ pub enum RunTimeError {
         recived: usize,
     },
     IntegerOverFlow,
+    InvalidPipelineInput {
+        expected: Type,
+        got: Type,
+    },
     Io(io::Error),
     Glob(GlobError),
     Pattern(PatternError),
@@ -57,6 +61,9 @@ impl fmt::Display for RunTimeError {
             Self::NoMatch(pattern) => write!(f, "no match found for pattern: '{}'", pattern),
             Self::VariableNotFound(name) => write!(f, "variable with name: '{}' not found", name),
             Self::IntegerOverFlow => write!(f, "integer literal too large"),
+            Self::InvalidPipelineInput { expected, got } => {
+                write!(f, "pipeline expected '{}' recived '{}'", expected, got)
+            }
             Self::ToFewArguments {
                 name,
                 expected,

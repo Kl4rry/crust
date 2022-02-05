@@ -45,7 +45,7 @@ impl Diagnostic for SyntaxError {
     }
 
     fn code<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
-        Some(Box::new("Syntax Error")) 
+        Some(Box::new("Syntax Error"))
     }
 
     fn severity(&self) -> Option<miette::Severity> {

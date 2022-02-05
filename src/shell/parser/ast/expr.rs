@@ -387,21 +387,38 @@ fn run_pipeline(
                 input_string.push_str(&text);
                 input_string.push('\n');
             }
-            _ => panic!("expected string input"),
+            _ => {
+                return Err(RunTimeError::InvalidPipelineInput {
+                    expected: Type::String,
+                    got: value.to_type(),
+                })
+            }
         }
     }
+    let input_data: Option<Vec<u8>> = if input_string.is_empty() {
+        None
+    } else {
+        Some(input_string.into())
+    };
+
+    let stdin = if input_data.is_some() {
+        Redirection::Pipe
+    } else {
+        Redirection::None
+    };
+
     if execs.len() == 1 {
         let exec = if capture_output {
             execs.pop().unwrap().stdout(Redirection::Pipe)
         } else {
             execs.pop().unwrap()
         }
-        .stdin(Redirection::Pipe);
+        .stdin(stdin);
 
         let mut child = exec.popen()?;
         shell.set_child(child.pid());
         if capture_output {
-            let mut com = child.communicate_start(Some(input_string.into()));
+            let mut com = child.communicate_start(input_data);
             let t = thread::spawn::<_, Result<Option<String>, CommunicateError>>(move || {
                 let (out, _) = com.read_string()?;
                 Ok(out)
@@ -410,17 +427,17 @@ fn run_pipeline(
             let _status = child.wait()?;
             Ok(t.join().unwrap()?)
         } else {
-            let _ = child.communicate_start(Some(input_string.into()));
+            let _ = child.communicate_start(input_data);
             let _ = child.wait()?;
             Ok(None)
         }
     } else {
-        let pipeline = Pipeline::from_exec_iter(execs).stdin(Redirection::Pipe);
+        let pipeline = Pipeline::from_exec_iter(execs).stdin(stdin);
         let mut children = pipeline.popen()?;
         children
             .first_mut()
             .unwrap()
-            .communicate_bytes(Some(input_string.as_bytes()))?;
+            .communicate_bytes(input_data.as_ref().map(|v| v.as_slice()))?;
         let last = children.last_mut().unwrap();
         shell.set_child(last.pid());
 
