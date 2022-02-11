@@ -50,6 +50,10 @@ impl Hinter for EditorHelper {
     type Hint = String;
 
     fn hint(&self, line: &str, _pos: usize, ctx: &rustyline::Context<'_>) -> Option<Self::Hint> {
+        if ctx.history().is_empty() {
+            return None;
+        }
+
         ctx.history()
             .starts_with(line, ctx.history().len() - 1, SearchDirection::Reverse)
             .map(|search_result| String::from(&search_result.entry[search_result.pos..]))

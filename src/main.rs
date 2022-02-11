@@ -24,13 +24,13 @@ fn main() -> Result<(), std::io::Error> {
         )
         .get_matches();
 
-    let shell = Shell::new();
+    let mut shell = Shell::new();
 
     let status = match matches.value_of("INPUT") {
         Some(input) => shell.run_src(fs::read_to_string(input)?, String::from(input)),
         None => match matches.value_of("COMMAND") {
             Some(command) => shell.run_src(command.to_string(), String::from("shell")),
-            None => shell.run(),
+            None => shell.run()?,
         },
     };
 

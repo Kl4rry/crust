@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
-    io::stdout,
+    fs::{self, OpenOptions},
+    io::{stdout, Write},
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -84,11 +85,12 @@ impl Shell {
         }
     }
 
-    pub fn run_src(mut self, src: String, name: String) -> i128 {
+    pub fn run_src(&mut self, src: String, name: String) -> i128 {
         let mut parser = Parser::new(src, name);
         match parser.parse() {
             Ok(ast) => {
-                let res = ast.eval(&mut self);
+                self.interrupt.store(false, Ordering::SeqCst);
+                let res = ast.eval(self);
                 match res {
                     Ok(values) => {
                         print!("{}", values);
@@ -102,13 +104,12 @@ impl Shell {
         self.exit_status
     }
 
-    pub fn run(mut self) -> i128 {
+    pub fn run(mut self) -> Result<i128, std::io::Error> {
         (execute! {
             stdout(),
             Print(clear_str()),
             SetTitle("Crust 🦀"),
-        })
-        .unwrap();
+        })?;
 
         let config = rustyline::Config::builder()
             .color_mode(rustyline::ColorMode::Forced)
@@ -119,6 +120,22 @@ impl Shell {
         editor.set_helper(Some(helper::EditorHelper::new()));
         let _ = editor.load_history(&self.history_path());
 
+        fs::create_dir_all(self.project_dirs.config_dir())?;
+        fs::create_dir_all(self.project_dirs.data_dir())?;
+
+        let config_path = self.config_path();
+        if !config_path.is_file() {
+            let mut f = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(&config_path)?;
+            f.write_all(b"#This is the crust config file")?;
+        }
+
+        let config = std::fs::read_to_string(&config_path)?;
+        self.run_src(config, config_path.to_string_lossy().to_string());
+
         while self.running {
             let readline = editor.readline(&self.promt());
             match readline {
@@ -128,21 +145,7 @@ impl Shell {
                     }
 
                     editor.add_history_entry(&line);
-                    let mut parser = Parser::new(line, String::from("shell"));
-                    match parser.parse() {
-                        Ok(ast) => {
-                            self.interrupt.store(false, Ordering::SeqCst);
-                            let res = ast.eval(&mut self);
-                            match res {
-                                Ok(values) => {
-                                    print!("{}", values);
-                                }
-                                Err(RunTimeError::Exit) => (),
-                                Err(error) => eprintln!("{}", error),
-                            }
-                        }
-                        Err(error) => report_error(error),
-                    };
+                    self.run_src(line, String::from("shell"));
                 }
                 Err(ReadlineError::Interrupted) => {
                     println!("^C");
@@ -158,7 +161,7 @@ impl Shell {
             }
         }
         editor.save_history(&self.history_path()).unwrap();
-        self.exit_status
+        Ok(self.exit_status)
     }
 
     fn promt(&self) -> String {
@@ -180,7 +183,7 @@ impl Shell {
     }
 
     pub fn config_path(&self) -> PathBuf {
-        [self.project_dirs.data_dir(), Path::new("config.crust")]
+        [self.project_dirs.config_dir(), Path::new("config.crust")]
             .iter()
             .collect()
     }

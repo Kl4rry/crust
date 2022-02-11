@@ -22,6 +22,7 @@ static BUILTIN_VARS: phf::Map<&'static str, BulitinVar> = phf_map! {
     "lines" => lines,
     "columns" => columns,
     "null" => null,
+    "config" => config,
 };
 
 pub fn get_var(shell: &mut Shell, name: &str) -> Option<Value> {
@@ -30,6 +31,10 @@ pub fn get_var(shell: &mut Shell, name: &str) -> Option<Value> {
 
 pub fn is_builtin(name: &str) -> bool {
     BUILTIN_VARS.contains_key(name)
+}
+
+pub fn config(shell: &mut Shell) -> Value {
+    Value::String(shell.config_path().to_string_lossy().to_string())
 }
 
 pub fn null(_: &mut Shell) -> Value {
