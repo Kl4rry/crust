@@ -13,16 +13,16 @@ pub fn exit(
 ) -> Result<OutputStream, RunTimeError> {
     let matches = clap::App::new("exit")
         .about("exit the shell")
-        .arg(clap::Arg::with_name("STATUS").help("The exit status of the shell"))
-        .settings(&[clap::AppSettings::NoBinaryName])
-        .get_matches_from_safe(args.iter());
+        .arg(clap::Arg::new("STATUS").help("The exit status of the shell"))
+        .setting(clap::AppSettings::NoBinaryName)
+        .try_get_matches_from(args.iter());
 
     let mut output = OutputStream::default();
 
     let matches = match matches {
         Ok(matches) => matches,
-        Err(clap::Error { message, .. }) => {
-            eprintln!("{}", message);
+        Err(err) => {
+            eprintln!("{}", err);
             output.status = -1;
             return Ok(output);
         }

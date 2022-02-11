@@ -6,17 +6,17 @@ pub fn _drop(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i1
     let matches = clap::App::new("drop")
         .about("drop variable out of scope")
         .arg(
-            clap::Arg::with_name("NAME")
+            clap::Arg::new("NAME")
                 .help("The name of the variable to be dropped")
                 .required(true),
         )
-        .settings(&[clap::AppSettings::NoBinaryName])
-        .get_matches_from_safe(args.iter());
+        .setting(clap::AppSettings::NoBinaryName)
+        .try_get_matches_from(args.iter());
 
     let matches = match matches {
         Ok(matches) => matches,
-        Err(clap::Error { message, .. }) => {
-            eprintln!("{}", message);
+        Err(err) => {
+            eprintln!("{}", err);
             return Ok(-1);
         }
     };

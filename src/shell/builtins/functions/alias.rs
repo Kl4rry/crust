@@ -6,22 +6,22 @@ pub fn _alias(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i
     let matches = clap::App::new("alias")
         .about("set alias")
         .arg(
-            clap::Arg::with_name("NAME")
+            clap::Arg::new("NAME")
                 .help("Name of the alias")
                 .required(true),
         )
         .arg(
-            clap::Arg::with_name("COMMAND")
+            clap::Arg::new("COMMAND")
                 .help("The command that will be run")
                 .required(true),
         )
-        .settings(&[clap::AppSettings::NoBinaryName])
-        .get_matches_from_safe(args.iter());
+        .setting(clap::AppSettings::NoBinaryName)
+        .try_get_matches_from(args.iter());
 
     let matches = match matches {
         Ok(matches) => matches,
-        Err(clap::Error { message, .. }) => {
-            eprintln!("{}", message);
+        Err(err) => {
+            eprintln!("{}", err);
             return Ok(-1);
         }
     };

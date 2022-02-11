@@ -12,7 +12,7 @@ impl Span {
     #[inline(always)]
     pub fn new(start: usize, end: usize) -> Self {
         Self {
-            start: start,
+            start,
             len: end - start,
         }
     }

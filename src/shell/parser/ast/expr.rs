@@ -437,7 +437,7 @@ fn run_pipeline(
         children
             .first_mut()
             .unwrap()
-            .communicate_bytes(input_data.as_ref().map(|v| v.as_slice()))?;
+            .communicate_bytes(input_data.as_deref())?;
         let last = children.last_mut().unwrap();
         shell.set_child(last.pid());
 

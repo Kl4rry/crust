@@ -9,23 +9,19 @@ pub fn _unalias(
 ) -> Result<i128, RunTimeError> {
     let matches = clap::App::new("unalias")
         .about("set alias")
+        .arg(clap::Arg::new("all").short('a').help("Clear all alias"))
         .arg(
-            clap::Arg::with_name("all")
-                .short("a")
-                .help("Clear all alias"),
-        )
-        .arg(
-            clap::Arg::with_name("NAME")
+            clap::Arg::new("NAME")
                 .help("Name of the alias")
                 .required(true),
         )
-        .settings(&[clap::AppSettings::NoBinaryName])
-        .get_matches_from_safe(args.iter());
+        .setting(clap::AppSettings::NoBinaryName)
+        .try_get_matches_from(args.iter());
 
     let matches = match matches {
         Ok(matches) => matches,
-        Err(clap::Error { message, .. }) => {
-            eprintln!("{}", message);
+        Err(err) => {
+            eprintln!("{}", err);
             return Ok(-1);
         }
     };

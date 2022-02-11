@@ -15,16 +15,16 @@ pub fn cd(
 ) -> Result<OutputStream, RunTimeError> {
     let matches = clap::App::new("cd")
         .about("change directory")
-        .arg(clap::Arg::with_name("DIR").help("The new directory"))
-        .settings(&[clap::AppSettings::NoBinaryName])
-        .get_matches_from_safe(args.iter());
+        .arg(clap::Arg::new("DIR").help("The new directory"))
+        .setting(clap::AppSettings::NoBinaryName)
+        .try_get_matches_from(args.iter());
 
     let mut output = OutputStream::default();
 
     let matches = match matches {
         Ok(matches) => matches,
-        Err(clap::Error { message, .. }) => {
-            eprintln!("{}", message);
+        Err(err) => {
+            eprintln!("{}", err);
             output.status = -1;
             return Ok(output);
         }

@@ -12,14 +12,10 @@ fn main() -> Result<(), std::io::Error> {
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
         .about("A exotic shell")
+        .arg(Arg::new("INPUT").help("Input script file").required(false))
         .arg(
-            Arg::with_name("INPUT")
-                .help("Input script file")
-                .required(false),
-        )
-        .arg(
-            Arg::with_name("COMMAND")
-                .short("c")
+            Arg::new("COMMAND")
+                .short('c')
                 .long("command")
                 .help("Command")
                 .conflicts_with("INPUT")
