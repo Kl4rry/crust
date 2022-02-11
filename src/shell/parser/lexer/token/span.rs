@@ -33,9 +33,9 @@ impl Span {
     }
 }
 
-impl Into<SourceSpan> for Span {
-    fn into(self) -> SourceSpan {
-        SourceSpan::from((self.start, self.len))
+impl From<Span> for SourceSpan {
+    fn from(span: Span) -> Self {
+        SourceSpan::from((span.start, span.len))
     }
 }
 
