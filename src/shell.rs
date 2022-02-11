@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     io::stdout,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex, MutexGuard,
@@ -9,6 +9,7 @@ use std::{
 };
 
 use crossterm::{execute, style::Print, terminal::SetTitle};
+use directories::ProjectDirs;
 use miette::{Diagnostic, GraphicalReportHandler};
 use rustyline::{config::BellStyle, error::ReadlineError, Editor};
 
@@ -32,7 +33,7 @@ pub struct Shell {
     running: bool,
     exit_status: i128,
     home_dir: PathBuf,
-    history_file: PathBuf,
+    project_dirs: ProjectDirs,
     child_id: Arc<Mutex<Option<u32>>>,
     stack: Vec<Frame>,
     aliases: HashMap<String, String>,
@@ -68,11 +69,13 @@ impl Shell {
         let mut history_file = home_dir.clone();
         history_file.push(".crust_history");
 
+        let project_dirs = ProjectDirs::from("", "", "crust").unwrap();
+
         Shell {
             running: true,
             exit_status: 0,
             home_dir,
-            history_file,
+            project_dirs,
             child_id,
             stack: vec![Frame::default()],
             aliases: HashMap::new(),
@@ -114,7 +117,7 @@ impl Shell {
 
         let mut editor = Editor::with_config(config);
         editor.set_helper(Some(helper::EditorHelper::new()));
-        let _ = editor.load_history(&self.history_file);
+        let _ = editor.load_history(&self.history_path());
 
         while self.running {
             let readline = editor.readline(&self.promt());
@@ -154,7 +157,7 @@ impl Shell {
                 }
             }
         }
-        editor.save_history(&self.history_file).unwrap();
+        editor.save_history(&self.history_path()).unwrap();
         self.exit_status
     }
 
@@ -168,6 +171,18 @@ impl Shell {
         let dir = dir.to_string_lossy();
         let dir = dir.replace(self.home_dir.to_str().unwrap(), "~");
         format!("{} {} {}", name, dir, "> ",)
+    }
+
+    pub fn history_path(&self) -> PathBuf {
+        [self.project_dirs.data_dir(), Path::new(".crust_history")]
+            .iter()
+            .collect()
+    }
+
+    pub fn config_path(&self) -> PathBuf {
+        [self.project_dirs.data_dir(), Path::new("config.crust")]
+            .iter()
+            .collect()
     }
 
     pub fn set_child(&mut self, pid: Option<u32>) {

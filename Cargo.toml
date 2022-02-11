@@ -11,7 +11,7 @@ bigdecimal = "0.3.0"
 clap = "2.33.3"
 crossterm = "0.20.0"
 ctrlc = "3.2.0"
-directories = "3.0.1"
+directories = "4.0.1"
 glob = "0.3.0"
 miette = { version = "3.3.0", features = ["fancy"] }
 num-traits = "0.2.14"
