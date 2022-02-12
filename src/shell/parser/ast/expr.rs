@@ -1,7 +1,6 @@
 use std::{
     collections::{HashMap, VecDeque},
     mem,
-    path::PathBuf,
     rc::Rc,
     thread,
 };
