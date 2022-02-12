@@ -1,12 +1,8 @@
 use std::io::Write;
 
-use crate::{parser::runtime_error::RunTimeError, shell::Shell};
+use crate::{parser::shell_error::ShellError, shell::Shell};
 
-pub fn _unalias(
-    shell: &mut Shell,
-    args: &[String],
-    _: &mut dyn Write,
-) -> Result<i128, RunTimeError> {
+pub fn _unalias(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i128, ShellError> {
     let matches = clap::App::new("unalias")
         .about("set alias")
         .arg(clap::Arg::new("all").short('a').help("Clear all alias"))

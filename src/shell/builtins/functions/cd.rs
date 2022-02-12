@@ -1,18 +1,14 @@
 use std::path::Path;
 
 use crate::{
-    parser::runtime_error::RunTimeError,
+    parser::shell_error::ShellError,
     shell::{
         stream::{OutputStream, ValueStream},
         Shell,
     },
 };
 
-pub fn cd(
-    shell: &mut Shell,
-    args: &[String],
-    _: ValueStream,
-) -> Result<OutputStream, RunTimeError> {
+pub fn cd(shell: &mut Shell, args: &[String], _: ValueStream) -> Result<OutputStream, ShellError> {
     let matches = clap::App::new("cd")
         .about("change directory")
         .arg(clap::Arg::new("DIR").help("The new directory"))

@@ -2,6 +2,7 @@ use std::{
     error::Error,
     fmt, io,
     num::{ParseFloatError, ParseIntError},
+    path::PathBuf,
 };
 
 use glob::{GlobError, PatternError};
@@ -11,7 +12,7 @@ use super::ast::expr::{binop::BinOp, unop::UnOp};
 use crate::shell::value::{Type, Value};
 
 #[derive(Debug)]
-pub enum RunTimeError {
+pub enum ShellError {
     // exit, break, continue, and return are not real errors and are only used to interrupt execution
     // this is a not so nice hack but it works
     Exit,
@@ -48,7 +49,7 @@ pub enum RunTimeError {
         expected: Type,
         got: Type,
     },
-    Io(io::Error),
+    Io(PathBuf, io::Error),
     Glob(GlobError),
     Pattern(PatternError),
     ParseInt(ParseIntError),
@@ -57,7 +58,7 @@ pub enum RunTimeError {
     Communicate(CommunicateError),
 }
 
-impl fmt::Display for RunTimeError {
+impl fmt::Display for ShellError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::CommandNotFound(name) => write!(f, "{}: command not found", name),
@@ -101,7 +102,9 @@ impl fmt::Display for RunTimeError {
                 "index is out of bounds, length is {} but the index is {}",
                 length, index
             ),
-            Self::Io(error) => error.fmt(f),
+            Self::Io(path, error) => {
+                write!(f, "crust: {} {}", error.to_string(), path.to_string_lossy())
+            }
             Self::Glob(error) => error.fmt(f),
             Self::Pattern(error) => error.fmt(f),
             Self::ParseInt(error) => error.fmt(f),
@@ -117,46 +120,40 @@ impl fmt::Display for RunTimeError {
     }
 }
 
-impl From<PatternError> for RunTimeError {
+impl From<PatternError> for ShellError {
     fn from(error: PatternError) -> Self {
-        RunTimeError::Pattern(error)
+        ShellError::Pattern(error)
     }
 }
 
-impl From<GlobError> for RunTimeError {
+impl From<GlobError> for ShellError {
     fn from(error: GlobError) -> Self {
-        RunTimeError::Glob(error)
+        ShellError::Glob(error)
     }
 }
 
-impl From<std::io::Error> for RunTimeError {
-    fn from(error: std::io::Error) -> Self {
-        RunTimeError::Io(error)
-    }
-}
-
-impl From<ParseIntError> for RunTimeError {
+impl From<ParseIntError> for ShellError {
     fn from(error: ParseIntError) -> Self {
-        RunTimeError::ParseInt(error)
+        ShellError::ParseInt(error)
     }
 }
 
-impl From<ParseFloatError> for RunTimeError {
+impl From<ParseFloatError> for ShellError {
     fn from(error: ParseFloatError) -> Self {
-        RunTimeError::ParseFloat(error)
+        ShellError::ParseFloat(error)
     }
 }
 
-impl From<PopenError> for RunTimeError {
+impl From<PopenError> for ShellError {
     fn from(error: PopenError) -> Self {
-        RunTimeError::Popen(error)
+        ShellError::Popen(error)
     }
 }
 
-impl From<CommunicateError> for RunTimeError {
+impl From<CommunicateError> for ShellError {
     fn from(error: CommunicateError) -> Self {
-        RunTimeError::Communicate(error)
+        ShellError::Communicate(error)
     }
 }
 
-impl Error for RunTimeError {}
+impl Error for ShellError {}

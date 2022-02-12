@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, VecDeque},
     mem,
+    path::PathBuf,
     rc::Rc,
     thread,
 };
@@ -10,7 +11,7 @@ use subprocess::{CommunicateError, Exec, Pipeline, Redirection};
 use crate::{
     parser::{
         ast::{Literal, Variable},
-        runtime_error::RunTimeError,
+        shell_error::ShellError,
         P,
     },
     shell::{
@@ -39,13 +40,13 @@ use super::Block;
 macro_rules! compare_impl {
     ($arg_lhs:expr, $arg_rhs:expr, $arg_binop:expr, $op:tt) => {{
         #[inline(always)]
-        fn compare_impl_fn(lhs: Value, rhs: Value, binop: BinOp) -> Result<Value, RunTimeError> {
+        fn compare_impl_fn(lhs: Value, rhs: Value, binop: BinOp) -> Result<Value, ShellError> {
             match lhs.as_ref() {
                 Value::Int(number) => match rhs.as_ref() {
                     Value::Int(rhs) => Ok(Value::Bool(number $op rhs)),
                     Value::Float(rhs) => Ok(Value::Bool((*number as f64) $op *rhs)),
                     Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as i128)),
-                    _ => Err(RunTimeError::InvalidBinaryOperand(
+                    _ => Err(ShellError::InvalidBinaryOperand(
                         binop,
                         lhs.to_type(),
                         rhs.to_type(),
@@ -55,7 +56,7 @@ macro_rules! compare_impl {
                     Value::Int(rhs) => Ok(Value::Bool(*number $op *rhs as f64)),
                     Value::Float(rhs) => Ok(Value::Bool(number $op rhs)),
                     Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as u8 as f64)),
-                    _ => Err(RunTimeError::InvalidBinaryOperand(
+                    _ => Err(ShellError::InvalidBinaryOperand(
                         binop,
                         lhs.to_type(),
                         rhs.to_type(),
@@ -65,7 +66,7 @@ macro_rules! compare_impl {
                     Value::Int(rhs) => Ok(Value::Bool((*boolean as i128) $op *rhs)),
                     Value::Float(rhs) => Ok(Value::Bool((*boolean as u8 as f64) $op *rhs)),
                     Value::Bool(rhs) => Ok(Value::Bool(*boolean $op *rhs)),
-                    _ => Err(RunTimeError::InvalidBinaryOperand(
+                    _ => Err(ShellError::InvalidBinaryOperand(
                         binop,
                         lhs.to_type(),
                         rhs.to_type(),
@@ -73,13 +74,13 @@ macro_rules! compare_impl {
                 },
                 Value::String(string) => match rhs.as_ref() {
                     Value::String(rhs) => Ok(Value::Bool(string $op rhs)),
-                    _ => Err(RunTimeError::InvalidBinaryOperand(
+                    _ => Err(ShellError::InvalidBinaryOperand(
                         binop,
                         lhs.to_type(),
                         rhs.to_type(),
                     )),
                 },
-                _ => Err(RunTimeError::InvalidBinaryOperand(
+                _ => Err(ShellError::InvalidBinaryOperand(
                     binop,
                     lhs.to_type(),
                     rhs.to_type(),
@@ -112,7 +113,7 @@ impl Expr {
         }
     }
 
-    pub fn eval(&self, shell: &mut Shell, sub_expr: bool) -> Result<Value, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell, sub_expr: bool) -> Result<Value, ShellError> {
         match self {
             Self::Call(_, _) => {
                 unreachable!("calls must always be in a pipeline, bare calls are not allowed")
@@ -125,14 +126,14 @@ impl Expr {
                 match type_of {
                     Type::Int => match value {
                         Value::String(string) => Ok(Value::Int(string.parse()?)),
-                        _ => Err(RunTimeError::InvalidConversion {
+                        _ => Err(ShellError::InvalidConversion {
                             from: value.to_type(),
                             to: *type_of,
                         }),
                     },
                     Type::Float => match value {
                         Value::String(string) => Ok(Value::Float(string.parse()?)),
-                        _ => Err(RunTimeError::InvalidConversion {
+                        _ => Err(ShellError::InvalidConversion {
                             from: value.to_type(),
                             to: *type_of,
                         }),
@@ -154,7 +155,7 @@ impl Expr {
                                 .map(|n| Value::Int(n))
                                 .collect(),
                         )),
-                        _ => Err(RunTimeError::InvalidConversion {
+                        _ => Err(ShellError::InvalidConversion {
                             from: value.to_type(),
                             to: *type_of,
                         }),
@@ -169,7 +170,7 @@ impl Expr {
                     UnOp::Neg => match value.as_ref() {
                         Value::Int(int) => Ok(Value::Int(-*int)),
                         Value::Float(float) => Ok(Value::Float(-*float)),
-                        _ => Err(RunTimeError::InvalidUnaryOperand(*unop, value.to_type())),
+                        _ => Err(ShellError::InvalidUnaryOperand(*unop, value.to_type())),
                     },
                     UnOp::Not => Ok(Value::Bool(!value.truthy())),
                 }
@@ -184,7 +185,7 @@ impl Expr {
                     let rhs = rhs_value.try_as_int();
 
                     if lhs.is_none() || rhs.is_none() {
-                        return Err(RunTimeError::InvalidBinaryOperand(
+                        return Err(ShellError::InvalidBinaryOperand(
                             BinOp::Range,
                             lhs_value.to_type(),
                             rhs_value.to_type(),
@@ -335,7 +336,7 @@ impl Expr {
                                         );
                                     }
                                     None => {
-                                        return Err(RunTimeError::ToFewArguments {
+                                        return Err(ShellError::ToFewArguments {
                                             // this should be function name
                                             name: String::from("function"),
                                             expected: vars.len(),
@@ -379,7 +380,7 @@ fn run_pipeline(
     mut execs: Vec<Exec>,
     capture_output: bool,
     input: ValueStream,
-) -> Result<Option<String>, RunTimeError> {
+) -> Result<Option<String>, ShellError> {
     let mut input_string = String::new();
     for value in input {
         match value {
@@ -388,7 +389,7 @@ fn run_pipeline(
                 input_string.push('\n');
             }
             _ => {
-                return Err(RunTimeError::InvalidPipelineInput {
+                return Err(ShellError::InvalidPipelineInput {
                     expected: Type::String,
                     got: value.to_type(),
                 })
@@ -437,7 +438,8 @@ fn run_pipeline(
         children
             .first_mut()
             .unwrap()
-            .communicate_bytes(input_data.as_deref())?;
+            .communicate_bytes(input_data.as_deref())
+            .map_err(|err| ShellError::Io(PathBuf::new(), err))?;
         let last = children.last_mut().unwrap();
         shell.set_child(last.pid());
 
@@ -474,7 +476,7 @@ fn expand_call(
     shell: &mut Shell,
     command: &Command,
     args: &[Argument],
-) -> Result<(String, Vec<String>), RunTimeError> {
+) -> Result<(String, Vec<String>), ShellError> {
     let mut expanded_args = Vec::new();
     for arg in args {
         let arg = arg.eval(shell)?;

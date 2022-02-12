@@ -1,5 +1,5 @@
 use crate::{
-    parser::{runtime_error::RunTimeError, Expr, Variable, P},
+    parser::{shell_error::ShellError, Expr, Variable, P},
     Shell,
 };
 
@@ -13,7 +13,7 @@ pub enum Identifier {
 }
 
 impl Identifier {
-    pub fn eval(&self, shell: &mut Shell) -> Result<String, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<String, ShellError> {
         match self {
             Identifier::Variable(var) => Ok(var.eval(shell)?.to_string()),
             Identifier::Expand(expand) => Ok(expand.eval(shell)?),
@@ -30,7 +30,7 @@ pub struct Expand {
 }
 
 impl Expand {
-    pub fn eval(&self, shell: &mut Shell) -> Result<String, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<String, ShellError> {
         let mut value = String::new();
         for item in self.content.iter() {
             match item {
@@ -56,7 +56,7 @@ pub struct Argument {
 }
 
 impl Argument {
-    pub fn eval(&self, shell: &mut Shell) -> Result<ArgumentValue, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<ArgumentValue, ShellError> {
         let mut parts = Vec::new();
         let mut glob = false;
         for part in self.parts.iter() {
@@ -95,7 +95,7 @@ impl Argument {
             if !entries.is_empty() {
                 Ok(ArgumentValue::Multi(entries))
             } else {
-                Err(RunTimeError::NoMatch(pattern))
+                Err(ShellError::NoMatch(pattern))
             }
         } else {
             Ok(ArgumentValue::Single(

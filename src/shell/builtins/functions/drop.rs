@@ -1,8 +1,8 @@
 use std::io::Write;
 
-use crate::{parser::runtime_error::RunTimeError, shell::Shell};
+use crate::{parser::shell_error::ShellError, shell::Shell};
 
-pub fn _drop(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i128, RunTimeError> {
+pub fn _drop(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i128, ShellError> {
     let matches = clap::App::new("drop")
         .about("drop variable out of scope")
         .arg(

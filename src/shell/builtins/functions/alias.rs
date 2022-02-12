@@ -1,8 +1,8 @@
 use std::io::Write;
 
-use crate::{parser::runtime_error::RunTimeError, shell::Shell};
+use crate::{parser::shell_error::ShellError, shell::Shell};
 
-pub fn _alias(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i128, RunTimeError> {
+pub fn _alias(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i128, ShellError> {
     let matches = clap::App::new("alias")
         .about("set alias")
         .arg(

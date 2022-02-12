@@ -1,13 +1,26 @@
-#![feature(drain_filter)]
 #![feature(type_alias_impl_trait)]
-use std::fs;
+use std::{fs, path::PathBuf};
 
 use clap::{App, Arg};
 mod shell;
 pub use shell::parser;
-use shell::Shell;
+use shell::{parser::shell_error::ShellError, Shell};
 
-fn main() -> Result<(), std::io::Error> {
+fn main() {
+    let status = match start() {
+        Ok(status) => status,
+        Err(err) => {
+            eprintln!("{}", err);
+            match err {
+                ShellError::Io(_, err) => err.raw_os_error().unwrap_or(-1),
+                _ => -1,
+            }
+        }
+    };
+    std::process::exit(status);
+}
+
+fn start() -> Result<i32, ShellError> {
     let matches = App::new(env!("CARGO_BIN_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
@@ -40,12 +53,15 @@ fn main() -> Result<(), std::io::Error> {
     shell.init()?;
 
     let status = match matches.value_of("FILE") {
-        Some(input) => shell.run_src(fs::read_to_string(input)?, String::from(input)),
+        Some(input) => shell.run_src(
+            fs::read_to_string(input).map_err(|e| ShellError::Io(PathBuf::from(input), e))?,
+            String::from(input),
+        ),
         None => match matches.value_of("COMMAND") {
             Some(command) => shell.run_src(command.to_string(), String::from("shell")),
             None => shell.run()?,
         },
     };
 
-    std::process::exit(status as i32);
+    return Ok(num_traits::clamp(status, i32::MIN as i128, i32::MAX as i128) as i32);
 }

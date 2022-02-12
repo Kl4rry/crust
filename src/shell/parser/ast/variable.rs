@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use crate::{
     parser::{
         lexer::token::{Token, TokenType},
-        runtime_error::RunTimeError,
+        shell_error::ShellError,
         syntax_error::SyntaxErrorKind,
     },
     shell::{builtins::variables, value::Value},
@@ -16,7 +16,7 @@ pub struct Variable {
 }
 
 impl Variable {
-    pub fn eval(&self, shell: &mut Shell) -> Result<Value, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<Value, ShellError> {
         if let Some(value) = variables::get_var(shell, &self.name) {
             return Ok(value);
         }
@@ -29,7 +29,7 @@ impl Variable {
 
         match std::env::var(&self.name) {
             Ok(value) => Ok(Value::String(value)),
-            Err(_) => Err(RunTimeError::VariableNotFound(self.name.clone())),
+            Err(_) => Err(ShellError::VariableNotFound(self.name.clone())),
         }
     }
 }

@@ -1,5 +1,5 @@
 use crate::{
-    parser::runtime_error::RunTimeError,
+    parser::shell_error::ShellError,
     shell::{
         stream::{OutputStream, ValueStream},
         Shell,
@@ -10,7 +10,7 @@ pub fn exit(
     shell: &mut Shell,
     args: &[String],
     _: ValueStream,
-) -> Result<OutputStream, RunTimeError> {
+) -> Result<OutputStream, ShellError> {
     let matches = clap::App::new("exit")
         .about("exit the shell")
         .arg(clap::Arg::new("STATUS").help("The exit status of the shell"))
@@ -40,5 +40,5 @@ pub fn exit(
     }
 
     shell.running = false;
-    Err(RunTimeError::Exit)
+    Err(ShellError::Exit)
 }

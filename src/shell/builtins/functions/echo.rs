@@ -1,5 +1,5 @@
 use crate::{
-    parser::runtime_error::RunTimeError,
+    parser::shell_error::ShellError,
     shell::{
         stream::{OutputStream, ValueStream},
         value::Value,
@@ -7,7 +7,7 @@ use crate::{
     },
 };
 
-pub fn echo(_: &mut Shell, args: &[String], _: ValueStream) -> Result<OutputStream, RunTimeError> {
+pub fn echo(_: &mut Shell, args: &[String], _: ValueStream) -> Result<OutputStream, ShellError> {
     let mut output = OutputStream::default();
     for arg in args {
         output.stream.push(Value::String(arg.to_string()));

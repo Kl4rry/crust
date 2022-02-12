@@ -3,7 +3,7 @@ use std::{collections::HashMap, rc::Rc, sync::atomic::Ordering};
 use crate::{
     parser::{
         ast::{expr::Expr, Block, Variable},
-        runtime_error::RunTimeError,
+        shell_error::ShellError,
         P,
     },
     shell::{builtins::variables::is_builtin, stream::OutputStream, value::Value},
@@ -31,7 +31,7 @@ pub enum Statement {
 }
 
 impl Statement {
-    pub fn eval(&self, shell: &mut Shell) -> Result<Value, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<Value, ShellError> {
         match self {
             Self::Assign(var, expr) => {
                 if is_builtin(&var.name) {
@@ -135,13 +135,13 @@ impl Statement {
             }
             Self::Loop(block) => loop {
                 if shell.interrupt.load(Ordering::SeqCst) {
-                    return Err(RunTimeError::Interrupt);
+                    return Err(ShellError::Interrupt);
                 }
                 let mut collection = OutputStream::default();
                 match block.eval(shell, None, None) {
                     Ok(stream) => collection.extend(stream.into_iter()),
-                    Err(RunTimeError::Break) => return Ok(Value::OutputStream(P::new(collection))),
-                    Err(RunTimeError::Continue) => continue,
+                    Err(ShellError::Break) => return Ok(Value::OutputStream(P::new(collection))),
+                    Err(ShellError::Continue) => continue,
                     Err(error) => return Err(error),
                 }
             },
@@ -149,13 +149,13 @@ impl Statement {
                 let mut collection = OutputStream::default();
                 while condition.eval(shell, false)?.truthy() {
                     if shell.interrupt.load(Ordering::SeqCst) {
-                        return Err(RunTimeError::Interrupt);
+                        return Err(ShellError::Interrupt);
                     }
 
                     match block.eval(shell, None, None) {
                         Ok(stream) => collection.extend(stream.into_iter()),
-                        Err(RunTimeError::Break) => break,
-                        Err(RunTimeError::Continue) => continue,
+                        Err(ShellError::Break) => break,
+                        Err(ShellError::Continue) => continue,
                         Err(error) => return Err(error),
                     }
                 }
@@ -169,15 +169,15 @@ impl Statement {
                     Value::List(list) => {
                         for item in list.iter() {
                             if shell.interrupt.load(Ordering::SeqCst) {
-                                return Err(RunTimeError::Interrupt);
+                                return Err(ShellError::Interrupt);
                             }
 
                             let mut variables: HashMap<String, Value> = HashMap::new();
                             variables.insert(name.clone(), item.clone());
                             match block.eval(shell, Some(variables), None) {
                                 Ok(stream) => collection.extend(stream.into_iter()),
-                                Err(RunTimeError::Break) => break,
-                                Err(RunTimeError::Continue) => continue,
+                                Err(ShellError::Break) => break,
+                                Err(ShellError::Continue) => continue,
                                 Err(error) => return Err(error),
                             }
                         }
@@ -185,7 +185,7 @@ impl Statement {
                     Value::String(string) => {
                         for c in string.chars() {
                             if shell.interrupt.load(Ordering::SeqCst) {
-                                return Err(RunTimeError::Interrupt);
+                                return Err(ShellError::Interrupt);
                             }
 
                             let mut variables: HashMap<String, Value> = HashMap::new();
@@ -193,8 +193,8 @@ impl Statement {
                             variables.insert(name.clone(), item.clone());
                             match block.eval(shell, Some(variables), None) {
                                 Ok(stream) => collection.extend(stream.into_iter()),
-                                Err(RunTimeError::Break) => break,
-                                Err(RunTimeError::Continue) => continue,
+                                Err(ShellError::Break) => break,
+                                Err(ShellError::Continue) => continue,
                                 Err(error) => return Err(error),
                             }
                         }
@@ -202,7 +202,7 @@ impl Statement {
                     Value::Range(range) => {
                         for i in (*range).clone() {
                             if shell.interrupt.load(Ordering::SeqCst) {
-                                return Err(RunTimeError::Interrupt);
+                                return Err(ShellError::Interrupt);
                             }
 
                             let mut variables: HashMap<String, Value> = HashMap::new();
@@ -210,13 +210,13 @@ impl Statement {
                             variables.insert(name.clone(), item.clone());
                             match block.eval(shell, Some(variables), None) {
                                 Ok(stream) => collection.extend(stream.into_iter()),
-                                Err(RunTimeError::Break) => break,
-                                Err(RunTimeError::Continue) => continue,
+                                Err(ShellError::Break) => break,
+                                Err(ShellError::Continue) => continue,
                                 Err(error) => return Err(error),
                             }
                         }
                     }
-                    _ => return Err(RunTimeError::InvalidIterator(value.to_type())),
+                    _ => return Err(ShellError::InvalidIterator(value.to_type())),
                 }
                 Ok(Value::OutputStream(P::new(collection)))
             }
@@ -232,13 +232,13 @@ impl Statement {
             Self::Return(expr) => {
                 if let Some(expr) = expr {
                     let value = expr.eval(shell, false)?;
-                    Err(RunTimeError::Return(Some(value)))
+                    Err(ShellError::Return(Some(value)))
                 } else {
-                    Err(RunTimeError::Return(None))
+                    Err(ShellError::Return(None))
                 }
             }
-            Self::Break => Err(RunTimeError::Break),
-            Self::Continue => Err(RunTimeError::Continue),
+            Self::Break => Err(ShellError::Break),
+            Self::Continue => Err(ShellError::Continue),
             Self::Block(block) => Ok(Value::OutputStream(P::new(block.eval(shell, None, None)?))),
         }
     }

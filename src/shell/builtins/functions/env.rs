@@ -1,8 +1,8 @@
-use std::io::Write;
+use std::{io::Write, path::PathBuf};
 
-use crate::{parser::runtime_error::RunTimeError, shell::Shell};
+use crate::{parser::shell_error::ShellError, shell::Shell};
 
-pub fn _env(_: &mut Shell, args: &[String], out: &mut dyn Write) -> Result<i128, RunTimeError> {
+pub fn _env(_: &mut Shell, args: &[String], out: &mut dyn Write) -> Result<i128, ShellError> {
     let matches = clap::App::new("env")
         .about("List all environment variable")
         .setting(clap::AppSettings::NoBinaryName)
@@ -17,9 +17,11 @@ pub fn _env(_: &mut Shell, args: &[String], out: &mut dyn Write) -> Result<i128,
     };
 
     for (key, value) in std::env::vars() {
-        writeln!(out, "{}={}", key, value)?;
+        writeln!(out, "{}={}", key, value)
+            .map_err(|err| ShellError::Io(PathBuf::from("stdout"), err))?;
     }
-    out.flush()?;
+    out.flush()
+        .map_err(|err| ShellError::Io(PathBuf::from("stdout"), err))?;
 
     Ok(0)
 }

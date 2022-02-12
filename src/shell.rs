@@ -19,7 +19,7 @@ pub mod builtins;
 pub mod parser;
 pub mod stream;
 pub mod value;
-use parser::{runtime_error::RunTimeError, Parser};
+use parser::{shell_error::ShellError, Parser};
 use value::Value;
 mod frame;
 use frame::Frame;
@@ -92,9 +92,11 @@ impl Shell {
         }
     }
 
-    pub fn init(&mut self) -> Result<(), std::io::Error> {
-        fs::create_dir_all(self.project_dirs.config_dir())?;
-        fs::create_dir_all(self.project_dirs.data_dir())?;
+    pub fn init(&mut self) -> Result<(), ShellError> {
+        fs::create_dir_all(self.project_dirs.config_dir())
+            .map_err(|e| ShellError::Io(self.project_dirs.config_dir().to_path_buf(), e))?;
+        fs::create_dir_all(self.project_dirs.data_dir())
+            .map_err(|e| ShellError::Io(self.project_dirs.data_dir().to_path_buf(), e))?;
 
         let config_path = self.config_path();
         if !config_path.is_file() {
@@ -102,11 +104,14 @@ impl Shell {
                 .write(true)
                 .create(true)
                 .truncate(true)
-                .open(&config_path)?;
-            f.write_all(b"# This is the crust config file")?;
+                .open(&config_path)
+                .map_err(|e| ShellError::Io(config_path.to_path_buf(), e))?;
+            f.write_all(b"# This is the crust config file")
+                .map_err(|e| ShellError::Io(config_path.to_path_buf(), e))?;
         }
 
-        let config = std::fs::read_to_string(&config_path)?;
+        let config = std::fs::read_to_string(&config_path)
+            .map_err(|e| ShellError::Io(config_path.to_path_buf(), e))?;
         self.run_src(config, config_path.to_string_lossy().to_string());
         Ok(())
     }
@@ -121,7 +126,7 @@ impl Shell {
                     Ok(values) => {
                         print!("{}", values);
                     }
-                    Err(RunTimeError::Exit) => (),
+                    Err(ShellError::Exit) => (),
                     Err(error) => eprintln!("{}", error),
                 }
             }
@@ -130,12 +135,13 @@ impl Shell {
         self.exit_status
     }
 
-    pub fn run(mut self) -> Result<i128, std::io::Error> {
+    pub fn run(mut self) -> Result<i128, ShellError> {
         (execute! {
             stdout(),
             Print(clear_str()),
             SetTitle("Crust 🦀"),
-        })?;
+        })
+        .map_err(|e| ShellError::Io(PathBuf::new(), e))?;
 
         let config = rustyline::Config::builder()
             .color_mode(rustyline::ColorMode::Forced)

@@ -1,12 +1,12 @@
 use crate::{
-    parser::runtime_error::RunTimeError,
+    parser::shell_error::ShellError,
     shell::{
         stream::{OutputStream, ValueStream},
         Shell, Value,
     },
 };
 
-pub fn pwd(_: &mut Shell, args: &[String], _: ValueStream) -> Result<OutputStream, RunTimeError> {
+pub fn pwd(_: &mut Shell, args: &[String], _: ValueStream) -> Result<OutputStream, ShellError> {
     let matches = clap::App::new("pwd")
         .about("print working directory")
         .setting(clap::AppSettings::NoBinaryName)

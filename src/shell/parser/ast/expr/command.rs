@@ -4,7 +4,7 @@ use crate::{
     parser::{
         ast::{expr::argument::Expand, Variable},
         lexer::token::{Token, TokenType},
-        runtime_error::RunTimeError,
+        shell_error::ShellError,
         syntax_error::SyntaxErrorKind,
     },
     Shell,
@@ -18,7 +18,7 @@ pub enum Command {
 }
 
 impl Command {
-    pub fn eval(&self, shell: &mut Shell) -> Result<String, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<String, ShellError> {
         match self {
             Command::Variable(var) => Ok(var.eval(shell)?.as_ref().to_string()),
             Command::Expand(expand) => Ok(expand.eval(shell)?),

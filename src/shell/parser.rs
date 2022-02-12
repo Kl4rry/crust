@@ -26,7 +26,7 @@ use ast::{
 pub mod syntax_error;
 use syntax_error::{SyntaxError, SyntaxErrorKind};
 
-pub mod runtime_error;
+pub mod shell_error;
 
 pub type Result<T> = std::result::Result<T, SyntaxErrorKind>;
 pub type P<T> = Box<T>;

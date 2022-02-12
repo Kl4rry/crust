@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::atomic::Ordering};
 
 use crate::{
-    parser::runtime_error::RunTimeError,
+    parser::shell_error::ShellError,
     shell::{
         stream::{OutputStream, ValueStream},
         value::Value,
@@ -28,11 +28,11 @@ pub struct Ast {
 }
 
 impl Ast {
-    pub fn eval(&self, shell: &mut Shell) -> Result<OutputStream, RunTimeError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<OutputStream, ShellError> {
         let mut output = OutputStream::default();
         for compound in &self.sequence {
             if shell.interrupt.load(Ordering::SeqCst) {
-                return Err(RunTimeError::Interrupt);
+                return Err(ShellError::Interrupt);
             }
             let value = match compound {
                 Compound::Expr(expr) => expr.eval(shell, false)?,
@@ -65,9 +65,9 @@ impl Block {
         shell: &mut Shell,
         variables: Option<HashMap<String, Value>>,
         input: Option<ValueStream>,
-    ) -> Result<OutputStream, RunTimeError> {
+    ) -> Result<OutputStream, ShellError> {
         if shell.stack.len() == shell.recursion_limit {
-            return Err(RunTimeError::MaxRecursion(shell.recursion_limit));
+            return Err(ShellError::MaxRecursion(shell.recursion_limit));
         }
         shell.stack.push(Frame::new(
             variables.unwrap_or_default(),
@@ -77,7 +77,7 @@ impl Block {
         let mut output = OutputStream::default();
         for compound in &self.sequence {
             if shell.interrupt.load(Ordering::SeqCst) {
-                return Err(RunTimeError::Interrupt);
+                return Err(ShellError::Interrupt);
             }
             let value = match compound {
                 Compound::Expr(expr) => expr.eval(shell, false)?,
