@@ -94,9 +94,9 @@ impl Shell {
 
     pub fn init(&mut self) -> Result<(), ShellError> {
         fs::create_dir_all(self.project_dirs.config_dir())
-            .map_err(|e| ShellError::Io(self.project_dirs.config_dir().to_path_buf(), e))?;
+            .map_err(|e| ShellError::Io(Some(self.project_dirs.config_dir().to_path_buf()), e))?;
         fs::create_dir_all(self.project_dirs.data_dir())
-            .map_err(|e| ShellError::Io(self.project_dirs.data_dir().to_path_buf(), e))?;
+            .map_err(|e| ShellError::Io(Some(self.project_dirs.data_dir().to_path_buf()), e))?;
 
         let config_path = self.config_path();
         if !config_path.is_file() {
@@ -105,13 +105,13 @@ impl Shell {
                 .create(true)
                 .truncate(true)
                 .open(&config_path)
-                .map_err(|e| ShellError::Io(config_path.to_path_buf(), e))?;
+                .map_err(|e| ShellError::Io(Some(config_path.to_path_buf()), e))?;
             f.write_all(b"# This is the crust config file")
-                .map_err(|e| ShellError::Io(config_path.to_path_buf(), e))?;
+                .map_err(|e| ShellError::Io(Some(config_path.to_path_buf()), e))?;
         }
 
         let config = std::fs::read_to_string(&config_path)
-            .map_err(|e| ShellError::Io(config_path.to_path_buf(), e))?;
+            .map_err(|e| ShellError::Io(Some(config_path.to_path_buf()), e))?;
         self.run_src(config, config_path.to_string_lossy().to_string());
         Ok(())
     }
@@ -141,7 +141,7 @@ impl Shell {
             Print(clear_str()),
             SetTitle("Crust 🦀"),
         })
-        .map_err(|e| ShellError::Io(PathBuf::new(), e))?;
+        .map_err(|e| ShellError::Io(Some(PathBuf::new()), e))?;
 
         let config = rustyline::Config::builder()
             .color_mode(rustyline::ColorMode::Forced)

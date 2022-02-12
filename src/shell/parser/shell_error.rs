@@ -49,7 +49,7 @@ pub enum ShellError {
         expected: Type,
         got: Type,
     },
-    Io(PathBuf, io::Error),
+    Io(Option<PathBuf>, io::Error),
     Glob(GlobError),
     Pattern(PatternError),
     ParseInt(ParseIntError),
@@ -102,9 +102,10 @@ impl fmt::Display for ShellError {
                 "index is out of bounds, length is {} but the index is {}",
                 length, index
             ),
-            Self::Io(path, error) => {
-                write!(f, "crust: {} {}", error.to_string(), path.to_string_lossy())
-            }
+            Self::Io(path, error) => match path {
+                Some(path) => write!(f, "{} {}", error.to_string(), path.to_string_lossy()),
+                None => write!(f, "{}", error.to_string()),
+            },
             Self::Glob(error) => error.fmt(f),
             Self::Pattern(error) => error.fmt(f),
             Self::ParseInt(error) => error.fmt(f),

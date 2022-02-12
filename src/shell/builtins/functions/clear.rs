@@ -1,7 +1,4 @@
-use std::{
-    io::{stdout, Write},
-    path::PathBuf,
-};
+use std::io::{stdout, Write};
 
 use crate::{
     parser::shell_error::ShellError,
@@ -16,6 +13,6 @@ pub fn clear(_: &mut Shell, _: &[String], _: ValueStream) -> Result<OutputStream
     //https://superuser.com/questions/1628694/how-do-i-add-a-keyboard-shortcut-to-clear-scrollback-buffer-in-windows-terminal
     stdout()
         .write_all(clear_str().as_bytes())
-        .map_err(|err| ShellError::Io(PathBuf::from("stdout"), err))?;
+        .map_err(|err| ShellError::Io(None, err))?;
     Ok(OutputStream::default())
 }

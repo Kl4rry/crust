@@ -1,4 +1,4 @@
-use std::{io::Write, path::PathBuf};
+use std::io::Write;
 
 use crate::{parser::shell_error::ShellError, shell::Shell};
 
@@ -17,11 +17,9 @@ pub fn _env(_: &mut Shell, args: &[String], out: &mut dyn Write) -> Result<i128,
     };
 
     for (key, value) in std::env::vars() {
-        writeln!(out, "{}={}", key, value)
-            .map_err(|err| ShellError::Io(PathBuf::from("stdout"), err))?;
+        writeln!(out, "{}={}", key, value).map_err(|err| ShellError::Io(None, err))?;
     }
-    out.flush()
-        .map_err(|err| ShellError::Io(PathBuf::from("stdout"), err))?;
+    out.flush().map_err(|err| ShellError::Io(None, err))?;
 
     Ok(0)
 }

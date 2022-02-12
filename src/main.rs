@@ -54,7 +54,7 @@ fn start() -> Result<i32, ShellError> {
 
     let status = match matches.value_of("FILE") {
         Some(input) => shell.run_src(
-            fs::read_to_string(input).map_err(|e| ShellError::Io(PathBuf::from(input), e))?,
+            fs::read_to_string(input).map_err(|e| ShellError::Io(Some(PathBuf::from(input)), e))?,
             String::from(input),
         ),
         None => match matches.value_of("COMMAND") {

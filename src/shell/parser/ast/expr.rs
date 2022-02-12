@@ -439,7 +439,7 @@ fn run_pipeline(
             .first_mut()
             .unwrap()
             .communicate_bytes(input_data.as_deref())
-            .map_err(|err| ShellError::Io(PathBuf::new(), err))?;
+            .map_err(|err| ShellError::Io(Some(PathBuf::new()), err))?;
         let last = children.last_mut().unwrap();
         shell.set_child(last.pid());
 
