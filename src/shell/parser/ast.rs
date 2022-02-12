@@ -31,6 +31,9 @@ impl Ast {
     pub fn eval(&self, shell: &mut Shell) -> Result<OutputStream, RunTimeError> {
         let mut output = OutputStream::default();
         for compound in &self.sequence {
+            if shell.interrupt.load(Ordering::SeqCst) {
+                return Err(RunTimeError::Interrupt);
+            }
             let value = match compound {
                 Compound::Expr(expr) => expr.eval(shell, false)?,
                 Compound::Statement(statement) => statement.eval(shell)?,

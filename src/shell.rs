@@ -42,10 +42,11 @@ pub struct Shell {
     recursion_limit: usize,
     interrupt: Arc<AtomicBool>,
     executables: Vec<Executable>,
+    args: Vec<String>,
 }
 
 impl Shell {
-    pub fn new() -> Self {
+    pub fn new(args: Vec<String>) -> Self {
         let child_id = Arc::new(Mutex::new(None));
         let handler_child = child_id.clone();
         let interrupt = Arc::new(AtomicBool::new(false));
@@ -87,7 +88,27 @@ impl Shell {
             recursion_limit: 1000,
             interrupt,
             executables: executables().unwrap(),
+            args,
         }
+    }
+
+    pub fn init(&mut self) -> Result<(), std::io::Error> {
+        fs::create_dir_all(self.project_dirs.config_dir())?;
+        fs::create_dir_all(self.project_dirs.data_dir())?;
+
+        let config_path = self.config_path();
+        if !config_path.is_file() {
+            let mut f = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(&config_path)?;
+            f.write_all(b"# This is the crust config file")?;
+        }
+
+        let config = std::fs::read_to_string(&config_path)?;
+        self.run_src(config, config_path.to_string_lossy().to_string());
+        Ok(())
     }
 
     pub fn run_src(&mut self, src: String, name: String) -> i128 {
@@ -124,22 +145,6 @@ impl Shell {
         let mut editor = Editor::with_config(config);
         editor.set_helper(Some(helper::EditorHelper::new()));
         let _ = editor.load_history(&self.history_path());
-
-        fs::create_dir_all(self.project_dirs.config_dir())?;
-        fs::create_dir_all(self.project_dirs.data_dir())?;
-
-        let config_path = self.config_path();
-        if !config_path.is_file() {
-            let mut f = OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(&config_path)?;
-            f.write_all(b"# This is the crust config file")?;
-        }
-
-        let config = std::fs::read_to_string(&config_path)?;
-        self.run_src(config, config_path.to_string_lossy().to_string());
 
         while self.running {
             let readline = editor.readline(&self.promt());
@@ -229,7 +234,7 @@ impl Drop for Shell {
 
 impl Default for Shell {
     fn default() -> Self {
-        Self::new()
+        Self::new(Vec::new())
     }
 }
 
