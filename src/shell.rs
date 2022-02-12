@@ -141,7 +141,7 @@ impl Shell {
             Print(clear_str()),
             SetTitle("Crust 🦀"),
         })
-        .map_err(|e| ShellError::Io(Some(PathBuf::new()), e))?;
+        .map_err(|e| ShellError::Io(None, e))?;
 
         let config = rustyline::Config::builder()
             .color_mode(rustyline::ColorMode::Forced)
