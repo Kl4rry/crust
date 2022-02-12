@@ -160,6 +160,7 @@ dependencies = [
  "crossterm",
  "ctrlc",
  "directories",
+ "executable-finder",
  "glob",
  "miette",
  "nix",
@@ -261,6 +262,12 @@ dependencies = [
  "libc",
  "str-buf",
 ]
+
+[[package]]
+name = "executable-finder"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dccf7c4fd539f23eb21466181597da20af62c0739c080a3494f92df5675d2807"
 
 [[package]]
 name = "fd-lock"

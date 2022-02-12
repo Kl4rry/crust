@@ -463,6 +463,10 @@ fn get_call_type(shell: &Shell, cmd: String, args: Vec<String>) -> CallType {
         }
     }
 
+    let cmd = match shell.find_exe(&cmd) {
+        Some(cmd) => cmd,
+        None => cmd,
+    };
     CallType::External(Exec::cmd(cmd).args(&args))
 }
 

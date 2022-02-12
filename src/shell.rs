@@ -11,6 +11,7 @@ use std::{
 
 use crossterm::{execute, style::Print, terminal::SetTitle};
 use directories::ProjectDirs;
+use executable_finder::{executables, Executable};
 use miette::{Diagnostic, GraphicalReportHandler};
 use rustyline::{config::BellStyle, error::ReadlineError, Editor};
 
@@ -40,6 +41,7 @@ pub struct Shell {
     aliases: HashMap<String, String>,
     recursion_limit: usize,
     interrupt: Arc<AtomicBool>,
+    executables: Vec<Executable>,
 }
 
 impl Shell {
@@ -65,8 +67,10 @@ impl Shell {
         })
         .unwrap();
 
-        let dirs = directories::UserDirs::new().unwrap();
-        let home_dir = dirs.home_dir().to_path_buf();
+        let home_dir = directories::UserDirs::new()
+            .unwrap()
+            .home_dir()
+            .to_path_buf();
         let mut history_file = home_dir.clone();
         history_file.push(".crust_history");
 
@@ -82,6 +86,7 @@ impl Shell {
             aliases: HashMap::new(),
             recursion_limit: 1000,
             interrupt,
+            executables: executables().unwrap(),
         }
     }
 
@@ -130,7 +135,7 @@ impl Shell {
                 .create(true)
                 .truncate(true)
                 .open(&config_path)?;
-            f.write_all(b"#This is the crust config file")?;
+            f.write_all(b"# This is the crust config file")?;
         }
 
         let config = std::fs::read_to_string(&config_path)?;
@@ -186,6 +191,29 @@ impl Shell {
         [self.project_dirs.config_dir(), Path::new("config.crust")]
             .iter()
             .collect()
+    }
+
+    // does this functoin really need to do a linear search?
+    // it could probably use a hashset instead.
+    pub fn find_exe(&self, name: &str) -> Option<String> {
+        for exe in &self.executables {
+            if name.contains('.') || !exe.name.contains('.') {
+                if name == exe.name {
+                    return Some(name.to_string());
+                }
+            } else {
+                let mut split = exe.name.split('.').rev();
+                if split.next().is_some() {
+                    if let Some(exe_name) = split.next() {
+                        if exe_name == name {
+                            return Some(exe.name.to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        None
     }
 
     pub fn set_child(&mut self, pid: Option<u32>) {

@@ -44,7 +44,6 @@ Null should be filter out when combining outputstreams (Maybe make a combine met
 Streams cannot be used like normal return values. They should be unpacked when used in a sub expr.  
 Arguments are always passed as strings to functions they should be passed as values (Building my own CLI arg parser?).  
 Check for overflowing, div by zero and use wrapping/checked arthimetic operations.  
-Commands on windows should append the correct file extension if a external command matches a runnable program.  
 
 ## Questions to be answered
 Should lists expand to multiple arguments when passed to a function. Should this depend on if it is an internal or external command?  
