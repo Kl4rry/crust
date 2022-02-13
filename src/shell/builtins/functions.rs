@@ -1,7 +1,7 @@
 use phf::*;
 
 use crate::{
-    parser::shell_error::ShellError,
+    parser::shell_error::ShellErrorKind,
     shell::{
         stream::{OutputStream, ValueStream},
         Shell,
@@ -18,7 +18,7 @@ mod exit;
 mod pwd;
 mod unalias;
 
-pub type BulitinFn = fn(&mut Shell, &[String], ValueStream) -> Result<OutputStream, ShellError>;
+pub type BulitinFn = fn(&mut Shell, &[String], ValueStream) -> Result<OutputStream, ShellErrorKind>;
 
 static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "clear" => clear::clear,

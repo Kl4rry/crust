@@ -5,12 +5,12 @@ use std::{
     thread,
 };
 
-use subprocess::{CommunicateError, Exec, Pipeline, Redirection};
+use subprocess::{CommunicateError, Exec, Pipeline, Redirection, PopenError};
 
 use crate::{
     parser::{
         ast::{Literal, Variable},
-        shell_error::ShellError,
+        shell_error::ShellErrorKind,
         P,
     },
     shell::{
@@ -39,13 +39,13 @@ use super::Block;
 macro_rules! compare_impl {
     ($arg_lhs:expr, $arg_rhs:expr, $arg_binop:expr, $op:tt) => {{
         #[inline(always)]
-        fn compare_impl_fn(lhs: Value, rhs: Value, binop: BinOp) -> Result<Value, ShellError> {
+        fn compare_impl_fn(lhs: Value, rhs: Value, binop: BinOp) -> Result<Value, ShellErrorKind> {
             match lhs.as_ref() {
                 Value::Int(number) => match rhs.as_ref() {
                     Value::Int(rhs) => Ok(Value::Bool(number $op rhs)),
                     Value::Float(rhs) => Ok(Value::Bool((*number as f64) $op *rhs)),
                     Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as i128)),
-                    _ => Err(ShellError::InvalidBinaryOperand(
+                    _ => Err(ShellErrorKind::InvalidBinaryOperand(
                         binop,
                         lhs.to_type(),
                         rhs.to_type(),
@@ -55,7 +55,7 @@ macro_rules! compare_impl {
                     Value::Int(rhs) => Ok(Value::Bool(*number $op *rhs as f64)),
                     Value::Float(rhs) => Ok(Value::Bool(number $op rhs)),
                     Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as u8 as f64)),
-                    _ => Err(ShellError::InvalidBinaryOperand(
+                    _ => Err(ShellErrorKind::InvalidBinaryOperand(
                         binop,
                         lhs.to_type(),
                         rhs.to_type(),
@@ -65,7 +65,7 @@ macro_rules! compare_impl {
                     Value::Int(rhs) => Ok(Value::Bool((*boolean as i128) $op *rhs)),
                     Value::Float(rhs) => Ok(Value::Bool((*boolean as u8 as f64) $op *rhs)),
                     Value::Bool(rhs) => Ok(Value::Bool(*boolean $op *rhs)),
-                    _ => Err(ShellError::InvalidBinaryOperand(
+                    _ => Err(ShellErrorKind::InvalidBinaryOperand(
                         binop,
                         lhs.to_type(),
                         rhs.to_type(),
@@ -73,13 +73,13 @@ macro_rules! compare_impl {
                 },
                 Value::String(string) => match rhs.as_ref() {
                     Value::String(rhs) => Ok(Value::Bool(string $op rhs)),
-                    _ => Err(ShellError::InvalidBinaryOperand(
+                    _ => Err(ShellErrorKind::InvalidBinaryOperand(
                         binop,
                         lhs.to_type(),
                         rhs.to_type(),
                     )),
                 },
-                _ => Err(ShellError::InvalidBinaryOperand(
+                _ => Err(ShellErrorKind::InvalidBinaryOperand(
                     binop,
                     lhs.to_type(),
                     rhs.to_type(),
@@ -112,7 +112,7 @@ impl Expr {
         }
     }
 
-    pub fn eval(&self, shell: &mut Shell, sub_expr: bool) -> Result<Value, ShellError> {
+    pub fn eval(&self, shell: &mut Shell, sub_expr: bool) -> Result<Value, ShellErrorKind> {
         match self {
             Self::Call(_, _) => {
                 unreachable!("calls must always be in a pipeline, bare calls are not allowed")
@@ -125,14 +125,14 @@ impl Expr {
                 match type_of {
                     Type::Int => match value {
                         Value::String(string) => Ok(Value::Int(string.parse()?)),
-                        _ => Err(ShellError::InvalidConversion {
+                        _ => Err(ShellErrorKind::InvalidConversion {
                             from: value.to_type(),
                             to: *type_of,
                         }),
                     },
                     Type::Float => match value {
                         Value::String(string) => Ok(Value::Float(string.parse()?)),
-                        _ => Err(ShellError::InvalidConversion {
+                        _ => Err(ShellErrorKind::InvalidConversion {
                             from: value.to_type(),
                             to: *type_of,
                         }),
@@ -154,7 +154,7 @@ impl Expr {
                                 .map(|n| Value::Int(n))
                                 .collect(),
                         )),
-                        _ => Err(ShellError::InvalidConversion {
+                        _ => Err(ShellErrorKind::InvalidConversion {
                             from: value.to_type(),
                             to: *type_of,
                         }),
@@ -169,7 +169,7 @@ impl Expr {
                     UnOp::Neg => match value.as_ref() {
                         Value::Int(int) => Ok(Value::Int(-*int)),
                         Value::Float(float) => Ok(Value::Float(-*float)),
-                        _ => Err(ShellError::InvalidUnaryOperand(*unop, value.to_type())),
+                        _ => Err(ShellErrorKind::InvalidUnaryOperand(*unop, value.to_type())),
                     },
                     UnOp::Not => Ok(Value::Bool(!value.truthy())),
                 }
@@ -184,7 +184,7 @@ impl Expr {
                     let rhs = rhs_value.try_as_int();
 
                     if lhs.is_none() || rhs.is_none() {
-                        return Err(ShellError::InvalidBinaryOperand(
+                        return Err(ShellErrorKind::InvalidBinaryOperand(
                             BinOp::Range,
                             lhs_value.to_type(),
                             rhs_value.to_type(),
@@ -286,12 +286,12 @@ impl Expr {
                     }
                 }
 
-                let mut execs = Vec::new();
+                let mut execs: Vec<(Exec, String)> = Vec::new();
                 let mut output = OutputStream::default();
                 while let Some(call_type) = expanded_calls.pop_front() {
                     match call_type {
-                        CallType::External(exec) => {
-                            execs.push(exec);
+                        CallType::External(exec, name) => {
+                            execs.push((exec, name));
                         }
                         CallType::Builtin(builtin, args) => {
                             let stream = if execs.is_empty() {
@@ -335,7 +335,7 @@ impl Expr {
                                         );
                                     }
                                     None => {
-                                        return Err(ShellError::ToFewArguments {
+                                        return Err(ShellErrorKind::ToFewArguments {
                                             // this should be function name
                                             name: String::from("function"),
                                             expected: vars.len(),
@@ -376,10 +376,10 @@ impl Expr {
 
 fn run_pipeline(
     shell: &mut Shell,
-    mut execs: Vec<Exec>,
+    mut execs: Vec<(Exec, String)>,
     capture_output: bool,
     input: ValueStream,
-) -> Result<Option<String>, ShellError> {
+) -> Result<Option<String>, ShellErrorKind> {
     let mut input_string = String::new();
     for value in input {
         match value {
@@ -388,7 +388,7 @@ fn run_pipeline(
                 input_string.push('\n');
             }
             _ => {
-                return Err(ShellError::InvalidPipelineInput {
+                return Err(ShellErrorKind::InvalidPipelineInput {
                     expected: Type::String,
                     got: value.to_type(),
                 })
@@ -408,14 +408,15 @@ fn run_pipeline(
     };
 
     if execs.len() == 1 {
-        let exec = if capture_output {
-            execs.pop().unwrap().stdout(Redirection::Pipe)
+        let (exec, name) = if capture_output {
+            let (exec, name) = execs.pop().unwrap();
+            (exec.stdout(Redirection::Pipe), name)
         } else {
             execs.pop().unwrap()
-        }
-        .stdin(stdin);
+        };
+        let exec = exec.stdin(stdin);
 
-        let mut child = exec.popen()?;
+        let mut child = exec.popen().map_err(|e| popen_to_shell_err(e, name))?;
         shell.set_child(child.pid());
         if capture_output {
             let mut com = child.communicate_start(input_data);
@@ -432,13 +433,15 @@ fn run_pipeline(
             Ok(None)
         }
     } else {
+        //  this also need to be turned into a command not found error
+        let execs = execs.into_iter().map(|(exec, _)| exec);
         let pipeline = Pipeline::from_exec_iter(execs).stdin(stdin);
         let mut children = pipeline.popen()?;
         children
             .first_mut()
             .unwrap()
             .communicate_bytes(input_data.as_deref())
-            .map_err(|err| ShellError::Io(None, err))?;
+            .map_err(|err| ShellErrorKind::Io(None, err))?;
         let last = children.last_mut().unwrap();
         shell.set_child(last.pid());
 
@@ -468,14 +471,14 @@ fn get_call_type(shell: &Shell, cmd: String, args: Vec<String>) -> CallType {
         Some(cmd) => cmd,
         None => cmd,
     };
-    CallType::External(Exec::cmd(cmd).args(&args))
+    CallType::External(Exec::cmd(cmd.clone()).args(&args), cmd)
 }
 
 fn expand_call(
     shell: &mut Shell,
     command: &Command,
     args: &[Argument],
-) -> Result<(String, Vec<String>), ShellError> {
+) -> Result<(String, Vec<String>), ShellErrorKind> {
     let mut expanded_args = Vec::new();
     for arg in args {
         let arg = arg.eval(shell)?;
@@ -499,5 +502,18 @@ fn expand_call(
 pub enum CallType {
     Builtin(BulitinFn, Vec<String>),
     Internal(Rc<(Vec<Variable>, Block)>, Vec<String>),
-    External(Exec),
+    External(Exec, String),
+}
+
+fn popen_to_shell_err(error: PopenError, name: String) -> ShellErrorKind {
+    match error {
+        PopenError::IoError(err) => match err.kind() {
+            std::io::ErrorKind::NotFound => ShellErrorKind::CommandNotFound(name),
+            std::io::ErrorKind::PermissionDenied => ShellErrorKind::CommandPermissionDenied(name),
+            _ => ShellErrorKind::Io(None, err),
+        },
+        error => {
+            ShellErrorKind::Popen(error)
+        }
+    }
 }

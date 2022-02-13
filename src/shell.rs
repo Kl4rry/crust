@@ -19,7 +19,7 @@ pub mod builtins;
 pub mod parser;
 pub mod stream;
 pub mod value;
-use parser::{shell_error::ShellError, Parser};
+use parser::{shell_error::ShellErrorKind, Parser};
 use value::Value;
 mod frame;
 use frame::Frame;
@@ -92,11 +92,12 @@ impl Shell {
         }
     }
 
-    pub fn init(&mut self) -> Result<(), ShellError> {
-        fs::create_dir_all(self.project_dirs.config_dir())
-            .map_err(|e| ShellError::Io(Some(self.project_dirs.config_dir().to_path_buf()), e))?;
+    pub fn init(&mut self) -> Result<(), ShellErrorKind> {
+        fs::create_dir_all(self.project_dirs.config_dir()).map_err(|e| {
+            ShellErrorKind::Io(Some(self.project_dirs.config_dir().to_path_buf()), e)
+        })?;
         fs::create_dir_all(self.project_dirs.data_dir())
-            .map_err(|e| ShellError::Io(Some(self.project_dirs.data_dir().to_path_buf()), e))?;
+            .map_err(|e| ShellErrorKind::Io(Some(self.project_dirs.data_dir().to_path_buf()), e))?;
 
         let config_path = self.config_path();
         if !config_path.is_file() {
@@ -105,20 +106,19 @@ impl Shell {
                 .create(true)
                 .truncate(true)
                 .open(&config_path)
-                .map_err(|e| ShellError::Io(Some(config_path.to_path_buf()), e))?;
+                .map_err(|e| ShellErrorKind::Io(Some(config_path.to_path_buf()), e))?;
             f.write_all(b"# This is the crust config file")
-                .map_err(|e| ShellError::Io(Some(config_path.to_path_buf()), e))?;
+                .map_err(|e| ShellErrorKind::Io(Some(config_path.to_path_buf()), e))?;
         }
 
         let config = std::fs::read_to_string(&config_path)
-            .map_err(|e| ShellError::Io(Some(config_path.to_path_buf()), e))?;
+            .map_err(|e| ShellErrorKind::Io(Some(config_path.to_path_buf()), e))?;
         self.run_src(config, config_path.to_string_lossy().to_string());
         Ok(())
     }
 
     pub fn run_src(&mut self, src: String, name: String) -> i128 {
-        let mut parser = Parser::new(src, name);
-        match parser.parse() {
+        match Parser::new(src, name).parse() {
             Ok(ast) => {
                 self.interrupt.store(false, Ordering::SeqCst);
                 let res = ast.eval(self);
@@ -126,8 +126,11 @@ impl Shell {
                     Ok(values) => {
                         print!("{}", values);
                     }
-                    Err(ShellError::Exit) => (),
-                    Err(error) => eprintln!("{}", error),
+                    Err(error) => {
+                        if !error.is_exit() {
+                            report_error(error)
+                        }
+                    }
                 }
             }
             Err(error) => report_error(error),
@@ -135,13 +138,13 @@ impl Shell {
         self.exit_status
     }
 
-    pub fn run(mut self) -> Result<i128, ShellError> {
+    pub fn run(mut self) -> Result<i128, ShellErrorKind> {
         (execute! {
             stdout(),
             Print(clear_str()),
             SetTitle("Crust 🦀"),
         })
-        .map_err(|e| ShellError::Io(None, e))?;
+        .map_err(|e| ShellErrorKind::Io(None, e))?;
 
         let config = rustyline::Config::builder()
             .color_mode(rustyline::ColorMode::Forced)

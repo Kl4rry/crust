@@ -1,8 +1,12 @@
 use std::io::Write;
 
-use crate::{parser::shell_error::ShellError, shell::Shell};
+use crate::{parser::shell_error::ShellErrorKind, shell::Shell};
 
-pub fn _drop(shell: &mut Shell, args: &[String], _: &mut dyn Write) -> Result<i128, ShellError> {
+pub fn _drop(
+    shell: &mut Shell,
+    args: &[String],
+    _: &mut dyn Write,
+) -> Result<i128, ShellErrorKind> {
     let matches = clap::App::new("drop")
         .about("drop variable out of scope")
         .arg(

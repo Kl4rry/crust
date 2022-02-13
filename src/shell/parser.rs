@@ -118,9 +118,13 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> std::result::Result<Ast, SyntaxError> {
+    pub fn parse(mut self) -> std::result::Result<Ast, SyntaxError> {
         match self.parse_sequence(false) {
-            Ok(sequence) => Ok(Ast { sequence }),
+            Ok(sequence) => Ok(Ast::new(
+                sequence,
+                self.src().to_string(),
+                self.name.clone(),
+            )),
             Err(error) => Err(SyntaxError::new(
                 error,
                 self.src().to_string(),

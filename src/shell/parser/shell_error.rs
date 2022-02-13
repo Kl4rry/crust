@@ -6,13 +6,43 @@ use std::{
 };
 
 use glob::{GlobError, PatternError};
+use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
 use subprocess::{CommunicateError, PopenError};
 
 use super::ast::expr::{binop::BinOp, unop::UnOp};
 use crate::shell::value::{Type, Value};
 
 #[derive(Debug)]
-pub enum ShellError {
+pub struct ShellError {
+    pub error: ShellErrorKind,
+    pub src: NamedSource,
+    pub len: usize,
+}
+
+impl ShellError {
+    pub fn new(error: ShellErrorKind, src: String, name: String) -> Self {
+        ShellError {
+            error,
+            len: src.len(),
+            src: NamedSource::new(name, src),
+        }
+    }
+
+    pub fn is_exit(&self) -> bool {
+        matches!(self.error, ShellErrorKind::Exit)
+    }
+}
+
+impl Error for ShellError {}
+
+impl fmt::Display for ShellError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        self.error.fmt(f)
+    }
+}
+
+#[derive(Debug)]
+pub enum ShellErrorKind {
     // exit, break, continue, and return are not real errors and are only used to interrupt execution
     // this is a not so nice hack but it works
     Exit,
@@ -39,6 +69,7 @@ pub enum ShellError {
     InvalidUnaryOperand(UnOp, Type),
     InvalidIterator(Type),
     CommandNotFound(String),
+    CommandPermissionDenied(String),
     ToFewArguments {
         name: String,
         expected: usize,
@@ -58,16 +89,17 @@ pub enum ShellError {
     Communicate(CommunicateError),
 }
 
-impl fmt::Display for ShellError {
+impl fmt::Display for ShellErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::CommandNotFound(name) => write!(f, "{}: command not found", name),
-            Self::NoMatch(pattern) => write!(f, "no match found for pattern: '{}'", pattern),
-            Self::VariableNotFound(name) => write!(f, "variable with name: '{}' not found", name),
-            Self::IntegerOverFlow => write!(f, "integer literal too large"),
+            Self::CommandNotFound(name) => write!(f, "Command '{}' not found", name),
+            Self::CommandPermissionDenied(name) => write!(f, "Cannot run '{}' permission denied", name),
+            Self::NoMatch(pattern) => write!(f, "No match found for pattern: '{}'", pattern),
+            Self::VariableNotFound(name) => write!(f, "Variable with name: '{}' not found", name),
+            Self::IntegerOverFlow => write!(f, "Integer literal too large"),
             Self::Interrupt => write!(f, "^C"),
             Self::InvalidPipelineInput { expected, got } => {
-                write!(f, "pipeline expected '{}' recived '{}'", expected, got)
+                write!(f, "Pipeline expected '{}' recived '{}'", expected, got)
             }
             Self::ToFewArguments {
                 name,
@@ -91,10 +123,10 @@ impl fmt::Display for ShellError {
                 write!(f, "'{}' not supported for '{}'", unop, value)
             }
             Self::InvalidIterator(value) => {
-                write!(f, "cannot iterate over type '{}'", value)
+                write!(f, "Cannot iterate over type '{}'", value)
             }
             Self::InvalidConversion { from, to } => {
-                write!(f, "cannot convert '{}' to '{}'", from, to)
+                write!(f, "Cannot convert '{}' to '{}'", from, to)
             }
             Self::MaxRecursion(limit) => write!(f, "max recursion limit of {} reached", limit),
             Self::IndexOutOfBounds { length, index } => write!(
@@ -103,8 +135,8 @@ impl fmt::Display for ShellError {
                 length, index
             ),
             Self::Io(path, error) => match path {
-                Some(path) => write!(f, "{} {}", error.to_string(), path.to_string_lossy()),
-                None => write!(f, "{}", error.to_string()),
+                Some(path) => write!(f, "{} {}", error, path.to_string_lossy()),
+                None => write!(f, "{}", error),
             },
             Self::Glob(error) => error.fmt(f),
             Self::Pattern(error) => error.fmt(f),
@@ -116,45 +148,63 @@ impl fmt::Display for ShellError {
             Self::Return(_) => write!(f, "return must be used in function"),
             Self::Continue => write!(f, "continue must be used in loop"),
             // exit should always be handled and should therefore never be displayed
-            Self::Exit => unreachable!(),
+            Self::Exit => unreachable!("exit should never be printed as an error"),
         }
     }
 }
 
-impl From<PatternError> for ShellError {
+impl Diagnostic for ShellError {
+    fn labels(&self) -> Option<Box<dyn Iterator<Item = LabeledSpan> + '_>> {
+        None
+    }
+
+    fn code<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+        Some(Box::new("Shell Error"))
+    }
+
+    fn severity(&self) -> Option<miette::Severity> {
+        Some(miette::Severity::Error)
+    }
+
+    fn source_code(&self) -> Option<&dyn miette::SourceCode> {
+        Some(&self.src as &dyn SourceCode)
+    }
+}
+
+impl From<PatternError> for ShellErrorKind {
     fn from(error: PatternError) -> Self {
-        ShellError::Pattern(error)
+        ShellErrorKind::Pattern(error)
     }
 }
 
-impl From<GlobError> for ShellError {
+impl From<GlobError> for ShellErrorKind {
     fn from(error: GlobError) -> Self {
-        ShellError::Glob(error)
+        ShellErrorKind::Glob(error)
     }
 }
 
-impl From<ParseIntError> for ShellError {
+impl From<ParseIntError> for ShellErrorKind {
     fn from(error: ParseIntError) -> Self {
-        ShellError::ParseInt(error)
+        ShellErrorKind::ParseInt(error)
     }
 }
 
-impl From<ParseFloatError> for ShellError {
+impl From<ParseFloatError> for ShellErrorKind {
     fn from(error: ParseFloatError) -> Self {
-        ShellError::ParseFloat(error)
+        ShellErrorKind::ParseFloat(error)
     }
 }
 
-impl From<PopenError> for ShellError {
+impl From<PopenError> for ShellErrorKind {
     fn from(error: PopenError) -> Self {
-        ShellError::Popen(error)
+        ShellErrorKind::Popen(error)
     }
 }
 
-impl From<CommunicateError> for ShellError {
+impl From<CommunicateError> for ShellErrorKind {
     fn from(error: CommunicateError) -> Self {
-        ShellError::Communicate(error)
+        ShellErrorKind::Communicate(error)
     }
 }
 
-impl Error for ShellError {}
+impl Error for ShellErrorKind {}

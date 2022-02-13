@@ -6,7 +6,7 @@ use num_traits::cast::ToPrimitive;
 use crate::{
     parser::{
         ast::{expr::argument::Expand, Expr},
-        shell_error::ShellError,
+        shell_error::ShellErrorKind,
         syntax_error::SyntaxErrorKind,
         Token, TokenType,
     },
@@ -24,7 +24,7 @@ pub enum Literal {
 }
 
 impl Literal {
-    pub fn eval(&self, shell: &mut Shell) -> Result<Value, ShellError> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<Value, ShellErrorKind> {
         match self {
             Literal::String(string) => Ok(Value::String(string.to_string())),
             Literal::Expand(expand) => Ok(Value::String(expand.eval(shell)?)),
@@ -46,7 +46,7 @@ impl Literal {
             Literal::Float(number) => Ok(Value::Float(number.to_f64().unwrap())),
             Literal::Int(number) => match number.to_i128() {
                 Some(number) => Ok(Value::Int(number)),
-                None => Err(ShellError::IntegerOverFlow),
+                None => Err(ShellErrorKind::IntegerOverFlow),
             },
             Literal::Bool(boolean) => Ok(Value::Bool(*boolean)),
         }
