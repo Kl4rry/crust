@@ -94,8 +94,8 @@ impl fmt::Display for ShellErrorKind {
         match self {
             Self::CommandNotFound(name) => write!(f, "Command '{}' not found", name),
             Self::CommandPermissionDenied(name) => write!(f, "Cannot run '{}' permission denied", name),
-            Self::NoMatch(pattern) => write!(f, "No match found for pattern: '{}'", pattern),
-            Self::VariableNotFound(name) => write!(f, "Variable with name: '{}' not found", name),
+            Self::NoMatch(pattern) => write!(f, "No match found for pattern '{}'", pattern),
+            Self::VariableNotFound(name) => write!(f, "Variable with name '{}' not found", name),
             Self::IntegerOverFlow => write!(f, "Integer literal too large"),
             Self::Interrupt => write!(f, "^C"),
             Self::InvalidPipelineInput { expected, got } => {
