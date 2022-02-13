@@ -191,6 +191,8 @@ impl Expr {
                         ));
                     }
 
+                    // SAFETY
+                    // this is safe because we check that lhs and rhs is some
                     unsafe {
                         let lhs = lhs.unwrap_unchecked();
                         let rhs = rhs.unwrap_unchecked();
