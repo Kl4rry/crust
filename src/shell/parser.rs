@@ -643,7 +643,6 @@ impl Parser {
                 }
 
                 let token = self.eat()?;
-                println!("{:#?}", token);
                 match token.token_type {
                     TokenType::String(string) => match ids.last_mut() {
                         Some(Identifier::Quoted(text)) => {
