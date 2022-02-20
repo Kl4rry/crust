@@ -3,6 +3,7 @@
 use std::{cmp, collections::HashMap, error::Error, fmt, fmt::Write, iter::Peekable};
 
 use unicode_width::UnicodeWidthStr;
+use yansi::Paint;
 
 mod arg;
 pub use arg::Arg;
@@ -119,7 +120,7 @@ impl App {
 
     fn usage(&self) -> String {
         let mut output = String::new();
-        write!(output, "USAGE:\n    {}", self.name).unwrap();
+        write!(output, "{}\n    {}", Paint::yellow("Usage:"), Paint::green(&self.name)).unwrap();
         write!(output, " [FLAGS]").unwrap();
 
         if !self.options.is_empty() && self.options.iter().any(|o| !o.required) {
@@ -142,55 +143,63 @@ impl App {
         }
 
         if argc < self.args.len() {
-            write!(output, " [ARGS]").unwrap();
+            if self.args.len() - argc == 1 {
+                let arg = self.args.iter().find(|a| !a.required).unwrap();
+                write!(output, " {arg}").unwrap();
+            } else {
+                write!(output, " [ARGS]").unwrap();
+            }
         }
         output
     }
 
     fn help(&self) -> String {
         let mut output = String::new();
-        writeln!(output, "{}\n", self.about).unwrap();
-        write!(output, "{}", self.usage()).unwrap();
-        writeln!(output).unwrap();
 
-        writeln!(output, "\nFLAGS:").unwrap();
-        let mut strs = Vec::new();
-        let mut helps = Vec::new();
-        let mut width: usize = 0;
+        {
+            writeln!(output, "{}\n", self.about).unwrap();
+            write!(output, "{}", self.usage()).unwrap();
+            writeln!(output).unwrap();
 
-        for flag in self.flags.iter() {
-            let mut temp = String::new();
+            writeln!(output, "\n{}", Paint::yellow("Flags:")).unwrap();
+            let mut strs = Vec::new();
+            let mut helps = Vec::new();
+            let mut width: usize = 0;
 
-            let short = match flag.short {
-                Some(short) => {
-                    write!(temp, "-{}", short).unwrap();
-                    true
+            for flag in self.flags.iter() {
+                let mut temp = String::new();
+
+                let short = match flag.short {
+                    Some(short) => {
+                        write!(temp, "-{}", short).unwrap();
+                        true
+                    }
+                    None => false,
+                };
+
+                if let Some(long) = &flag.long {
+                    if short {
+                        write!(temp, ", ").unwrap();
+                    }
+                    write!(temp, "--{}", long).unwrap();
                 }
-                None => false,
-            };
-
-            if let Some(long) = &flag.long {
-                if short {
-                    write!(temp, ", ").unwrap();
-                }
-                write!(temp, "--{}", long).unwrap();
+                width = cmp::max(width, temp.width());
+                strs.push(temp);
+                helps.push(flag.help.as_str());
             }
-            width = cmp::max(width, temp.width());
-            strs.push(temp);
-            helps.push(flag.help.as_str());
-        }
 
-        strs.push(String::from("-h, --help"));
-        helps.push("Display this help message");
-        // safe because we just pushed something to strs
-        width = cmp::max(width, unsafe { strs.last().unwrap_unchecked() }.width());
+            strs.push(String::from("-h, --help"));
+            helps.push("Display this help message");
+            // safe because we just pushed something to strs
+            width = cmp::max(width, unsafe { strs.last().unwrap_unchecked() }.width());
 
-        for (help, flag_str) in helps.iter().zip(strs.iter()) {
-            writeln!(output, "    {:width$}    {}", flag_str, help, width = width).unwrap();
+            for (help, flag_str) in helps.iter().zip(strs.iter()) {
+                writeln!(output, "    {:width$}    {}", Paint::green(flag_str), help, width = width).unwrap();
+            }
         }
 
         if !self.options.is_empty() {
-            writeln!(output, "\nARGS:").unwrap();
+            writeln!(output, "\n{}", Paint::yellow("Options:")).unwrap();
             let mut strs = Vec::new();
             let mut width: usize = 0;
             for option in self.options.iter() {
@@ -217,7 +226,7 @@ impl App {
                 writeln!(
                     output,
                     "    {:width$}    {}",
-                    option_str,
+                    Paint::green(option_str),
                     option.help,
                     width = width
                 )
@@ -226,7 +235,7 @@ impl App {
         }
 
         if !self.args.is_empty() {
-            writeln!(output, "\nARGS:").unwrap();
+            writeln!(output, "\n{}", Paint::yellow("Args:")).unwrap();
             let mut strs = Vec::new();
             let mut width: usize = 0;
             for arg in self.args.iter() {
@@ -239,7 +248,7 @@ impl App {
                 strs.push(temp);
             }
             for (p, s) in self.args.iter().zip(strs.iter()) {
-                writeln!(output, "   {:width$}    {}", s, p.help, width = width).unwrap();
+                writeln!(output, "   {:width$}    {}", Paint::green(s), p.help, width = width).unwrap();
             }
         }
 

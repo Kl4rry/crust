@@ -12,8 +12,12 @@ use crate::{
 
 static APP: SyncLazy<App> = SyncLazy::new(|| {
     App::new("import")
-        .about("Clears the terminal")
-        .arg(Arg::new("path", Type::String).required(true))
+        .about("Import file for http url or filepath")
+        .arg(
+            Arg::new("path", Type::String)
+                .help("Path or url to import from")
+                .required(true),
+        )
 });
 
 pub fn import(
