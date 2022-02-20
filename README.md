@@ -35,9 +35,7 @@ This readme contains notes to myself.
 | Escapes sequences               | ❌                            | ❌    |
 
 ## Todo
-Capture output stream in each stack frame. (Maybe done?).  
 Propagate errors better with streams.  
-Improve usage string for shorter commands
 
 ## Bugs
 Comparison operator chaining is currently permitted but should not be.  
