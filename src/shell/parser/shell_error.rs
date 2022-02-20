@@ -73,6 +73,8 @@ pub enum ShellErrorKind {
     InvalidIterator(Type),
     CommandNotFound(String),
     CommandPermissionDenied(String),
+    FileNotFound(String),
+    FilePermissionDenied(String),
     ToFewArguments {
         name: String,
         expected: usize,
@@ -91,15 +93,18 @@ pub enum ShellErrorKind {
     ParseFloat(ParseFloatError),
     Popen(PopenError),
     Communicate(CommunicateError),
+    Ureq(ureq::Error),
 }
 
 impl fmt::Display for ShellErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::ArgParse(e) => write!(f, "{}", e),
-            Self::CommandNotFound(name) => write!(f, "Command '{}' not found", name),
+            Self::ArgParse(e) => write!(f, "{e}"),
+            Self::FileNotFound(path) => write!(f, "Cannot open '{path}' file not found"),
+            Self::FilePermissionDenied(path) => write!(f, "Cannot open '{path}' permission denied"),
+            Self::CommandNotFound(name) => write!(f, "Command '{name}' not found"),
             Self::CommandPermissionDenied(name) => {
-                write!(f, "Cannot run '{}' permission denied", name)
+                write!(f, "Cannot run '{name}' permission denied")
             }
             Self::NoMatch(pattern) => write!(f, "No match found for pattern '{}'", pattern),
             Self::VariableNotFound(name) => write!(f, "Variable with name '{}' not found", name),
@@ -151,6 +156,7 @@ impl fmt::Display for ShellErrorKind {
             Self::ParseFloat(error) => error.fmt(f),
             Self::Communicate(error) => error.fmt(f),
             Self::Popen(error) => error.fmt(f),
+            Self::Ureq(error) => error.fmt(f),
             Self::Break => write!(f, "break must be used in loop"),
             Self::Return(_) => write!(f, "return must be used in function"),
             Self::Continue => write!(f, "continue must be used in loop"),
@@ -175,6 +181,12 @@ impl Diagnostic for ShellError {
 
     fn source_code(&self) -> Option<&dyn miette::SourceCode> {
         Some(&self.src as &dyn SourceCode)
+    }
+}
+
+impl From<ureq::Error> for ShellErrorKind {
+    fn from(error: ureq::Error) -> Self {
+        ShellErrorKind::Ureq(error)
     }
 }
 

@@ -276,11 +276,11 @@ impl fmt::Display for ParseErrorKind {
             ),
             Self::InvalidInContext(s) => write!(
                 f,
-                "Found argument `{s}` which wasn't expected, or isn't valid in this context"
+                "Found argument '{s}' which wasn't expected, or isn't valid in this context"
             ),
             Self::TakesValue(s) => write!(
                 f,
-                "The argument `{s}` requires a value but none was supplied"
+                "The argument '{s}' requires a value but none was supplied"
             ),
             Self::WrongType {
                 name,
@@ -288,7 +288,7 @@ impl fmt::Display for ParseErrorKind {
                 recived,
             } => write!(
                 f,
-                "{name} expected value of type `{expected}` but recived `{recived}`",
+                "{name} expected value of type '{expected}' but recived '{recived}'",
             ),
         }
     }
