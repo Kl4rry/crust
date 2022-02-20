@@ -8,7 +8,7 @@ This readme contains notes to myself.
 | Literals                        | ✅                            | ✅    |
 | Binary operators                | ✅                            | ✅    |
 | Unary operators                 | ✅                            | ✅    |
-| Function/Command calls          | ✅                            | ❌    |
+| Function/Command calls          | ✅                            | ✅    |
 | Blocks                          | ✅                            | ✅    |
 | Function Declarations           | ✅                            | ✅    |
 | If                              | ✅                            | ✅    |
