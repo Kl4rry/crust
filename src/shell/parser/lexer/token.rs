@@ -217,7 +217,7 @@ impl Token {
             TokenType::String(text) => Ok(Identifier::Quoted(text)),
             TokenType::Symbol(text) => Ok(Identifier::Bare(text)),
             TokenType::Variable(_) => Ok(Identifier::Variable(self.try_into()?)),
-            TokenType::Int(number, _) => Ok(Identifier::Int(number)),
+            TokenType::Int(number, _) => Ok(Identifier::Int(number.into())),
             TokenType::Float(number, _) => Ok(Identifier::Float(number)),
             _ => return Ok(Identifier::Bare(self.try_into_glob_str()?.to_string())),
         }

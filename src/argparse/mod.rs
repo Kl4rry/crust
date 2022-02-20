@@ -267,17 +267,17 @@ impl fmt::Display for ParseErrorKind {
             Self::Help(s) => write!(f, "{}", s),
             Self::MissingArgs(s) => write!(
                 f,
-                "error: The following required arguments were not provided:\n    {}",
+                "The following required arguments were not provided:\n    {}",
                 s.join("\n    ")
             ),
             Self::InvalidInContext(s) => write!(
                 f,
-                "error: Found argument `{}` which wasn't expected, or isn't valid in this context",
+                "Found argument `{}` which wasn't expected, or isn't valid in this context",
                 s
             ),
             Self::TakesValue(s) => write!(
                 f,
-                "error: The argument `{}` requires a value but none was supplied",
+                "The argument `{}` requires a value but none was supplied",
                 s
             ),
         }
@@ -353,9 +353,9 @@ where
                 if arg.is_empty() {
                     if let Some(arg) = self.app.args.get(self.arg_index) {
                         if arg.multiple {
-                            self.parse_args();
+                            self.parse_args()?;
                         } else {
-                            self.parse_arg();
+                            self.parse_arg()?;
                         }
                         continue;
                     }
@@ -397,7 +397,7 @@ where
                                     break;
                                 }
                                 None => {
-                                    self.parse_arg();
+                                    self.parse_arg()?;
                                     break;
                                 }
                             }
@@ -407,13 +407,13 @@ where
                             continue;
                         }
                         None => {
-                            self.parse_arg();
+                            self.parse_arg()?;
                             continue;
                         }
                     }
                 }
             }
-            self.parse_arg()
+            self.parse_arg()?
         }
 
         let mut missing_args = Vec::new();
@@ -519,22 +519,30 @@ where
         arg_match.occurs += 1;
     }
 
-    fn parse_arg(&mut self) {
-        let arg = &self.app.args[self.arg_index];
+    fn parse_arg(&mut self) -> Result<(), ParseErrorKind> {
+        let arg = match self.app.args.get(self.arg_index) {
+            Some(arg) => arg,
+            None => return Err(ParseErrorKind::InvalidInContext(self.args.next().unwrap().to_string())),
+        };
         let arg_match = insert_arg_match!(self, &arg.name);
         arg_match.values.push(self.args.next().unwrap());
         arg_match.occurs += 1;
         self.arg_index += 1;
+        Ok(())
     }
 
-    fn parse_args(&mut self) {
-        let arg = &self.app.args[self.arg_index];
+    fn parse_args(&mut self) -> Result<(), ParseErrorKind> {
+        let arg = match self.app.args.get(self.arg_index) {
+            Some(arg) => arg,
+            None => return Err(ParseErrorKind::InvalidInContext(self.args.next().unwrap().to_string())),
+        };
         let arg_match = insert_arg_match!(self, &arg.name);
         for arg in self.args.by_ref() {
             arg_match.values.push(arg);
             arg_match.occurs += 1;
         }
         self.arg_index += 1;
+        Ok(())
     }
 }
 

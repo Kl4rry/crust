@@ -657,7 +657,7 @@ impl Parser {
                         _ => ids.push(Identifier::Bare(string)),
                     },
                     TokenType::Variable(_) => ids.push(Identifier::Variable(token.try_into()?)),
-                    TokenType::Int(number, _) => ids.push(Identifier::Int(number)),
+                    TokenType::Int(number, _) => ids.push(Identifier::Int(number.into())),
                     TokenType::Float(number, _) => ids.push(Identifier::Float(number)),
                     _ => {
                         let string = token.try_into_glob_str()?;
@@ -670,9 +670,45 @@ impl Parser {
                     }
                 }
             } else {
-                return Ok(Argument { parts: ids });
+                break;
             }
         }
+
+        let last = ids.last().unwrap();
+        if let Identifier::Int(_) = last {
+            if let Identifier::Bare(s) = ids.first().unwrap() {
+                if s.bytes().all(|b| b == b'-') {
+                    let neg = !s.len() % 2 == 0;
+                    let last = ids.pop().unwrap();
+                    let mut number = match last {
+                        Identifier::Int(number) => number,
+                        _ => unreachable!(),
+                    };
+                    ids.clear();
+                    if !neg {
+                        number = -number;
+                    }
+                    ids.push(Identifier::Int(number));
+                }
+            }
+        } else if let Identifier::Float(_) = last {
+            if let Identifier::Bare(s) = ids.first().unwrap() {
+                if s.bytes().all(|b| b == b'-') {
+                    let neg = !s.len() % 2 == 0;
+                    let last = ids.pop().unwrap();
+                    let mut number = match last {
+                        Identifier::Float(number) => number,
+                        _ => unreachable!(),
+                    };
+                    ids.clear();
+                    if !neg {
+                        number = -number;
+                    }
+                    ids.push(Identifier::Float(number));
+                }
+            }
+        }
+
         Ok(Argument { parts: ids })
     }
 }

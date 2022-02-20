@@ -1,4 +1,4 @@
-use bigdecimal::{num_bigint::BigUint, BigDecimal, ToPrimitive};
+use bigdecimal::{num_bigint::BigInt, BigDecimal, ToPrimitive};
 
 use crate::{
     parser::{shell_error::ShellErrorKind, Expr, Variable, P},
@@ -12,7 +12,7 @@ pub enum Identifier {
     Expand(Expand),
     Bare(String),
     Float(BigDecimal),
-    Int(BigUint),
+    Int(BigInt),
     Quoted(String),
     Expr(P<Expr>),
 }
