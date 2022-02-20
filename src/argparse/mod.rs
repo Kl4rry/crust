@@ -153,41 +153,40 @@ impl App {
         write!(output, "{}", self.usage()).unwrap();
         writeln!(output).unwrap();
 
-        if !self.flags.is_empty() {
-            writeln!(output, "\nFLAGS:").unwrap();
-            let mut strs = Vec::new();
-            let mut helps = Vec::new();
-            let mut width: usize = 0;
-            for flag in self.flags.iter() {
-                let mut temp = String::new();
+        writeln!(output, "\nFLAGS:").unwrap();
+        let mut strs = Vec::new();
+        let mut helps = Vec::new();
+        let mut width: usize = 0;
 
-                let short = match flag.short {
-                    Some(short) => {
-                        write!(temp, "-{}", short).unwrap();
-                        true
-                    }
-                    None => false,
-                };
+        for flag in self.flags.iter() {
+            let mut temp = String::new();
 
-                if let Some(long) = &flag.long {
-                    if short {
-                        write!(temp, ", ").unwrap();
-                    }
-                    write!(temp, "--{}", long).unwrap();
+            let short = match flag.short {
+                Some(short) => {
+                    write!(temp, "-{}", short).unwrap();
+                    true
                 }
-                width = cmp::max(width, temp.width());
-                strs.push(temp);
-                helps.push(flag.help.as_str());
-            }
+                None => false,
+            };
 
-            strs.push(String::from("-h, --help"));
-            helps.push("Display this help message");
-            // safe because we just pushed something to strs
-            width = cmp::max(width, unsafe { strs.last().unwrap_unchecked() }.width());
-
-            for (help, flag_str) in helps.iter().zip(strs.iter()) {
-                writeln!(output, "    {:width$}    {}", flag_str, help, width = width).unwrap();
+            if let Some(long) = &flag.long {
+                if short {
+                    write!(temp, ", ").unwrap();
+                }
+                write!(temp, "--{}", long).unwrap();
             }
+            width = cmp::max(width, temp.width());
+            strs.push(temp);
+            helps.push(flag.help.as_str());
+        }
+
+        strs.push(String::from("-h, --help"));
+        helps.push("Display this help message");
+        // safe because we just pushed something to strs
+        width = cmp::max(width, unsafe { strs.last().unwrap_unchecked() }.width());
+
+        for (help, flag_str) in helps.iter().zip(strs.iter()) {
+            writeln!(output, "    {:width$}    {}", flag_str, help, width = width).unwrap();
         }
 
         if !self.options.is_empty() {
@@ -259,6 +258,11 @@ pub enum ParseErrorKind {
     MissingArgs(Vec<String>),
     InvalidInContext(String),
     TakesValue(String),
+    WrongType {
+        name: String,
+        expected: Type,
+        recived: Type,
+    },
 }
 
 impl fmt::Display for ParseErrorKind {
@@ -272,13 +276,19 @@ impl fmt::Display for ParseErrorKind {
             ),
             Self::InvalidInContext(s) => write!(
                 f,
-                "Found argument `{}` which wasn't expected, or isn't valid in this context",
-                s
+                "Found argument `{s}` which wasn't expected, or isn't valid in this context"
             ),
             Self::TakesValue(s) => write!(
                 f,
-                "The argument `{}` requires a value but none was supplied",
-                s
+                "The argument `{s}` requires a value but none was supplied"
+            ),
+            Self::WrongType {
+                name,
+                expected,
+                recived,
+            } => write!(
+                f,
+                "{name} expected value of type `{expected}` but recived `{recived}`",
             ),
         }
     }
@@ -433,7 +443,36 @@ where
             return Err(ParseErrorKind::MissingArgs(missing_args));
         }
 
-        // TODO do typechecking
+        // This typecheck impl is quite lazy
+        for arg in &self.app.args {
+            if let Some(m) = self.matches.get(&arg.name) {
+                if m.values.iter().any(|v| v.to_type() != arg.value) {}
+                for v in &m.values {
+                    if v.to_type() != arg.value {
+                        return Err(ParseErrorKind::WrongType {
+                            name: arg.to_string(),
+                            expected: arg.value,
+                            recived: v.to_type(),
+                        });
+                    }
+                }
+            }
+        }
+
+        for opt in &self.app.options {
+            if let Some(m) = self.matches.get(&opt.name) {
+                if m.values.iter().any(|v| v.to_type() != opt.value) {}
+                for v in &m.values {
+                    if v.to_type() != opt.value {
+                        return Err(ParseErrorKind::WrongType {
+                            name: opt.to_string(),
+                            expected: opt.value,
+                            recived: v.to_type(),
+                        });
+                    }
+                }
+            }
+        }
 
         let Parser { matches, .. } = self;
         Ok(matches)
@@ -522,7 +561,11 @@ where
     fn parse_arg(&mut self) -> Result<(), ParseErrorKind> {
         let arg = match self.app.args.get(self.arg_index) {
             Some(arg) => arg,
-            None => return Err(ParseErrorKind::InvalidInContext(self.args.next().unwrap().to_string())),
+            None => {
+                return Err(ParseErrorKind::InvalidInContext(
+                    self.args.next().unwrap().to_string(),
+                ))
+            }
         };
         let arg_match = insert_arg_match!(self, &arg.name);
         arg_match.values.push(self.args.next().unwrap());
@@ -534,7 +577,11 @@ where
     fn parse_args(&mut self) -> Result<(), ParseErrorKind> {
         let arg = match self.app.args.get(self.arg_index) {
             Some(arg) => arg,
-            None => return Err(ParseErrorKind::InvalidInContext(self.args.next().unwrap().to_string())),
+            None => {
+                return Err(ParseErrorKind::InvalidInContext(
+                    self.args.next().unwrap().to_string(),
+                ))
+            }
         };
         let arg_match = insert_arg_match!(self, &arg.name);
         for arg in self.args.by_ref() {

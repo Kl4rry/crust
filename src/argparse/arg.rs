@@ -4,11 +4,11 @@ use super::Type;
 
 #[derive(Debug)]
 pub struct Arg {
-    pub name: String,
-    pub help: String,
-    pub value: Type,
-    pub required: bool,
-    pub multiple: bool,
+    pub(super) name: String,
+    pub(super) help: String,
+    pub(super) value: Type,
+    pub(super) required: bool,
+    pub(super) multiple: bool,
 }
 
 impl Arg {
