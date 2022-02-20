@@ -22,7 +22,7 @@ rustyline = "9.0.0"
 subprocess = "0.2.8"
 timing = "*"
 unicode-width = "0.1.9"
-ureq = "2.4.0"
+ureq = { version = "2.4.0", features = ["brotli", "native-certs", "charset"] }
 whoami = "1.1.1"
 yansi = "0.5.0"
 
