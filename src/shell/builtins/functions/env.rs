@@ -3,9 +3,9 @@ use std::io::Write;
 use crate::{parser::shell_error::ShellErrorKind, shell::Shell};
 
 pub fn _env(_: &mut Shell, args: &[String], out: &mut dyn Write) -> Result<i128, ShellErrorKind> {
-    let matches = clap::App::new("env")
+    let matches = clap::Command::new("env")
         .about("List all environment variable")
-        .setting(clap::AppSettings::NoBinaryName)
+        .no_binary_name(true)
         .try_get_matches_from(args.iter());
 
     let _ = match matches {

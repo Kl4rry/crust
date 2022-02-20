@@ -7,7 +7,7 @@ pub fn _unalias(
     args: &[String],
     _: &mut dyn Write,
 ) -> Result<i128, ShellErrorKind> {
-    let matches = clap::App::new("unalias")
+    let matches = clap::Command::new("unalias")
         .about("set alias")
         .arg(clap::Arg::new("all").short('a').help("Clear all alias"))
         .arg(
@@ -15,7 +15,7 @@ pub fn _unalias(
                 .help("Name of the alias")
                 .required(true),
         )
-        .setting(clap::AppSettings::NoBinaryName)
+        .no_binary_name(true)
         .try_get_matches_from(args.iter());
 
     let matches = match matches {

@@ -2,7 +2,7 @@
 #![feature(once_cell)]
 use std::{fs, path::PathBuf};
 
-use clap::{App, Arg};
+use clap::{Arg, Command};
 mod shell;
 pub use shell::parser;
 use shell::{parser::shell_error::ShellErrorKind, Shell};
@@ -23,7 +23,7 @@ fn main() {
 }
 
 fn start() -> Result<i32, ShellErrorKind> {
-    let matches = App::new(env!("CARGO_BIN_NAME"))
+    let matches = Command::new(env!("CARGO_BIN_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
         .about("A exotic shell")
