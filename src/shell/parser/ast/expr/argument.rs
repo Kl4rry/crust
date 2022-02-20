@@ -1,25 +1,35 @@
+use bigdecimal::{num_bigint::BigUint, BigDecimal, ToPrimitive};
+
 use crate::{
     parser::{shell_error::ShellErrorKind, Expr, Variable, P},
+    shell::value::Value,
     Shell,
 };
 
 #[derive(Debug, Clone)]
 pub enum Identifier {
-    Variable(Variable), // Should be expaned to variable value. Must be done before glob.
-    Expand(Expand),     // Should be variable expanded.
+    Variable(Variable),
+    Expand(Expand),
     Bare(String),
+    Float(BigDecimal),
+    Int(BigUint),
     Quoted(String),
     Expr(P<Expr>),
 }
 
 impl Identifier {
-    pub fn eval(&self, shell: &mut Shell) -> Result<String, ShellErrorKind> {
+    pub fn eval(&self, shell: &mut Shell) -> Result<Value, ShellErrorKind> {
         match self {
-            Identifier::Variable(var) => Ok(var.eval(shell)?.to_string()),
-            Identifier::Expand(expand) => Ok(expand.eval(shell)?),
-            Identifier::Bare(string) => Ok(string.clone()),
-            Identifier::Quoted(string) => Ok(string.clone()),
-            Identifier::Expr(expr) => Ok(expr.eval(shell, true)?.to_string()),
+            Identifier::Variable(var) => Ok(var.eval(shell)?),
+            Identifier::Expand(expand) => Ok(Value::String(expand.eval(shell)?)),
+            Identifier::Bare(value) => Ok(Value::String(value.to_string())),
+            Identifier::Quoted(string) => Ok(Value::String(string.clone())),
+            Identifier::Expr(expr) => Ok(expr.eval(shell, true)?),
+            Identifier::Float(number) => Ok(Value::Float(number.to_f64().unwrap())),
+            Identifier::Int(number) => match number.to_i128() {
+                Some(number) => Ok(Value::Int(number)),
+                None => Err(ShellErrorKind::IntegerOverFlow),
+            },
         }
     }
 }
@@ -61,15 +71,15 @@ impl Argument {
         let mut glob = false;
         for part in self.parts.iter() {
             let (string, escape) = match part {
-                Identifier::Bare(string) => {
-                    let mut string = string.clone();
+                Identifier::Bare(value) => {
+                    let mut string = value.to_string();
                     if string.contains('*') {
                         glob = true;
                     }
                     if string.contains('~') {
-                        string = string.replace('~', shell.home_dir.as_os_str().to_str().unwrap());
+                        string = string.replace('~', &shell.home_dir.as_os_str().to_string_lossy());
                     }
-                    (string, false)
+                    (Value::String(string), false)
                 }
                 _ => (part.eval(shell)?, true),
             };
@@ -81,15 +91,17 @@ impl Argument {
                 .into_iter()
                 .map(|(escape, string)| {
                     if escape {
-                        glob::Pattern::escape(&string)
+                        glob::Pattern::escape(&string.unwrap_string())
                     } else {
-                        string
+                        // this should probably fail under some condition
+                        // it does not make sense to try to use ever value stringyfied to glob
+                        string.to_string()
                     }
                 })
                 .collect();
             let mut entries = Vec::new();
             for entry in glob::glob(&format!("./{}", &pattern))? {
-                entries.push(entry?.to_string_lossy().to_string());
+                entries.push(Value::String(entry?.to_string_lossy().to_string()));
             }
 
             if !entries.is_empty() {
@@ -98,14 +110,23 @@ impl Argument {
                 Err(ShellErrorKind::NoMatch(pattern))
             }
         } else {
-            Ok(ArgumentValue::Single(
-                parts.into_iter().map(|(_, string)| string).collect(),
-            ))
+            Ok(ArgumentValue::Single(if parts.len() > 1 {
+                // this should also fail under some conditions
+                // and it should not alloacte a new string on every value
+                Value::String(
+                    parts
+                        .into_iter()
+                        .map(|(_, string)| string.to_string())
+                        .collect(),
+                )
+            } else {
+                parts.pop().unwrap().1
+            }))
         }
     }
 }
 
 pub enum ArgumentValue {
-    Single(String),
-    Multi(Vec<String>),
+    Single(Value),
+    Multi(Vec<Value>),
 }

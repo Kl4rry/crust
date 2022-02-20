@@ -525,4 +525,24 @@ impl Value {
             Self::OutputStream(stream) => stream.status == 0,
         }
     }
+
+    pub fn unwrap_string(self) -> String {
+        match self {
+            Self::String(s) => s,
+            _ => panic!(
+                "called `Value::unwrap_string()` on a `{}` value",
+                self.to_type()
+            ),
+        }
+    }
+
+    pub fn unwrap_i128(&self) -> i128 {
+        match self {
+            Self::Int(s) => *s,
+            _ => panic!(
+                "called `Value::unwrap_i128()` on a `{}` value",
+                self.to_type()
+            ),
+        }
+    }
 }

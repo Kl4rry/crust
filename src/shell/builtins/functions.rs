@@ -4,6 +4,7 @@ use crate::{
     parser::shell_error::ShellErrorKind,
     shell::{
         stream::{OutputStream, ValueStream},
+        value::Value,
         Shell,
     },
 };
@@ -11,14 +12,14 @@ use crate::{
 mod alias;
 mod cd;
 mod clear;
-mod drop;
 mod echo;
 mod env;
 mod exit;
 mod pwd;
 mod unalias;
 
-pub type BulitinFn = fn(&mut Shell, &[String], ValueStream) -> Result<OutputStream, ShellErrorKind>;
+pub type BulitinFn =
+    fn(&mut Shell, Vec<Value>, ValueStream) -> Result<OutputStream, ShellErrorKind>;
 
 static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "clear" => clear::clear,
@@ -28,7 +29,6 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "echo" => echo::echo,
     /*"alias" => alias::alias,
     "unalias" => unalias::unalias,
-    "drop" => drop::drop,
     "env" => env::env,*/
 };
 

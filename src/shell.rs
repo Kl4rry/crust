@@ -26,11 +26,6 @@ use frame::Frame;
 
 mod helper;
 
-#[inline(always)]
-pub fn clear_str() -> &'static str {
-    "\x1b[2J\x1b[3J\x1b[H"
-}
-
 pub struct Shell {
     running: bool,
     exit_status: i128,
@@ -141,7 +136,7 @@ impl Shell {
     pub fn run(mut self) -> Result<i128, ShellErrorKind> {
         (execute! {
             stdout(),
-            Print(clear_str()),
+            Print(ansi_escapes::ClearScreen),
             SetTitle("Crust 🦀"),
         })
         .map_err(|e| ShellErrorKind::Io(None, e))?;

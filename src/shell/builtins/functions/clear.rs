@@ -1,18 +1,52 @@
-use std::io::{stdout, Write};
+use std::{
+    io::{stdout, Write},
+    lazy::SyncLazy,
+};
 
 use crate::{
+    argparse::{App, Flag, ParseErrorKind},
     parser::shell_error::ShellErrorKind,
     shell::{
-        clear_str,
         stream::{OutputStream, ValueStream},
+        value::Value,
         Shell,
     },
 };
 
-pub fn clear(_: &mut Shell, _: &[String], _: ValueStream) -> Result<OutputStream, ShellErrorKind> {
-    //https://superuser.com/questions/1628694/how-do-i-add-a-keyboard-shortcut-to-clear-scrollback-buffer-in-windows-terminal
-    stdout()
-        .write_all(clear_str().as_bytes())
+static APP: SyncLazy<App> = SyncLazy::new(|| {
+    App::new("clear").about("Clears the terminal").flag(
+        Flag::new("SCROLLBACK")
+            .short('x')
+            .help("Do not clear scrollback"),
+    )
+});
+
+pub fn clear(
+    _: &mut Shell,
+    args: Vec<Value>,
+    _: ValueStream,
+) -> Result<OutputStream, ShellErrorKind> {
+    let matches = match APP.parse(args.into_iter()) {
+        Ok(m) => m,
+        Err(e) => match e.error {
+            ParseErrorKind::Help(m) => return Ok(OutputStream::from_value(Value::String(m))),
+            _ => return Err(e.into()),
+        },
+    };
+
+    if matches.get(&String::from("SCROLLBACK")).is_some() {
+        write!(
+            stdout(),
+            "{}{}",
+            ansi_escapes::EraseScreen,
+            ansi_escapes::CursorTo::TopLeft
+        )
         .map_err(|err| ShellErrorKind::Io(None, err))?;
+    } else {
+        //https://superuser.com/questions/1628694/how-do-i-add-a-keyboard-shortcut-to-clear-scrollback-buffer-in-windows-terminal
+        write!(stdout(), "{}", ansi_escapes::ClearScreen)
+            .map_err(|err| ShellErrorKind::Io(None, err))?;
+    }
+
     Ok(OutputStream::default())
 }

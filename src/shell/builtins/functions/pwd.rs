@@ -1,4 +1,7 @@
+use std::lazy::SyncLazy;
+
 use crate::{
+    argparse::{App, ParseErrorKind},
     parser::shell_error::ShellErrorKind,
     shell::{
         stream::{OutputStream, ValueStream},
@@ -6,22 +9,25 @@ use crate::{
     },
 };
 
-pub fn pwd(_: &mut Shell, args: &[String], _: ValueStream) -> Result<OutputStream, ShellErrorKind> {
-    let matches = clap::App::new("pwd")
-        .about("print working directory")
-        .setting(clap::AppSettings::NoBinaryName)
-        .try_get_matches_from(args.iter());
+static APP: SyncLazy<App> =
+    SyncLazy::new(|| App::new("pwd").about("Print current working directory"));
 
-    let mut output = OutputStream::default();
-
-    match matches {
-        Ok(_) => output.stream.push(Value::String(String::from(
-            std::env::current_dir().unwrap().to_str().unwrap(),
-        ))),
-        Err(err) => {
-            eprintln!("{}", err);
-            output.status = -1;
-        }
+pub fn pwd(
+    _: &mut Shell,
+    args: Vec<Value>,
+    _: ValueStream,
+) -> Result<OutputStream, ShellErrorKind> {
+    let _ = match APP.parse(args.into_iter()) {
+        Ok(m) => m,
+        Err(e) => match e.error {
+            ParseErrorKind::Help(m) => return Ok(OutputStream::from_value(Value::String(m))),
+            _ => return Err(e.into()),
+        },
     };
+
+    let output = OutputStream::from_value(Value::String(String::from(
+        std::env::current_dir().unwrap().to_str().unwrap(),
+    )));
+
     Ok(output)
 }

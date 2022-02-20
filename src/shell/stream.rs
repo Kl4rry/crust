@@ -79,6 +79,13 @@ impl OutputStream {
         Self { stream, status }
     }
 
+    pub fn from_value(value: Value) -> Self {
+        Self {
+            stream: ValueStream::from_value(value),
+            status: 0,
+        }
+    }
+
     pub fn push(&mut self, value: Value) {
         self.stream.push(value);
     }

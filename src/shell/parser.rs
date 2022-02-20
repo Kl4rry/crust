@@ -643,6 +643,7 @@ impl Parser {
                 }
 
                 let token = self.eat()?;
+                println!("{:#?}", token);
                 match token.token_type {
                     TokenType::String(string) => match ids.last_mut() {
                         Some(Identifier::Quoted(text)) => {
@@ -657,18 +658,8 @@ impl Parser {
                         _ => ids.push(Identifier::Bare(string)),
                     },
                     TokenType::Variable(_) => ids.push(Identifier::Variable(token.try_into()?)),
-                    TokenType::Int(_, string) => match ids.last_mut() {
-                        Some(Identifier::Bare(text)) => {
-                            text.push_str(&string);
-                        }
-                        _ => ids.push(Identifier::Bare(string)),
-                    },
-                    TokenType::Float(_, string) => match ids.last_mut() {
-                        Some(Identifier::Bare(text)) => {
-                            text.push_str(&string);
-                        }
-                        _ => ids.push(Identifier::Bare(string)),
-                    },
+                    TokenType::Int(number, _) => ids.push(Identifier::Int(number)),
+                    TokenType::Float(number, _) => ids.push(Identifier::Float(number)),
                     _ => {
                         let string = token.try_into_glob_str()?;
                         match ids.last_mut() {

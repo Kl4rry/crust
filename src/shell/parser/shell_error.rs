@@ -10,7 +10,10 @@ use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
 use subprocess::{CommunicateError, PopenError};
 
 use super::ast::expr::{binop::BinOp, unop::UnOp};
-use crate::shell::value::{Type, Value};
+use crate::{
+    argparse::ParseError,
+    shell::value::{Type, Value},
+};
 
 #[derive(Debug)]
 pub struct ShellError {
@@ -80,6 +83,7 @@ pub enum ShellErrorKind {
         expected: Type,
         got: Type,
     },
+    ArgParse(ParseError),
     Io(Option<PathBuf>, io::Error),
     Glob(GlobError),
     Pattern(PatternError),
@@ -92,8 +96,11 @@ pub enum ShellErrorKind {
 impl fmt::Display for ShellErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Self::ArgParse(e) => write!(f, "{}", e),
             Self::CommandNotFound(name) => write!(f, "Command '{}' not found", name),
-            Self::CommandPermissionDenied(name) => write!(f, "Cannot run '{}' permission denied", name),
+            Self::CommandPermissionDenied(name) => {
+                write!(f, "Cannot run '{}' permission denied", name)
+            }
             Self::NoMatch(pattern) => write!(f, "No match found for pattern '{}'", pattern),
             Self::VariableNotFound(name) => write!(f, "Variable with name '{}' not found", name),
             Self::IntegerOverFlow => write!(f, "Integer literal too large"),
@@ -168,6 +175,12 @@ impl Diagnostic for ShellError {
 
     fn source_code(&self) -> Option<&dyn miette::SourceCode> {
         Some(&self.src as &dyn SourceCode)
+    }
+}
+
+impl From<ParseError> for ShellErrorKind {
+    fn from(error: ParseError) -> Self {
+        ShellErrorKind::ArgParse(error)
     }
 }
 

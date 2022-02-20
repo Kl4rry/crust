@@ -9,12 +9,12 @@ use crate::{
 
 pub fn echo(
     _: &mut Shell,
-    args: &[String],
+    args: Vec<Value>,
     _: ValueStream,
 ) -> Result<OutputStream, ShellErrorKind> {
     let mut output = OutputStream::default();
     for arg in args {
-        output.stream.push(Value::String(arg.to_string()));
+        output.push(arg);
     }
     Ok(output)
 }

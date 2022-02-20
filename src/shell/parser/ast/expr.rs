@@ -1,11 +1,11 @@
 use std::{
     collections::{HashMap, VecDeque},
-    mem,
+    io, mem,
     rc::Rc,
     thread,
 };
 
-use subprocess::{CommunicateError, Exec, Pipeline, Redirection, PopenError};
+use subprocess::{CommunicateError, Exec, Pipeline, PopenError, Redirection};
 
 use crate::{
     parser::{
@@ -309,7 +309,7 @@ impl Expr {
                                 execs = Vec::new();
                                 ValueStream::from_value(value)
                             };
-                            output = builtin(shell, &args, stream)?;
+                            output = builtin(shell, args, stream)?;
                         }
                         CallType::Internal(func, args) => {
                             let stream = if execs.is_empty() {
@@ -458,7 +458,7 @@ fn run_pipeline(
     }
 }
 
-fn get_call_type(shell: &Shell, cmd: String, args: Vec<String>) -> CallType {
+fn get_call_type(shell: &Shell, cmd: String, args: Vec<Value>) -> CallType {
     if let Some(builtin) = builtins::functions::get_builtin(&cmd) {
         return CallType::Builtin(builtin, args);
     }
@@ -473,6 +473,8 @@ fn get_call_type(shell: &Shell, cmd: String, args: Vec<String>) -> CallType {
         Some(cmd) => cmd,
         None => cmd,
     };
+
+    let args: Vec<_> = args.into_iter().map(|v| v.to_string()).collect();
     CallType::External(Exec::cmd(cmd.clone()).args(&args), cmd)
 }
 
@@ -480,7 +482,7 @@ fn expand_call(
     shell: &mut Shell,
     command: &Command,
     args: &[Argument],
-) -> Result<(String, Vec<String>), ShellErrorKind> {
+) -> Result<(String, Vec<Value>), ShellErrorKind> {
     let mut expanded_args = Vec::new();
     for arg in args {
         let arg = arg.eval(shell)?;
@@ -494,7 +496,7 @@ fn expand_call(
     if let Some(alias) = shell.aliases.get(&command) {
         let mut split = alias.split_whitespace();
         command = split.next().unwrap().to_string();
-        let mut args: Vec<_> = split.map(|s| s.to_string()).collect();
+        let mut args: Vec<_> = split.map(|s| Value::String(s.to_string())).collect();
         args.extend(expanded_args.into_iter());
         expanded_args = args;
     }
@@ -502,20 +504,18 @@ fn expand_call(
 }
 
 pub enum CallType {
-    Builtin(BulitinFn, Vec<String>),
-    Internal(Rc<(Vec<Variable>, Block)>, Vec<String>),
+    Builtin(BulitinFn, Vec<Value>),
+    Internal(Rc<(Vec<Variable>, Block)>, Vec<Value>),
     External(Exec, String),
 }
 
 fn popen_to_shell_err(error: PopenError, name: String) -> ShellErrorKind {
     match error {
         PopenError::IoError(err) => match err.kind() {
-            std::io::ErrorKind::NotFound => ShellErrorKind::CommandNotFound(name),
-            std::io::ErrorKind::PermissionDenied => ShellErrorKind::CommandPermissionDenied(name),
+            io::ErrorKind::NotFound => ShellErrorKind::CommandNotFound(name),
+            io::ErrorKind::PermissionDenied => ShellErrorKind::CommandPermissionDenied(name),
             _ => ShellErrorKind::Io(None, err),
         },
-        error => {
-            ShellErrorKind::Popen(error)
-        }
+        error => ShellErrorKind::Popen(error),
     }
 }

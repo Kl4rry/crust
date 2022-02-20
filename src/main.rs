@@ -1,10 +1,12 @@
 #![feature(type_alias_impl_trait)]
+#![feature(once_cell)]
 use std::{fs, path::PathBuf};
 
 use clap::{App, Arg};
 mod shell;
 pub use shell::parser;
 use shell::{parser::shell_error::ShellErrorKind, Shell};
+mod argparse;
 
 fn main() {
     let status = match start() {

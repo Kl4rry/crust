@@ -170,6 +170,7 @@ dependencies = [
  "rustyline",
  "subprocess",
  "timing",
+ "unicode-width",
  "whoami",
  "winapi",
  "yansi",

@@ -1,44 +1,47 @@
-use std::path::Path;
+use std::{lazy::SyncLazy, path::Path};
 
 use crate::{
+    argparse::{App, Arg, ParseErrorKind},
     parser::shell_error::ShellErrorKind,
     shell::{
         stream::{OutputStream, ValueStream},
+        value::{Type, Value},
         Shell,
     },
 };
 
+static APP: SyncLazy<App> = SyncLazy::new(|| {
+    App::new("cd")
+        .about("Change working directory")
+        .arg(Arg::new("directory", Type::String).help("The new working directory"))
+});
+
 pub fn cd(
     shell: &mut Shell,
-    args: &[String],
+    args: Vec<Value>,
     _: ValueStream,
 ) -> Result<OutputStream, ShellErrorKind> {
-    let matches = clap::App::new("cd")
-        .about("change directory")
-        .arg(clap::Arg::new("DIR").help("The new directory"))
-        .setting(clap::AppSettings::NoBinaryName)
-        .try_get_matches_from(args.iter());
+    let matches = match APP.parse(args.into_iter()) {
+        Ok(m) => m,
+        Err(e) => match e.error {
+            ParseErrorKind::Help(m) => return Ok(OutputStream::from_value(Value::String(m))),
+            _ => return Err(e.into()),
+        },
+    };
 
-    let mut output = OutputStream::default();
-
-    let matches = match matches {
-        Ok(matches) => matches,
-        Err(err) => {
-            eprintln!("{}", err);
-            output.status = -1;
-            return Ok(output);
+    let temp;
+    let dir = match matches.value(&String::from("directory")) {
+        Some(value) => match value {
+            Value::String(ref s) => s.as_str(),
+            _ => panic!("directory must be string this is a bug"),
+        },
+        None => {
+            temp = shell.home_dir.to_string_lossy();
+            &temp
         }
     };
 
-    let dir = match matches.value_of("DIR") {
-        Some(value) => value,
-        None => shell.home_dir.to_str().unwrap(),
-    };
-
     let new_dir = Path::new(dir);
-    if let Err(e) = std::env::set_current_dir(&new_dir) {
-        eprintln!("{}", e);
-        output.status = -1;
-    }
-    Ok(output)
+    std::env::set_current_dir(&new_dir).map_err(|err| ShellErrorKind::Io(None, err))?;
+    Ok(OutputStream::default())
 }
