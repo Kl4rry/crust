@@ -31,7 +31,7 @@ pub enum Statement {
 }
 
 impl Statement {
-    pub fn eval(&self, shell: &mut Shell) -> Result<Value, ShellErrorKind> {
+    pub fn eval(&self, shell: &mut Shell, sub_expr: bool) -> Result<Value, ShellErrorKind> {
         match self {
             Self::Assign(var, expr) => {
                 if is_builtin(&var.name) {
@@ -120,13 +120,15 @@ impl Statement {
             Self::If(expr, block, else_clause) => {
                 let value = expr.eval(shell, false)?;
                 if value.truthy() {
-                    Ok(Value::OutputStream(P::new(block.eval(shell, None, None)?)))
+                    Ok(Value::OutputStream(P::new(
+                        block.eval(shell, None, None, sub_expr)?,
+                    )))
                 } else if let Some(statement) = else_clause {
                     match &**statement {
-                        Self::Block(block) => {
-                            Ok(Value::OutputStream(P::new(block.eval(shell, None, None)?)))
-                        }
-                        Self::If(..) => Ok(statement.eval(shell)?),
+                        Self::Block(block) => Ok(Value::OutputStream(P::new(
+                            block.eval(shell, None, None, sub_expr)?,
+                        ))),
+                        Self::If(..) => Ok(statement.eval(shell, sub_expr)?),
                         _ => unreachable!(),
                     }
                 } else {
@@ -138,7 +140,7 @@ impl Statement {
                     return Err(ShellErrorKind::Interrupt);
                 }
                 let mut collection = OutputStream::default();
-                match block.eval(shell, None, None) {
+                match block.eval(shell, None, None, sub_expr) {
                     Ok(stream) => collection.extend(stream.into_iter()),
                     Err(ShellErrorKind::Break) => {
                         return Ok(Value::OutputStream(P::new(collection)))
@@ -154,7 +156,7 @@ impl Statement {
                         return Err(ShellErrorKind::Interrupt);
                     }
 
-                    match block.eval(shell, None, None) {
+                    match block.eval(shell, None, None, sub_expr) {
                         Ok(stream) => collection.extend(stream.into_iter()),
                         Err(ShellErrorKind::Break) => break,
                         Err(ShellErrorKind::Continue) => continue,
@@ -176,7 +178,7 @@ impl Statement {
 
                             let mut variables: HashMap<String, Value> = HashMap::new();
                             variables.insert(name.clone(), item.clone());
-                            match block.eval(shell, Some(variables), None) {
+                            match block.eval(shell, Some(variables), None, sub_expr) {
                                 Ok(stream) => collection.extend(stream.into_iter()),
                                 Err(ShellErrorKind::Break) => break,
                                 Err(ShellErrorKind::Continue) => continue,
@@ -193,7 +195,7 @@ impl Statement {
                             let mut variables: HashMap<String, Value> = HashMap::new();
                             let item: Value = Value::String(String::from(c));
                             variables.insert(name.clone(), item.clone());
-                            match block.eval(shell, Some(variables), None) {
+                            match block.eval(shell, Some(variables), None, sub_expr) {
                                 Ok(stream) => collection.extend(stream.into_iter()),
                                 Err(ShellErrorKind::Break) => break,
                                 Err(ShellErrorKind::Continue) => continue,
@@ -210,7 +212,7 @@ impl Statement {
                             let mut variables: HashMap<String, Value> = HashMap::new();
                             let item: Value = Value::Int(i);
                             variables.insert(name.clone(), item.clone());
-                            match block.eval(shell, Some(variables), None) {
+                            match block.eval(shell, Some(variables), None, sub_expr) {
                                 Ok(stream) => collection.extend(stream.into_iter()),
                                 Err(ShellErrorKind::Break) => break,
                                 Err(ShellErrorKind::Continue) => continue,
@@ -241,7 +243,9 @@ impl Statement {
             }
             Self::Break => Err(ShellErrorKind::Break),
             Self::Continue => Err(ShellErrorKind::Continue),
-            Self::Block(block) => Ok(Value::OutputStream(P::new(block.eval(shell, None, None)?))),
+            Self::Block(block) => Ok(Value::OutputStream(P::new(
+                block.eval(shell, None, None, sub_expr)?,
+            ))),
         }
     }
 }

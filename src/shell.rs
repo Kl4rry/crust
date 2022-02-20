@@ -116,7 +116,7 @@ impl Shell {
         match Parser::new(src, name).parse() {
             Ok(ast) => {
                 self.interrupt.store(false, Ordering::SeqCst);
-                let res = ast.eval(self);
+                let res = ast.eval(self, false);
                 match res {
                     Ok(values) => {
                         print!("{}", values);

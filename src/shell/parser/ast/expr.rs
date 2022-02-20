@@ -346,7 +346,7 @@ impl Expr {
                                     }
                                 }
                             }
-                            output = block.eval(shell, Some(input_vars), Some(stream))?;
+                            output = block.eval(shell, Some(input_vars), Some(stream), sub_expr)?;
                         }
                     }
                 }
