@@ -3,36 +3,56 @@ Crust is a experimental crossplatform exotic shell.
 This readme contains notes to myself.
 
 ## Progress
-| Syntax                          | Parsing                      | Eval |
-| ------------------------------- | ---------------------------- | ---- |
-| Literals                        | ✅                            | ✅    |
-| Binary operators                | ✅                            | ✅    |
-| Unary operators                 | ✅                            | ✅    |
-| Function/Command calls          | ✅                            | ✅    |
-| Blocks                          | ✅                            | ✅    |
-| Function Declarations           | ✅                            | ✅    |
-| If                              | ✅                            | ✅    |
-| loop                            | ✅                            | ✅    |
-| while                           | ✅                            | ✅    |
-| for                             | ✅                            | ✅    |
-| Break                           | ✅                            | ✅    |
-| Continue                        | ✅                            | ✅    |
-| Return                          | ✅                            | ✅    |
-| Assignment                      | ✅                            | ✅    |
-| Variable declaration            | ✅                            | ✅    |
-| Export                          | ✅                            | ❌    |
-| Alias                           | ✅                            | ✅    |
-| Lists                           | ✅                            | ✅    |
-| Indexing/Slicing                | ❌                            | ❌    |
-| Maps/Tables                     | ❌                            | ❌    |
-| Pipes                           | ✅ (Not \| & aka stderr pipe) | ❌    |
-| Glob                            | ✅                            | ✅    |
-| Questionmark / single char glob | ✅                            | ✅    |
-| Bracket globing char            | ✅                            | ✅    |
-| Subexpr $(expr)                 | ✅                            | ✅    |
-| Assign and modify += *= etc     | ✅                            | ✅    |
-| run in background using &       | ❌                            | ❌    |
-| Escapes sequences               | ❌                            | ❌    |
+### Language features
+| Syntax                          | Parsing | Eval |
+| ------------------------------- | ------- | ---- |
+| Literals                        | ✅       | ✅    |
+| Binary operators                | ✅       | ✅    |
+| Unary operators                 | ✅       | ✅    |
+| Function/Command calls          | ✅       | ✅    |
+| Blocks                          | ✅       | ✅    |
+| Function Declarations           | ✅       | ✅    |
+| If                              | ✅       | ✅    |
+| loop                            | ✅       | ✅    |
+| while                           | ✅       | ✅    |
+| for                             | ✅       | ✅    |
+| Break                           | ✅       | ✅    |
+| Continue                        | ✅       | ✅    |
+| Return                          | ✅       | ✅    |
+| Assignment                      | ✅       | ✅    |
+| Variable declaration            | ✅       | ✅    |
+| Export                          | ✅       | ❌    |
+| Alias                           | ✅       | ✅    |
+| Lists                           | ✅       | ✅    |
+| Indexing/Slicing                | ❌       | ❌    |
+| Maps/Tables                     | ❌       | ❌    |
+| Pipes                           | ✅       | ❌    |
+| Glob                            | ✅       | ✅    |
+| Questionmark / single char glob | ✅       | ✅    |
+| Bracket globing char            | ✅       | ✅    |
+| Subexpr $(expr)                 | ✅       | ✅    |
+| Assign and modify += *= etc     | ✅       | ✅    |
+| run in background using &       | ❌       | ❌    |
+| Escapes sequences               | ❌       | ❌    |
+
+### Standard functions
+| Name   | Completed       |
+| ------ | --------------- |
+| clear  | ✅               |
+| cd     | ✅               |
+| exit   | ✅               |
+| echo   | ✅               |
+| pwd    | ✅               |
+| import | ✅ (Not locking) |
+| open   | ❌               |
+
+(More functions to come)
+
+### Other features
+| Feature              | Completed |
+| -------------------- | --------- |
+| Custom prompt        | ❌         |
+| Starship integration | ❌         |
 
 ## Todo
 Propagate errors better with streams.  

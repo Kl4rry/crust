@@ -120,7 +120,13 @@ impl App {
 
     fn usage(&self) -> String {
         let mut output = String::new();
-        write!(output, "{}\n    {}", Paint::yellow("Usage:"), Paint::green(&self.name)).unwrap();
+        write!(
+            output,
+            "{}\n    {}",
+            Paint::yellow("Usage:"),
+            Paint::green(&self.name)
+        )
+        .unwrap();
         write!(output, " [FLAGS]").unwrap();
 
         if !self.options.is_empty() && self.options.iter().any(|o| !o.required) {
@@ -194,7 +200,14 @@ impl App {
             width = cmp::max(width, unsafe { strs.last().unwrap_unchecked() }.width());
 
             for (help, flag_str) in helps.iter().zip(strs.iter()) {
-                writeln!(output, "    {:width$}    {}", Paint::green(flag_str), help, width = width).unwrap();
+                writeln!(
+                    output,
+                    "    {:width$}    {}",
+                    Paint::green(flag_str),
+                    help,
+                    width = width
+                )
+                .unwrap();
             }
         }
 
@@ -248,7 +261,14 @@ impl App {
                 strs.push(temp);
             }
             for (p, s) in self.args.iter().zip(strs.iter()) {
-                writeln!(output, "   {:width$}    {}", Paint::green(s), p.help, width = width).unwrap();
+                writeln!(
+                    output,
+                    "   {:width$}    {}",
+                    Paint::green(s),
+                    p.help,
+                    width = width
+                )
+                .unwrap();
             }
         }
 
