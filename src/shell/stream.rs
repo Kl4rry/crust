@@ -124,13 +124,6 @@ impl OutputStream {
         }
     }
 
-    pub fn outputs(&mut self, o: bool) {
-        match self.inner {
-            InnerStream::Capture(_) => panic!("inc capture"),
-            InnerStream::Output(ref mut outputs) => *outputs = o,
-        }
-    }
-
     pub fn is_capture(&self) -> bool {
         matches!(self.inner, InnerStream::Capture(_))
     }

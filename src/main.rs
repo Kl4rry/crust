@@ -52,7 +52,7 @@ fn start() -> Result<i32, ShellErrorKind> {
     };
 
     let mut shell = Shell::new(args);
-    if matches.value_of("FILE").is_some() || matches.value_of("COMMAND").is_some() {
+    if !matches.value_of("FILE").is_some() && !matches.value_of("COMMAND").is_some() {
         print!("{}", ansi_escapes::ClearScreen);
     }
     shell.init()?;
