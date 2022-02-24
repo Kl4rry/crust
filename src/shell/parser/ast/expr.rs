@@ -391,6 +391,7 @@ impl Expr {
                         );
                         output.push(value);
                     } else {
+                        output.outputs(true);
                         run_pipeline(shell, execs, false, capture_output.into_value_stream())?;
                     }
                 }

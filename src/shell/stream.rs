@@ -84,7 +84,7 @@ impl OutputStream {
 
     pub fn new_output() -> Self {
         Self {
-            inner: InnerStream::Output(0),
+            inner: InnerStream::Output(false),
         }
     }
 
@@ -95,7 +95,7 @@ impl OutputStream {
             value => match &mut self.inner {
                 InnerStream::Capture(values) => values.push(value),
                 InnerStream::Output(outputs) => {
-                    *outputs += 1;
+                    *outputs = true;
                     print!("{}", value);
                 }
             },
@@ -106,7 +106,7 @@ impl OutputStream {
         match &mut self.inner {
             InnerStream::Capture(values) => values.extend(stream.into_iter()),
             InnerStream::Output(outputs) => {
-                *outputs += stream.len();
+                *outputs = true;
                 print!("{}", stream);
             }
         }
@@ -116,11 +116,18 @@ impl OutputStream {
         match &mut self.inner {
             InnerStream::Capture(_) => panic!("cannot end capture stream"),
             InnerStream::Output(output) => {
-                if *output > 0 {
+                if *output {
                     println!()
                 }
-                *output = 0;
+                *output = false;
             }
+        }
+    }
+
+    pub fn outputs(&mut self, o: bool) {
+        match self.inner {
+            InnerStream::Capture(_) => panic!("inc capture"),
+            InnerStream::Output(ref mut outputs) => *outputs = o,
         }
     }
 
@@ -154,5 +161,5 @@ impl fmt::Display for OutputStream {
 #[derive(Debug, Clone)]
 enum InnerStream {
     Capture(Vec<Value>),
-    Output(usize),
+    Output(bool),
 }

@@ -9,7 +9,7 @@ use std::{
     },
 };
 
-use crossterm::{execute, style::Print, terminal::SetTitle};
+use crossterm::{execute, terminal::SetTitle};
 use directories::ProjectDirs;
 use executable_finder::{executables, Executable};
 use miette::{Diagnostic, GraphicalReportHandler};
@@ -140,7 +140,6 @@ impl Shell {
     pub fn run(mut self) -> Result<i128, ShellErrorKind> {
         (execute! {
             stdout(),
-            Print(ansi_escapes::ClearScreen),
             SetTitle("Crust 🦀"),
         })
         .map_err(|e| ShellErrorKind::Io(None, e))?;

@@ -54,6 +54,11 @@ This readme contains notes to myself.
 | Custom prompt        | ✅         |
 | Starship integration | ✅         |
 
+### Starship integration
+```bash
+import https://raw.githubusercontent.com/Kl4rry/crust/main/libs/starship.crust
+```
+
 ## Todo
 Propagate errors better with streams.  
 
