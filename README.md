@@ -26,7 +26,7 @@ This readme contains notes to myself.
 | Lists                           | ✅       | ✅    |
 | Indexing/Slicing                | ❌       | ❌    |
 | Maps/Tables                     | ❌       | ❌    |
-| Pipes                           | ✅       | ❌    |
+| Pipes                           | ✅       | ✅    |
 | Glob                            | ✅       | ✅    |
 | Questionmark / single char glob | ✅       | ✅    |
 | Bracket globing char            | ✅       | ✅    |
