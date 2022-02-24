@@ -10,7 +10,7 @@ use crate::{
         syntax_error::SyntaxErrorKind,
         Token, TokenType,
     },
-    shell::{value::Value, Shell},
+    shell::{stream::OutputStream, value::Value, Shell},
 };
 
 #[derive(Debug, Clone)]
@@ -24,14 +24,18 @@ pub enum Literal {
 }
 
 impl Literal {
-    pub fn eval(&self, shell: &mut Shell) -> Result<Value, ShellErrorKind> {
+    pub fn eval(
+        &self,
+        shell: &mut Shell,
+        output: &mut OutputStream,
+    ) -> Result<Value, ShellErrorKind> {
         match self {
             Literal::String(string) => Ok(Value::String(string.to_string())),
-            Literal::Expand(expand) => Ok(Value::String(expand.eval(shell)?)),
+            Literal::Expand(expand) => Ok(Value::String(expand.eval(shell, output)?)),
             Literal::List(list) => {
                 let mut values: Vec<Value> = Vec::new();
                 for expr in list.iter() {
-                    let value = expr.eval(shell, false)?;
+                    let value = expr.eval(shell, output)?;
                     match value {
                         Value::List(ref list) => {
                             for item in list {

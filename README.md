@@ -58,16 +58,14 @@ This readme contains notes to myself.
 Propagate errors better with streams.  
 
 ## Bugs
+A bunch of places convert values to string where it should throw an hard error instead.  
 Comparison operator chaining is currently permitted but should not be.  
-Exit status is never set/checked.  
-Null should be filter out when combining outputstreams (Maybe make a combine method on output stream and/or stream).  
 Streams cannot be used like normal return values. They should be unpacked when used in a sub expr.  
-Arguments are always passed as strings to functions they should be passed as values (Building my own CLI arg parser?).  
 Check for overflowing, div by zero and use wrapping/checked arthimetic operations.  
 
 ## Questions to be answered
 Should lists expand to multiple arguments when passed to a function. Should this depend on if it is an internal or external command?  
-Should return take a expr as optional parameter?  
+Should return take a expr as optional parameter? What does even return mean as functions dont have traditional return values?  
 
 ## Ideas
 All env variables should be stored in the same way as normal variable only with a flag. When a process is started all env variables in scope should be collected and passed to the child.

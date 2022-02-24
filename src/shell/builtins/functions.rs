@@ -20,7 +20,7 @@ mod pwd;
 mod unalias;
 
 pub type BulitinFn =
-    fn(&mut Shell, Vec<Value>, ValueStream) -> Result<OutputStream, ShellErrorKind>;
+    fn(&mut Shell, Vec<Value>, ValueStream, &mut OutputStream) -> Result<(), ShellErrorKind>;
 
 static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "clear" => clear::clear,

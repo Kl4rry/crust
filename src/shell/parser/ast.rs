@@ -40,32 +40,29 @@ impl Ast {
         }
     }
 
-    pub fn eval(&self, shell: &mut Shell, sub_expr: bool) -> Result<OutputStream, ShellError> {
-        let x = self.eval_errorkind(shell, sub_expr);
+    pub fn eval(&self, shell: &mut Shell, output: &mut OutputStream) -> Result<(), ShellError> {
+        let x = self.eval_errorkind(shell, output);
         x.map_err(|err| ShellError::new(err, self.src.clone(), self.name.clone()))
     }
 
     pub fn eval_errorkind(
         &self,
         shell: &mut Shell,
-        sub_expr: bool,
-    ) -> Result<OutputStream, ShellErrorKind> {
-        let mut output = OutputStream::default();
+        output: &mut OutputStream,
+    ) -> Result<(), ShellErrorKind> {
         for compound in &self.sequence {
             if shell.interrupt.load(Ordering::SeqCst) {
                 return Err(ShellErrorKind::Interrupt);
             }
-            let value = match compound {
-                Compound::Expr(expr) => expr.eval(shell, sub_expr)?,
-                Compound::Statement(statement) => statement.eval(shell, sub_expr)?,
+            match compound {
+                Compound::Expr(expr) => {
+                    let value = expr.eval(shell, output)?;
+                    output.push(value);
+                }
+                Compound::Statement(statement) => statement.eval(shell, output)?,
             };
-            match value {
-                Value::Null => (),
-                Value::OutputStream(stream) => output.extend(stream.into_iter()),
-                value => output.push(value),
-            }
         }
-        Ok(output)
+        Ok(())
     }
 }
 
@@ -86,8 +83,8 @@ impl Block {
         shell: &mut Shell,
         variables: Option<HashMap<String, Value>>,
         input: Option<ValueStream>,
-        sub_expr: bool,
-    ) -> Result<OutputStream, ShellErrorKind> {
+        output: &mut OutputStream,
+    ) -> Result<(), ShellErrorKind> {
         if shell.stack.len() == shell.recursion_limit {
             return Err(ShellErrorKind::MaxRecursion(shell.recursion_limit));
         }
@@ -96,23 +93,20 @@ impl Block {
             HashMap::new(),
             input.unwrap_or_default(),
         ));
-        let mut output = OutputStream::default();
         for compound in &self.sequence {
             if shell.interrupt.load(Ordering::SeqCst) {
                 return Err(ShellErrorKind::Interrupt);
             }
-            let value = match compound {
-                Compound::Expr(expr) => expr.eval(shell, sub_expr)?,
-                Compound::Statement(statement) => statement.eval(shell, sub_expr)?,
+            match compound {
+                Compound::Expr(expr) => {
+                    let value = expr.eval(shell, output)?;
+                    output.push(value);
+                }
+                Compound::Statement(statement) => statement.eval(shell, output)?,
             };
-            match value {
-                Value::Null => (),
-                Value::OutputStream(stream) => output.extend(stream.into_iter()),
-                value => output.push(value),
-            }
         }
         shell.stack.pop().unwrap();
-        Ok(output)
+        Ok(())
     }
 }
 

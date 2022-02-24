@@ -11,10 +11,10 @@ pub fn echo(
     _: &mut Shell,
     args: Vec<Value>,
     _: ValueStream,
-) -> Result<OutputStream, ShellErrorKind> {
-    let mut output = OutputStream::default();
+    output: &mut OutputStream,
+) -> Result<(), ShellErrorKind> {
     for arg in args {
         output.push(arg);
     }
-    Ok(output)
+    Ok(())
 }

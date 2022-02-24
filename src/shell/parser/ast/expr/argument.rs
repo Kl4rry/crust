@@ -2,7 +2,7 @@ use bigdecimal::{num_bigint::BigInt, BigDecimal, ToPrimitive};
 
 use crate::{
     parser::{shell_error::ShellErrorKind, Expr, Variable, P},
-    shell::value::Value,
+    shell::{stream::OutputStream, value::Value},
     Shell,
 };
 
@@ -18,13 +18,17 @@ pub enum Identifier {
 }
 
 impl Identifier {
-    pub fn eval(&self, shell: &mut Shell) -> Result<Value, ShellErrorKind> {
+    pub fn eval(
+        &self,
+        shell: &mut Shell,
+        output: &mut OutputStream,
+    ) -> Result<Value, ShellErrorKind> {
         match self {
             Identifier::Variable(var) => Ok(var.eval(shell)?),
-            Identifier::Expand(expand) => Ok(Value::String(expand.eval(shell)?)),
+            Identifier::Expand(expand) => Ok(Value::String(expand.eval(shell, output)?)),
             Identifier::Bare(value) => Ok(Value::String(value.to_string())),
             Identifier::Quoted(string) => Ok(Value::String(string.clone())),
-            Identifier::Expr(expr) => Ok(expr.eval(shell, true)?),
+            Identifier::Expr(expr) => Ok(expr.eval(shell, output)?),
             Identifier::Float(number) => Ok(Value::Float(number.to_f64().unwrap())),
             Identifier::Int(number) => match number.to_i128() {
                 Some(number) => Ok(Value::Int(number)),
@@ -40,12 +44,16 @@ pub struct Expand {
 }
 
 impl Expand {
-    pub fn eval(&self, shell: &mut Shell) -> Result<String, ShellErrorKind> {
+    pub fn eval(
+        &self,
+        shell: &mut Shell,
+        output: &mut OutputStream,
+    ) -> Result<String, ShellErrorKind> {
         let mut value = String::new();
         for item in self.content.iter() {
             match item {
                 ExpandKind::String(string) => value.push_str(string),
-                ExpandKind::Expr(expr) => value.push_str(&expr.eval(shell, true)?.to_string()),
+                ExpandKind::Expr(expr) => value.push_str(&expr.eval(shell, output)?.to_string()),
                 ExpandKind::Variable(var) => value.push_str(&var.eval(shell)?.to_string()),
             }
         }
@@ -66,7 +74,11 @@ pub struct Argument {
 }
 
 impl Argument {
-    pub fn eval(&self, shell: &mut Shell) -> Result<ArgumentValue, ShellErrorKind> {
+    pub fn eval(
+        &self,
+        shell: &mut Shell,
+        output: &mut OutputStream,
+    ) -> Result<ArgumentValue, ShellErrorKind> {
         let mut parts = Vec::new();
         let mut glob = false;
         for part in self.parts.iter() {
@@ -81,7 +93,7 @@ impl Argument {
                     }
                     (Value::String(string), false)
                 }
-                _ => (part.eval(shell)?, true),
+                _ => (part.eval(shell, output)?, true),
             };
             parts.push((escape, string));
         }

@@ -20,11 +20,15 @@ pub fn cd(
     shell: &mut Shell,
     args: Vec<Value>,
     _: ValueStream,
-) -> Result<OutputStream, ShellErrorKind> {
+    output: &mut OutputStream,
+) -> Result<(), ShellErrorKind> {
     let matches = match APP.parse(args.into_iter()) {
         Ok(m) => m,
         Err(e) => match e.error {
-            ParseErrorKind::Help(m) => return Ok(OutputStream::from_value(Value::String(m))),
+            ParseErrorKind::Help(m) => {
+                output.push(Value::String(m));
+                return Ok(());
+            }
             _ => return Err(e.into()),
         },
     };
@@ -43,5 +47,5 @@ pub fn cd(
 
     let new_dir = Path::new(dir);
     std::env::set_current_dir(&new_dir).map_err(|err| ShellErrorKind::Io(None, err))?;
-    Ok(OutputStream::default())
+    Ok(())
 }

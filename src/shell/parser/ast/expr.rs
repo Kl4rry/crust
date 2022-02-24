@@ -112,16 +112,20 @@ impl Expr {
         }
     }
 
-    pub fn eval(&self, shell: &mut Shell, sub_expr: bool) -> Result<Value, ShellErrorKind> {
+    pub fn eval(
+        &self,
+        shell: &mut Shell,
+        output: &mut OutputStream,
+    ) -> Result<Value, ShellErrorKind> {
         match self {
             Self::Call(_, _) => {
                 unreachable!("calls must always be in a pipeline, bare calls are not allowed")
             }
-            Self::Literal(literal) => literal.eval(shell),
+            Self::Literal(literal) => literal.eval(shell, output),
             Self::Variable(variable) => variable.eval(shell),
             // casting syntax will be reworked in favor of builtins
             Self::TypeCast(type_of, expr) => {
-                let value = expr.eval(shell, false)?;
+                let value = expr.eval(shell, output)?;
                 match type_of {
                     Type::Int => match value {
                         Value::String(string) => Ok(Value::Int(string.parse()?)),
@@ -164,7 +168,7 @@ impl Expr {
                 }
             }
             Self::Unary(unop, expr) => {
-                let value = expr.eval(shell, false)?;
+                let value = expr.eval(shell, output)?;
                 match unop {
                     UnOp::Neg => match value.as_ref() {
                         Value::Int(int) => Ok(Value::Int(-*int)),
@@ -174,11 +178,11 @@ impl Expr {
                     UnOp::Not => Ok(Value::Bool(!value.truthy())),
                 }
             }
-            Self::Paren(expr) => expr.eval(shell, sub_expr),
+            Self::Paren(expr) => expr.eval(shell, output),
             Self::Binary(binop, lhs, rhs) => match binop {
                 BinOp::Range => {
-                    let lhs_value = lhs.eval(shell, false)?;
-                    let rhs_value = rhs.eval(shell, false)?;
+                    let lhs_value = lhs.eval(shell, output)?;
+                    let rhs_value = rhs.eval(shell, output)?;
 
                     let lhs = lhs_value.try_as_int();
                     let rhs = rhs_value.try_as_int();
@@ -200,45 +204,45 @@ impl Expr {
                     }
                 }
                 BinOp::Add => {
-                    let lhs = lhs.eval(shell, false)?;
-                    let rhs = rhs.eval(shell, false)?;
+                    let lhs = lhs.eval(shell, output)?;
+                    let rhs = rhs.eval(shell, output)?;
                     lhs.try_add(rhs)
                 }
                 BinOp::Sub => {
-                    let lhs = lhs.eval(shell, false)?;
-                    let rhs = rhs.eval(shell, false)?;
+                    let lhs = lhs.eval(shell, output)?;
+                    let rhs = rhs.eval(shell, output)?;
                     lhs.try_sub(rhs)
                 }
                 BinOp::Mul => {
-                    let lhs = lhs.eval(shell, false)?;
-                    let rhs = rhs.eval(shell, false)?;
+                    let lhs = lhs.eval(shell, output)?;
+                    let rhs = rhs.eval(shell, output)?;
                     lhs.try_mul(rhs)
                 }
                 BinOp::Div => {
-                    let lhs = lhs.eval(shell, false)?;
-                    let rhs = rhs.eval(shell, false)?;
+                    let lhs = lhs.eval(shell, output)?;
+                    let rhs = rhs.eval(shell, output)?;
                     lhs.try_div(rhs)
                 }
                 BinOp::Expo => {
-                    let lhs = lhs.eval(shell, false)?;
-                    let rhs = rhs.eval(shell, false)?;
+                    let lhs = lhs.eval(shell, output)?;
+                    let rhs = rhs.eval(shell, output)?;
                     lhs.try_expo(rhs)
                 }
                 BinOp::Mod => {
-                    let lhs = lhs.eval(shell, false)?;
-                    let rhs = rhs.eval(shell, false)?;
+                    let lhs = lhs.eval(shell, output)?;
+                    let rhs = rhs.eval(shell, output)?;
                     lhs.try_mod(rhs)
                 }
                 // The == operator (equality)
                 BinOp::Eq => {
-                    let lhs = lhs.eval(shell, false)?;
-                    let rhs = rhs.eval(shell, false)?;
+                    let lhs = lhs.eval(shell, output)?;
+                    let rhs = rhs.eval(shell, output)?;
                     Ok(Value::Bool(lhs == rhs))
                 }
                 // The != operator (not equal to)
                 BinOp::Ne => {
-                    let lhs = lhs.eval(shell, false)?;
-                    let rhs = rhs.eval(shell, false)?;
+                    let lhs = lhs.eval(shell, output)?;
+                    let rhs = rhs.eval(shell, output)?;
                     Ok(Value::Bool(lhs != rhs))
                 }
 
@@ -247,33 +251,33 @@ impl Expr {
 
                 // The < operator (less than)
                 BinOp::Lt => {
-                    let lhs = lhs.eval(shell, false)?;
-                    let rhs = rhs.eval(shell, false)?;
+                    let lhs = lhs.eval(shell, output)?;
+                    let rhs = rhs.eval(shell, output)?;
                     compare_impl!(lhs, rhs, *binop, <)
                 }
                 // The <= operator (less than or equal to)
                 BinOp::Le => {
-                    let lhs = lhs.eval(shell, false)?;
-                    let rhs = rhs.eval(shell, false)?;
+                    let lhs = lhs.eval(shell, output)?;
+                    let rhs = rhs.eval(shell, output)?;
                     compare_impl!(lhs, rhs, *binop, <=)
                 }
                 // The >= operator (greater than or equal to)
                 BinOp::Ge => {
-                    let lhs = lhs.eval(shell, false)?;
-                    let rhs = rhs.eval(shell, false)?;
+                    let lhs = lhs.eval(shell, output)?;
+                    let rhs = rhs.eval(shell, output)?;
                     compare_impl!(lhs, rhs, *binop, >=)
                 }
                 // The > operator (greater than)
                 BinOp::Gt => {
-                    let lhs = lhs.eval(shell, false)?;
-                    let rhs = rhs.eval(shell, false)?;
+                    let lhs = lhs.eval(shell, output)?;
+                    let rhs = rhs.eval(shell, output)?;
                     compare_impl!(lhs, rhs, *binop, >)
                 }
                 BinOp::And => Ok(Value::Bool(
-                    lhs.eval(shell, false)?.truthy() && rhs.eval(shell, false)?.truthy(),
+                    lhs.eval(shell, output)?.truthy() && rhs.eval(shell, output)?.truthy(),
                 )),
                 BinOp::Or => Ok(Value::Bool(
-                    lhs.eval(shell, false)?.truthy() || rhs.eval(shell, false)?.truthy(),
+                    lhs.eval(shell, output)?.truthy() || rhs.eval(shell, output)?.truthy(),
                 )),
             },
             Self::Pipe(calls) => {
@@ -281,7 +285,7 @@ impl Expr {
                 for callable in calls {
                     match callable {
                         Self::Call(cmd, args) => {
-                            let (cmd, args) = expand_call(shell, cmd, args)?;
+                            let (cmd, args) = expand_call(shell, cmd, args, output)?;
                             expanded_calls.push_back(get_call_type(shell, cmd, args));
                         }
                         _ => unreachable!(),
@@ -289,7 +293,9 @@ impl Expr {
                 }
 
                 let mut execs: Vec<(Exec, String)> = Vec::new();
-                let mut output = OutputStream::default();
+
+                let mut capture_output = OutputStream::new_capture();
+
                 while let Some(call_type) = expanded_calls.pop_front() {
                     match call_type {
                         CallType::External(exec, name) => {
@@ -297,31 +303,50 @@ impl Expr {
                         }
                         CallType::Builtin(builtin, args) => {
                             let stream = if execs.is_empty() {
-                                let mut stream = ValueStream::default();
-                                mem::swap(&mut output.stream, &mut stream);
-                                stream
+                                let mut stream = OutputStream::new_capture();
+                                mem::swap(&mut capture_output, &mut stream);
+                                stream.into_value_stream()
                             } else {
                                 let value = Value::String(
-                                    run_pipeline(shell, execs, true, output.stream)?
-                                        .unwrap()
-                                        .to_string(),
+                                    run_pipeline(
+                                        shell,
+                                        execs,
+                                        true,
+                                        capture_output.into_value_stream(),
+                                    )?
+                                    .unwrap()
+                                    .to_string(),
                                 );
+                                capture_output = OutputStream::new_capture();
                                 execs = Vec::new();
                                 ValueStream::from_value(value)
                             };
-                            output = builtin(shell, args, stream)?;
+
+                            let temp_output_cap = if expanded_calls.is_empty() {
+                                &mut *output
+                            } else {
+                                capture_output = OutputStream::new_capture();
+                                &mut capture_output
+                            };
+                            builtin(shell, args, stream, temp_output_cap)?;
                         }
                         CallType::Internal(func, args) => {
                             let stream = if execs.is_empty() {
-                                let mut stream = ValueStream::default();
-                                mem::swap(&mut output.stream, &mut stream);
-                                stream
+                                let mut stream = OutputStream::new_capture();
+                                mem::swap(&mut capture_output, &mut stream);
+                                stream.into_value_stream()
                             } else {
                                 let value = Value::String(
-                                    run_pipeline(shell, execs, true, output.stream)?
-                                        .unwrap()
-                                        .to_string(),
+                                    run_pipeline(
+                                        shell,
+                                        execs,
+                                        true,
+                                        capture_output.into_value_stream(),
+                                    )?
+                                    .unwrap()
+                                    .to_string(),
                                 );
+                                capture_output = OutputStream::new_capture();
                                 execs = Vec::new();
                                 ValueStream::from_value(value)
                             };
@@ -346,32 +371,43 @@ impl Expr {
                                     }
                                 }
                             }
-                            output = block.eval(shell, Some(input_vars), Some(stream), sub_expr)?;
+
+                            let temp_output_cap = if expanded_calls.is_empty() {
+                                &mut *output
+                            } else {
+                                capture_output = OutputStream::new_capture();
+                                &mut capture_output
+                            };
+                            block.eval(shell, Some(input_vars), Some(stream), temp_output_cap)?;
                         }
                     }
                 }
 
                 if !execs.is_empty() {
-                    if sub_expr {
+                    if output.is_capture() {
                         let value = Value::String(
-                            run_pipeline(shell, execs, true, output.stream)?.unwrap(),
+                            run_pipeline(shell, execs, true, capture_output.into_value_stream())?
+                                .unwrap(),
                         );
-                        Ok(Value::OutputStream(P::new(OutputStream::new(
-                            ValueStream::from_value(value),
-                            0,
-                        ))))
+                        output.push(value);
                     } else {
-                        run_pipeline(shell, execs, false, output.stream)?;
-                        Ok(Value::OutputStream(P::new(OutputStream::default())))
+                        run_pipeline(shell, execs, false, capture_output.into_value_stream())?;
                     }
-                } else if sub_expr {
-                    Ok(Value::OutputStream(P::new(output)))
+                }
+
+                Ok(Value::Null)
+            }
+            Self::SubExpr(expr) => {
+                let mut capture = OutputStream::new_capture();
+                let value = expr.eval(shell, &mut capture)?;
+                // i really dont know if this is correct
+                // i probably isnt
+                if value == Value::Null {
+                    Ok(Value::ValueStream(P::new(capture.into_value_stream())))
                 } else {
-                    print!("{}", output);
-                    Ok(Value::Null)
+                    Ok(value)
                 }
             }
-            Self::SubExpr(expr) => expr.eval(shell, true),
         }
     }
 }
@@ -426,12 +462,12 @@ fn run_pipeline(
                 let (out, _) = com.read_string()?;
                 Ok(out)
             });
-            // the exit status should be set to the status variable
-            let _status = child.wait()?;
+
+            shell.set_status(child.wait()?);
             Ok(t.join().unwrap()?)
         } else {
             let _ = child.communicate_start(input_data);
-            let _ = child.wait()?;
+            shell.set_status(child.wait()?);
             Ok(None)
         }
     } else {
@@ -451,7 +487,7 @@ fn run_pipeline(
             shell.set_child(None);
             Ok(None)
         } else {
-            let _ = last.wait()?;
+            shell.set_status(last.wait()?);
             shell.set_child(None);
             Ok(None)
         }
@@ -482,16 +518,17 @@ fn expand_call(
     shell: &mut Shell,
     command: &Command,
     args: &[Argument],
+    output: &mut OutputStream,
 ) -> Result<(String, Vec<Value>), ShellErrorKind> {
     let mut expanded_args = Vec::new();
     for arg in args {
-        let arg = arg.eval(shell)?;
+        let arg = arg.eval(shell, output)?;
         match arg {
             ArgumentValue::Single(string) => expanded_args.push(string),
             ArgumentValue::Multi(vec) => expanded_args.extend(vec.into_iter()),
         }
     }
-    let mut command = command.eval(shell)?;
+    let mut command = command.eval(shell, output)?;
 
     if let Some(alias) = shell.aliases.get(&command) {
         let mut split = alias.split_whitespace();

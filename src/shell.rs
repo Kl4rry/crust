@@ -20,9 +20,12 @@ pub mod parser;
 pub mod stream;
 pub mod value;
 use parser::{shell_error::ShellErrorKind, Parser};
+use subprocess::ExitStatus;
 use value::Value;
 mod frame;
 use frame::Frame;
+
+use self::{parser::ast::Block, stream::OutputStream};
 
 mod helper;
 
@@ -38,6 +41,7 @@ pub struct Shell {
     interrupt: Arc<AtomicBool>,
     executables: Vec<Executable>,
     args: Vec<String>,
+    prompt: Option<Block>,
 }
 
 impl Shell {
@@ -84,6 +88,7 @@ impl Shell {
             interrupt,
             executables: executables().unwrap(),
             args,
+            prompt: None,
         }
     }
 
@@ -108,23 +113,22 @@ impl Shell {
 
         let config = std::fs::read_to_string(&config_path)
             .map_err(|e| ShellErrorKind::Io(Some(config_path.to_path_buf()), e))?;
-        self.run_src(config, config_path.to_string_lossy().to_string());
+        self.run_src(
+            config,
+            config_path.to_string_lossy().to_string(),
+            &mut OutputStream::new_output(),
+        );
         Ok(())
     }
 
-    pub fn run_src(&mut self, src: String, name: String) -> i128 {
+    pub fn run_src(&mut self, src: String, name: String, output: &mut OutputStream) -> i128 {
         match Parser::new(src, name).parse() {
             Ok(ast) => {
                 self.interrupt.store(false, Ordering::SeqCst);
-                let res = ast.eval(self, false);
-                match res {
-                    Ok(values) => {
-                        print!("{}", values);
-                    }
-                    Err(error) => {
-                        if !error.is_exit() {
-                            report_error(error)
-                        }
+                let res = ast.eval(self, output);
+                if let Err(error) = res {
+                    if !error.is_exit() {
+                        report_error(error)
                     }
                 }
             }
@@ -150,8 +154,14 @@ impl Shell {
         editor.set_helper(Some(helper::EditorHelper::new()));
         let _ = editor.load_history(&self.history_path());
 
+        let mut output = OutputStream::new_output();
+
         while self.running {
-            let readline = editor.readline(&self.promt());
+            let helper = editor.helper_mut().unwrap();
+            helper.prompt = self.prompt().unwrap_or_else(|_| self.default_prompt());
+            let stripped = console::strip_ansi_codes(&helper.prompt).to_string();
+
+            let readline = editor.readline(&stripped);
             match readline {
                 Ok(line) => {
                     if line.is_empty() {
@@ -159,7 +169,8 @@ impl Shell {
                     }
 
                     editor.add_history_entry(&line);
-                    self.run_src(line, String::from("shell"));
+                    self.run_src(line, String::from("shell"), &mut output);
+                    output.end();
                 }
                 Err(ReadlineError::Interrupted) => {
                     println!("^C");
@@ -178,7 +189,17 @@ impl Shell {
         Ok(self.exit_status)
     }
 
-    fn promt(&self) -> String {
+    fn prompt(&mut self) -> Result<String, ShellErrorKind> {
+        if let Some(block) = self.prompt.clone() {
+            let mut output = OutputStream::new_capture();
+            block.eval(self, None, None, &mut output)?;
+            Ok(output.to_string())
+        } else {
+            Ok(self.default_prompt())
+        }
+    }
+
+    fn default_prompt(&self) -> String {
         let dir = std::env::current_dir().unwrap();
         let name = format!(
             "{}@{}",
@@ -187,7 +208,7 @@ impl Shell {
         );
         let dir = dir.to_string_lossy();
         let dir = dir.replace(self.home_dir.to_str().unwrap(), "~");
-        format!("{} {} {}", name, dir, "> ",)
+        format!("{} {} {}", name, dir, "> ")
     }
 
     pub fn history_path(&self) -> PathBuf {
@@ -227,6 +248,15 @@ impl Shell {
 
     pub fn set_child(&mut self, pid: Option<u32>) {
         *self.child_id.lock().unwrap() = pid;
+    }
+
+    pub fn set_status(&mut self, status: ExitStatus) {
+        self.exit_status = match status {
+            ExitStatus::Exited(status) => status as i128,
+            ExitStatus::Signaled(status) => status as i128,
+            ExitStatus::Other(status) => status as i128,
+            ExitStatus::Undetermined => 0,
+        };
     }
 }
 

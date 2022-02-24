@@ -5,7 +5,7 @@ use std::{
 
 use num_traits::ops::wrapping::{WrappingAdd, WrappingMul, WrappingSub};
 
-use super::stream::OutputStream;
+use super::stream::ValueStream;
 use crate::parser::{ast::expr::binop::BinOp, shell_error::ShellErrorKind, P};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -17,7 +17,7 @@ pub enum Type {
     String,
     List,
     Range,
-    OutputStream,
+    ValueStream,
 }
 
 impl Type {
@@ -30,7 +30,7 @@ impl Type {
             Self::String => "string",
             Self::List => "list",
             Self::Range => "range",
-            Self::OutputStream => "output stream",
+            Self::ValueStream => "output stream",
         }
     }
 }
@@ -57,7 +57,7 @@ pub enum Value {
     String(String),
     List(Vec<Value>),
     Range(P<Range<i128>>),
-    OutputStream(P<OutputStream>),
+    ValueStream(P<ValueStream>),
 }
 
 impl fmt::Display for Value {
@@ -82,8 +82,8 @@ impl fmt::Display for Value {
                 Ok(())
             }
             Self::Bool(boolean) => boolean.fmt(f),
-            Self::Null => Ok(()),
-            Self::OutputStream(output) => output.fmt(f),
+            Self::ValueStream(output) => output.fmt(f),
+            _ => Ok(()),
         }
     }
 }
@@ -111,7 +111,7 @@ impl PartialEq for Value {
                 Value::List(list) => list.is_empty() != *boolean,
                 Value::Range(range) => (range.start == 0 && range.end == 0) != *boolean,
                 Value::Null => false,
-                Value::OutputStream(stream) => stream.status == 0,
+                Value::ValueStream(stream) => stream.is_empty() != *boolean,
             },
             Value::String(string) => match other {
                 Value::String(rhs) => string == rhs,
@@ -129,7 +129,7 @@ impl PartialEq for Value {
                 _ => false,
             },
             Value::Null => matches!(other, Value::Null),
-            Value::OutputStream(_) => false,
+            Value::ValueStream(_) => false,
         }
     }
 }
@@ -490,7 +490,7 @@ impl Value {
             Self::List(_) => Type::List,
             Self::Range(_) => Type::Range,
             Self::Null => Type::Null,
-            Self::OutputStream(_) => Type::OutputStream,
+            Self::ValueStream(_) => Type::ValueStream,
         }
     }
 
@@ -522,7 +522,7 @@ impl Value {
             Self::List(list) => !list.is_empty(),
             Self::Range(range) => range.start != 0 && range.end != 0,
             Self::Null => false,
-            Self::OutputStream(stream) => stream.status == 0,
+            Self::ValueStream(stream) => !stream.is_empty(),
         }
     }
 

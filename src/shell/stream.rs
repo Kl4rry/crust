@@ -1,52 +1,60 @@
-use std::{
-    collections::{vec_deque, VecDeque},
-    fmt,
-};
+use std::{fmt, slice};
 
 use super::value::Value;
 
 #[derive(Debug, Default, Clone)]
 pub struct ValueStream {
-    values: VecDeque<Value>,
+    values: Vec<Value>,
 }
 
 impl ValueStream {
     pub fn new() -> Self {
-        Self {
-            values: VecDeque::new(),
-        }
+        Self { values: Vec::new() }
+    }
+
+    pub fn from_values(values: Vec<Value>) -> Self {
+        debug_assert!(values.iter().all(|v| *v != Value::Null));
+        Self { values }
     }
 
     pub fn from_value(value: Value) -> Self {
-        let mut values = VecDeque::with_capacity(1);
+        let mut values = Vec::with_capacity(1);
         if value != Value::Null {
-            values.push_back(value);
+            values.push(value);
         }
         Self { values }
     }
 
     pub fn push(&mut self, value: Value) {
-        self.values.push_back(value);
+        if value != Value::Null {
+            self.values.push(value);
+        }
     }
 
-    pub fn iter(&self) -> vec_deque::Iter<'_, Value> {
+    pub fn iter(&self) -> slice::Iter<'_, Value> {
         self.values.iter()
     }
 
     pub fn extend<T: IntoIterator<Item = Value>>(&mut self, iter: T) {
-        self.values.extend(iter)
+        self.values
+            .extend(iter.into_iter().filter(|value| *value != Value::Null))
     }
 
     pub fn len(&self) -> usize {
         self.values.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
 }
 
 impl fmt::Display for ValueStream {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for value in self.values.iter() {
-            value.fmt(f)?;
-            writeln!(f)?;
+        if !self.values.is_empty() {
+            for value in self.values.iter() {
+                value.fmt(f)?;
+            }
         }
         Ok(())
     }
@@ -62,43 +70,89 @@ impl IntoIterator for ValueStream {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct OutputStream {
-    pub stream: ValueStream,
-    pub status: i32,
-}
-
-impl fmt::Display for OutputStream {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.stream.fmt(f)
-    }
+    inner: InnerStream,
 }
 
 impl OutputStream {
-    pub fn new(stream: ValueStream, status: i32) -> Self {
-        Self { stream, status }
+    pub fn new_capture() -> Self {
+        Self {
+            inner: InnerStream::Capture(Vec::new()),
+        }
     }
 
-    pub fn from_value(value: Value) -> Self {
+    pub fn new_output() -> Self {
         Self {
-            stream: ValueStream::from_value(value),
-            status: 0,
+            inner: InnerStream::Output(0),
         }
     }
 
     pub fn push(&mut self, value: Value) {
-        self.stream.push(value);
+        match value {
+            Value::ValueStream(stream) => self.push_value_stream(*stream),
+            Value::Null => (),
+            value => match &mut self.inner {
+                InnerStream::Capture(values) => values.push(value),
+                InnerStream::Output(outputs) => {
+                    *outputs += 1;
+                    print!("{}", value);
+                }
+            },
+        }
     }
 
-    pub fn extend<T: IntoIterator<Item = Value>>(&mut self, iter: T) {
-        self.stream.extend(iter)
+    pub fn push_value_stream(&mut self, stream: ValueStream) {
+        match &mut self.inner {
+            InnerStream::Capture(values) => values.extend(stream.into_iter()),
+            InnerStream::Output(outputs) => {
+                *outputs += stream.len();
+                print!("{}", stream);
+            }
+        }
+    }
+
+    pub fn end(&mut self) {
+        match &mut self.inner {
+            InnerStream::Capture(_) => panic!("cannot end capture stream"),
+            InnerStream::Output(output) => {
+                if *output > 0 {
+                    println!()
+                }
+                *output = 0;
+            }
+        }
+    }
+
+    pub fn is_capture(&self) -> bool {
+        matches!(self.inner, InnerStream::Capture(_))
+    }
+
+    pub fn is_output(&self) -> bool {
+        matches!(self.inner, InnerStream::Output(_))
+    }
+
+    pub fn into_value_stream(self) -> ValueStream {
+        match self.inner {
+            InnerStream::Capture(values) => ValueStream::from_values(values),
+            InnerStream::Output(_) => panic!("cannot convert output to value stream"),
+        }
     }
 }
 
-impl IntoIterator for OutputStream {
-    type Item = Value;
-    type IntoIter = impl Iterator<Item = Value>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.stream.into_iter()
+impl fmt::Display for OutputStream {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let InnerStream::Capture(ref values) = self.inner {
+            for value in values.iter() {
+                value.fmt(f)?;
+            }
+        }
+        Ok(())
     }
+}
+
+#[derive(Debug, Clone)]
+enum InnerStream {
+    Capture(Vec<Value>),
+    Output(usize),
 }

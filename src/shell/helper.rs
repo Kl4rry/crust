@@ -12,12 +12,14 @@ use yansi::Paint;
 
 pub struct EditorHelper {
     filename_completer: FilenameCompleter,
+    pub prompt: String,
 }
 
 impl EditorHelper {
     pub fn new() -> Self {
         Self {
             filename_completer: FilenameCompleter::new(),
+            prompt: String::new(),
         }
     }
 }
@@ -43,6 +45,10 @@ impl Completer for EditorHelper {
 impl Highlighter for EditorHelper {
     fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
         Cow::Owned(Paint::new(hint).dimmed().to_string())
+    }
+
+    fn highlight_prompt<'b, 's: 'b, 'p: 'b>(&'s self, _: &'p str, _: bool) -> Cow<'b, str> {
+        Cow::Borrowed(&self.prompt)
     }
 }
 

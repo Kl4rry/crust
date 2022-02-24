@@ -5,7 +5,7 @@ use std::{fs, path::PathBuf};
 use clap::{Arg, Command};
 mod shell;
 pub use shell::parser;
-use shell::{parser::shell_error::ShellErrorKind, Shell};
+use shell::{parser::shell_error::ShellErrorKind, stream::OutputStream, Shell};
 mod argparse;
 
 fn main() {
@@ -59,9 +59,14 @@ fn start() -> Result<i32, ShellErrorKind> {
             fs::read_to_string(input)
                 .map_err(|e| ShellErrorKind::Io(Some(PathBuf::from(input)), e))?,
             String::from(input),
+            &mut OutputStream::new_output(),
         ),
         None => match matches.value_of("COMMAND") {
-            Some(command) => shell.run_src(command.to_string(), String::from("shell")),
+            Some(command) => shell.run_src(
+                command.to_string(),
+                String::from("shell"),
+                &mut OutputStream::new_output(),
+            ),
             None => shell.run()?,
         },
     };

@@ -7,6 +7,7 @@ use crate::{
         shell_error::ShellErrorKind,
         syntax_error::SyntaxErrorKind,
     },
+    shell::stream::OutputStream,
     Shell,
 };
 
@@ -18,10 +19,14 @@ pub enum Command {
 }
 
 impl Command {
-    pub fn eval(&self, shell: &mut Shell) -> Result<String, ShellErrorKind> {
+    pub fn eval(
+        &self,
+        shell: &mut Shell,
+        output: &mut OutputStream,
+    ) -> Result<String, ShellErrorKind> {
         match self {
             Command::Variable(var) => Ok(var.eval(shell)?.as_ref().to_string()),
-            Command::Expand(expand) => Ok(expand.eval(shell)?),
+            Command::Expand(expand) => Ok(expand.eval(shell, output)?),
             Command::String(string) => Ok(string.clone()),
         }
     }

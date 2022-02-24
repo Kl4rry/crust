@@ -16,18 +16,25 @@ pub fn pwd(
     _: &mut Shell,
     args: Vec<Value>,
     _: ValueStream,
-) -> Result<OutputStream, ShellErrorKind> {
+    output: &mut OutputStream,
+) -> Result<(), ShellErrorKind> {
     let _ = match APP.parse(args.into_iter()) {
         Ok(m) => m,
         Err(e) => match e.error {
-            ParseErrorKind::Help(m) => return Ok(OutputStream::from_value(Value::String(m))),
+            ParseErrorKind::Help(m) => {
+                output.push(Value::String(m));
+                return Ok(());
+            }
             _ => return Err(e.into()),
         },
     };
 
-    let output = OutputStream::from_value(Value::String(String::from(
-        std::env::current_dir().unwrap().to_str().unwrap(),
-    )));
+    output.push(Value::String(
+        std::env::current_dir()
+            .unwrap()
+            .to_string_lossy()
+            .to_string(),
+    ));
 
-    Ok(output)
+    Ok(())
 }
