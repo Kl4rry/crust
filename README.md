@@ -51,8 +51,8 @@ This readme contains notes to myself.
 ### Other features
 | Feature              | Completed |
 | -------------------- | --------- |
-| Custom prompt        | ❌         |
-| Starship integration | ❌         |
+| Custom prompt        | ✅         |
+| Starship integration | ✅clea         |
 
 ## Todo
 Propagate errors better with streams.  

@@ -1,0 +1,3 @@
+fn prompt() {
+    starship prompt -s $status 
+}

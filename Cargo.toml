@@ -21,7 +21,7 @@ phf = { version = "0.10.0", features = ["macros"] }
 rand = "0.8.4"
 rustyline = "9.0.0"
 subprocess = "0.2.8"
-timing = "*"
+timing = "0.2.3"
 unicode-width = "0.1.9"
 ureq = { version = "2.4.0", features = ["brotli", "native-certs", "charset"] }
 whoami = "1.1.1"
