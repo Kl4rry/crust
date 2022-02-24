@@ -36,15 +36,16 @@ This readme contains notes to myself.
 | Escapes sequences               | ❌       | ❌    |
 
 ### Standard functions
-| Name   | Completed       |
-| ------ | --------------- |
-| clear  | ✅               |
-| cd     | ✅               |
-| exit   | ✅               |
-| echo   | ✅               |
-| pwd    | ✅               |
-| import | ✅ (Not locking) |
-| open   | ❌               |
+| Name       | Completed       | About                        |
+| ---------- | --------------- | ---------------------------- |
+| clear      | ✅               | Clear screen                 |
+| cd         | ✅               | Change working directory     |
+| exit       | ✅               | Exit shell                   |
+| echo       | ✅               | Echo value back              |
+| pwd        | ✅               | Print working directory      |
+| import     | ✅ (Not locking) | Import code from file or URL |
+| read/input | ❌               | Read user input from stdin   |
+| open       | ❌               | Open file                    |
 
 (More functions to come)
 
