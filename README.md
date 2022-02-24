@@ -52,7 +52,7 @@ This readme contains notes to myself.
 | Feature              | Completed |
 | -------------------- | --------- |
 | Custom prompt        | ✅         |
-| Starship integration | ✅clea         |
+| Starship integration | ✅         |
 
 ## Todo
 Propagate errors better with streams.  
