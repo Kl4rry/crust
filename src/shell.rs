@@ -14,6 +14,7 @@ use directories::ProjectDirs;
 use executable_finder::{executables, Executable};
 use miette::{Diagnostic, GraphicalReportHandler};
 use rustyline::{config::BellStyle, error::ReadlineError, Editor};
+use yansi::Paint;
 
 pub mod builtins;
 pub mod parser;
@@ -177,10 +178,10 @@ impl Shell {
                     }
                 }
                 Err(ReadlineError::Interrupted) => {
-                    println!("^C");
+                    println!("{}", Paint::red("^C"));
                 }
                 Err(ReadlineError::Eof) => {
-                    println!("^D");
+                    println!("{}", Paint::red("^D"));
                     self.running = false;
                 }
                 Err(err) => {

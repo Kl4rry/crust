@@ -1,7 +1,11 @@
-use crate::shell::value::Type;
 pub mod token;
 
+use core::slice::memchr::memchr;
+
 use token::{span::Span, Token, TokenType};
+
+pub const ESCAPES: &[u8] = b"nt0rs\\";
+pub const REPLACEMENTS: &[u8] = b"\n\t\0\r \\";
 
 pub struct Lexer {
     src: String,
@@ -97,15 +101,24 @@ impl Lexer {
 
     fn parse_arg(&mut self) -> Token {
         let start = self.index;
+        let mut value = String::new();
         const DISALLOWED: &[u8] = b"\0#$\"(){}[]|;&,";
         while !DISALLOWED.contains(&self.current)
             && !self.current.is_ascii_whitespace()
             && !self.eof
         {
-            self.advance();
+            if self.current == b'\\' {
+                self.advance();
+                let c = self.current;
+                let escape = memchr(c, ESCAPES).map(|i| REPLACEMENTS[i]).unwrap_or(c);
+                unsafe { value.as_mut_vec().push(escape) };
+                self.advance();
+            } else {
+                unsafe { value.as_mut_vec().push(self.current) };
+                self.advance();
+            }
         }
         let end = self.index;
-        let value = self.src[start..end].to_string();
         let span = Span::new(start, end);
 
         let token_type = match value.as_str() {
@@ -121,11 +134,6 @@ impl Lexer {
             "fn" => TokenType::Fn,
             "true" => TokenType::True,
             "false" => TokenType::False,
-            "int" => TokenType::Cast(Type::Int),
-            "float" => TokenType::Cast(Type::Float),
-            "str" => TokenType::Cast(Type::String),
-            "bool" => TokenType::Cast(Type::Bool),
-            "list" => TokenType::Cast(Type::List),
             _ => {
                 return Token {
                     token_type: TokenType::Symbol(value),

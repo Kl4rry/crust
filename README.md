@@ -33,7 +33,7 @@ This readme contains notes to myself.
 | Subexpr $(expr)                 | ✅       | ✅    |
 | Assign and modify += *= etc     | ✅       | ✅    |
 | run in background using &       | ❌       | ❌    |
-| Escapes sequences               | ❌       | ❌    |
+| Escapes sequences               | ✅       | ✅    |
 
 ### Standard functions
 | Name       | Completed       | About                        |

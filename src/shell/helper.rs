@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use rustyline::{
-    completion::{Completer, FilenameCompleter, Pair},
+    completion::{Completer, Pair},
     highlight::Highlighter,
     hint::Hinter,
     history::SearchDirection,
@@ -9,6 +9,9 @@ use rustyline::{
     Helper,
 };
 use yansi::Paint;
+
+mod completer;
+use completer::FilenameCompleter;
 
 pub struct EditorHelper {
     filename_completer: FilenameCompleter,

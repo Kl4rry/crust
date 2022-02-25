@@ -1,5 +1,6 @@
 #![feature(type_alias_impl_trait)]
 #![feature(once_cell)]
+#![feature(slice_internals)]
 use std::{fs, path::PathBuf};
 
 use clap::{Arg, Command};
@@ -52,7 +53,7 @@ fn start() -> Result<i32, ShellErrorKind> {
     };
 
     let mut shell = Shell::new(args);
-    if !matches.value_of("FILE").is_some() && !matches.value_of("COMMAND").is_some() {
+    if matches.value_of("FILE").is_none() && matches.value_of("COMMAND").is_none() {
         print!("{}", ansi_escapes::ClearScreen);
     }
     shell.init()?;

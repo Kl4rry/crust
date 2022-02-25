@@ -315,7 +315,6 @@ impl Parser {
             | TokenType::True
             | TokenType::False
             | TokenType::LeftBracket
-            | TokenType::Cast(_)
             | TokenType::Not => Ok(Compound::Expr(self.parse_expr(None)?)),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         }
@@ -434,7 +433,6 @@ impl Parser {
             TokenType::True | TokenType::False => {
                 Ok(Expr::Literal(self.eat()?.try_into()?).wrap(unop))
             }
-            TokenType::Cast(_) => self.parse_cast(),
             TokenType::Symbol(_) | TokenType::Exec => Ok(self.parse_pipe()?.wrap(unop)),
             TokenType::LeftParen => {
                 self.eat()?.expect(TokenType::LeftParen)?;
@@ -550,20 +548,6 @@ impl Parser {
         }
         self.skip_optional_space();
         Ok(lhs)
-    }
-
-    fn parse_cast(&mut self) -> Result<Expr> {
-        let token = self.eat()?;
-        let type_of = match token.token_type {
-            TokenType::Cast(t) => t,
-            _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
-        };
-        self.skip_whitespace();
-        self.eat()?.expect(TokenType::LeftParen)?;
-        let expr = self.parse_expr(None)?;
-        self.skip_whitespace();
-        self.eat()?.expect(TokenType::RightParen)?;
-        Ok(Expr::TypeCast(type_of, P::new(expr)))
     }
 
     fn parse_pipe(&mut self) -> Result<Expr> {

@@ -99,7 +99,6 @@ pub enum Expr {
     Paren(P<Expr>),
     Unary(UnOp, P<Expr>),
     Literal(Literal),
-    TypeCast(Type, P<Expr>),
     SubExpr(P<Expr>),
 }
 
@@ -123,50 +122,6 @@ impl Expr {
             }
             Self::Literal(literal) => literal.eval(shell, output),
             Self::Variable(variable) => variable.eval(shell),
-            // casting syntax will be reworked in favor of builtins
-            Self::TypeCast(type_of, expr) => {
-                let value = expr.eval(shell, output)?;
-                match type_of {
-                    Type::Int => match value {
-                        Value::String(string) => Ok(Value::Int(string.parse()?)),
-                        _ => Err(ShellErrorKind::InvalidConversion {
-                            from: value.to_type(),
-                            to: *type_of,
-                        }),
-                    },
-                    Type::Float => match value {
-                        Value::String(string) => Ok(Value::Float(string.parse()?)),
-                        _ => Err(ShellErrorKind::InvalidConversion {
-                            from: value.to_type(),
-                            to: *type_of,
-                        }),
-                    },
-                    Type::String => Ok(Value::String(value.to_string())),
-                    Type::List => match value {
-                        Value::String(string) => Ok(Value::List(
-                            string
-                                .chars()
-                                .map(|c| Value::String(String::from(c)))
-                                .collect(),
-                        )),
-                        Value::Range(range) => Ok(Value::List(
-                            // clippy thinks Value::Int(n) is a function call
-                            #[allow(clippy::redundant_closure)]
-                            (*range)
-                                .clone()
-                                .into_iter()
-                                .map(|n| Value::Int(n))
-                                .collect(),
-                        )),
-                        _ => Err(ShellErrorKind::InvalidConversion {
-                            from: value.to_type(),
-                            to: *type_of,
-                        }),
-                    },
-                    Type::Bool => Ok(Value::Bool(value.truthy())),
-                    _ => unreachable!(),
-                }
-            }
             Self::Unary(unop, expr) => {
                 let value = expr.eval(shell, output)?;
                 match unop {

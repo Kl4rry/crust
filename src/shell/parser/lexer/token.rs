@@ -5,16 +5,13 @@ use std::{convert::TryInto, mem};
 
 use span::Span;
 
-use crate::{
-    parser::{
-        ast::{
-            expr::{argument::Identifier, binop::BinOp},
-            statement::assign_op::AssignOp,
-        },
-        syntax_error::SyntaxErrorKind,
-        Result,
+use crate::parser::{
+    ast::{
+        expr::{argument::Identifier, binop::BinOp},
+        statement::assign_op::AssignOp,
     },
-    shell::value::Type,
+    syntax_error::SyntaxErrorKind,
+    Result,
 };
 
 #[derive(PartialEq, Debug, Clone)]
@@ -30,7 +27,6 @@ pub enum TokenType {
     String(String),
     Float(BigDecimal, String),
     Int(BigUint, String),
-    Cast(Type),
     Quote,
     NewLine,
     Space,
@@ -182,7 +178,6 @@ impl TokenType {
                 | TokenType::Int(_, _)
                 | TokenType::True
                 | TokenType::False
-                | TokenType::Cast(_)
         )
     }
 }
@@ -249,7 +244,6 @@ impl Token {
             TokenType::False => Ok("false"),
             TokenType::Mul => Ok("*"),
             TokenType::Colon => Ok(":"),
-            TokenType::Cast(t) => Ok(t.as_str()),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self)),
         }
     }
