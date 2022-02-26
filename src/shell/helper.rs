@@ -96,7 +96,7 @@ impl<'a> Highlighter<'a> {
             }
 
             match &token.token_type {
-                TokenType::Float(..) | TokenType::Int(..) => {
+                TokenType::Float(..) | TokenType::Int(..) | TokenType::True | TokenType::False => {
                     let s =
                         Paint::yellow(&self.line[token.span.start()..token.span.end()]).to_string();
                     self.output.push_str(&s);
