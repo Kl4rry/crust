@@ -33,7 +33,7 @@ pub fn pwd(
         std::env::current_dir()
             .unwrap()
             .to_string_lossy()
-            .to_string(),
+            .replace("\\", "/"),
     ));
 
     Ok(())

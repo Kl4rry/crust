@@ -44,7 +44,19 @@ fn start() -> Result<i32, ShellErrorKind> {
                 .takes_value(true)
                 .required(false),
         )
+        .arg(
+            Arg::new("PATH")
+                .short('p')
+                .long("path")
+                .help("The working directory the shell will run in")
+                .takes_value(true)
+                .required(false),
+        )
         .get_matches();
+
+    if let Some(path) = matches.value_of("PATH") {
+        let _ = std::env::set_current_dir(path);
+    }
 
     let args: Vec<_> = match matches.values_of("ARGS") {
         Some(args) => args.into_iter().map(|s| s.to_string()).collect(),
