@@ -141,7 +141,7 @@ impl Shell {
     pub fn run(mut self) -> Result<i128, ShellErrorKind> {
         (execute! {
             stdout(),
-            SetTitle("Crust 🦀"),
+            SetTitle("Crust"),
         })
         .map_err(|e| ShellErrorKind::Io(None, e))?;
 
