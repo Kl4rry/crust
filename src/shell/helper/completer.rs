@@ -4,7 +4,7 @@ use std::{
     cmp,
     env::current_dir,
     fs,
-    path::{self, Path},
+    path::Path,
 };
 
 use directories::BaseDirs;
@@ -24,14 +24,14 @@ pub struct FilenameCompleter {
 const DOUBLE_QUOTES_ESCAPE_CHAR: Option<char> = Some('\\');
 
 // rl_basic_word_break_characters, rl_completer_word_break_characters
-const DEFAULT_BREAK_CHARS: [u8; 20] = [
-    b' ', b'\t', b'\n', b'"', b'\\', b'\'', b'`', b'@', b'$', b'>', b'<', b'=', b';', b'|', b'&',
+const DEFAULT_BREAK_CHARS: [u8; 19] = [
+    b' ', b'\t', b'\n', b'"', b'\\', b'\'', b'@', b'$', b'>', b'<', b'=', b';', b'|', b'&',
     b'{', b'(', b'\0', b'}', b')',
 ];
 const ESCAPE_CHAR: Option<char> = Some('\\');
 // In double quotes, not all break_chars need to be escaped
 // https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html
-const DOUBLE_QUOTES_SPECIAL_CHARS: [u8; 4] = [b'"', b'$', b'\\', b'`'];
+const DOUBLE_QUOTES_SPECIAL_CHARS: [u8; 3] = [b'"', b'$', b'\\'];
 
 fn replace_escapes(line: &str, pos: usize) -> (String, usize) {
     if line.is_empty() {
@@ -126,7 +126,7 @@ fn filename_complete(
     break_chars: &[u8],
     quote: Quote,
 ) -> Vec<Pair> {
-    let sep = path::MAIN_SEPARATOR;
+    let sep = '/';
     let (dir_name, file_name) = match path.rfind(sep) {
         Some(idx) => path.split_at(idx + sep.len_utf8()),
         None => ("", path),
