@@ -98,6 +98,8 @@ pub enum TokenType {
     Fn,
     True,
     False,
+    Let,
+    Export,
 }
 
 impl TokenType {
@@ -178,6 +180,28 @@ impl TokenType {
                 | TokenType::Int(_, _)
                 | TokenType::True
                 | TokenType::False
+                | TokenType::Let
+                | TokenType::Export
+        )
+    }
+
+    pub fn is_keyword(&self) -> bool {
+        matches!(
+            *self,
+            TokenType::If
+                | TokenType::Else
+                | TokenType::While
+                | TokenType::Loop
+                | TokenType::For
+                | TokenType::In
+                | TokenType::Break
+                | TokenType::Return
+                | TokenType::Continue
+                | TokenType::Fn
+                | TokenType::True
+                | TokenType::False
+                | TokenType::Let
+                | TokenType::Export
         )
     }
 }
@@ -244,6 +268,8 @@ impl Token {
             TokenType::False => Ok("false"),
             TokenType::Mul => Ok("*"),
             TokenType::Colon => Ok(":"),
+            TokenType::Let => Ok("let"),
+            TokenType::Export => Ok("export"),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self)),
         }
     }

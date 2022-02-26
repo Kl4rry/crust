@@ -1,6 +1,5 @@
 #![feature(type_alias_impl_trait)]
 #![feature(once_cell)]
-#![feature(slice_internals)]
 use std::{fs, path::PathBuf};
 
 use clap::{Arg, Command};

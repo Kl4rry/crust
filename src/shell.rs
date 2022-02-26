@@ -170,12 +170,6 @@ impl Shell {
 
                     editor.add_history_entry(&line);
                     self.run_src(line, String::from("shell"), &mut output);
-                    output.end();
-                    if let Ok((x, _)) = crossterm::cursor::position() {
-                        if x != 0 {
-                            println!();
-                        }
-                    }
                 }
                 Err(ReadlineError::Interrupted) => {
                     println!("{}", Paint::red("^C"));
@@ -187,6 +181,12 @@ impl Shell {
                 Err(err) => {
                     println!("Error: {}", err);
                     break;
+                }
+            }
+            output.end();
+            if let Ok((x, _)) = crossterm::cursor::position() {
+                if x != 0 {
+                    println!();
                 }
             }
         }

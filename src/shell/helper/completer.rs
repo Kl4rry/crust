@@ -1,5 +1,4 @@
 // This file contains a modded version of the rustyline file completer
-use core::slice::memchr::memchr;
 use std::{
     borrow::Cow,
     cmp,
@@ -9,12 +8,13 @@ use std::{
 };
 
 use directories::BaseDirs;
+use memchr::memchr;
 use rustyline::{
     completion::{escape, extract_word, unescape, Candidate, Completer, Pair, Quote},
     Context, Result,
 };
 
-use crate::parser::lexer::{ESCAPES, REPLACEMENTS};
+use crate::parser::lexer::escape_char;
 
 pub struct FilenameCompleter {
     break_chars: &'static [u8],
@@ -34,7 +34,7 @@ const ESCAPE_CHAR: Option<char> = Some('\\');
 const DOUBLE_QUOTES_SPECIAL_CHARS: [u8; 4] = [b'"', b'$', b'\\', b'`'];
 
 fn replace_escapes(line: &str, pos: usize) -> (String, usize) {
-    if line.len() == 0 {
+    if line.is_empty() {
         return (String::new(), 0);
     }
 
@@ -42,7 +42,7 @@ fn replace_escapes(line: &str, pos: usize) -> (String, usize) {
     let mut string = String::new();
     let mut new_pos = pos;
     while let Some(new_index) = memchr(b'\\', &line.as_bytes()[index..]) {
-        if new_pos <= new_index {
+        if new_index < new_pos {
             new_pos -= 1;
         }
         unsafe {
@@ -50,12 +50,8 @@ fn replace_escapes(line: &str, pos: usize) -> (String, usize) {
                 .as_mut_vec()
                 .extend_from_slice(line[index..new_index].as_bytes())
         };
-        let escape = memchr(
-            *line.as_bytes().get(new_index + 1).unwrap_or(&b'\\'),
-            ESCAPES,
-        )
-        .map(|i| REPLACEMENTS[i])
-        .unwrap_or_else(|| line.as_bytes()[new_index + 1]);
+
+        let escape = escape_char(*line.as_bytes().get(new_index + 1).unwrap_or(&b'\\'));
         unsafe { string.as_mut_vec().push(escape) }
         index = cmp::min(new_index + 2, line.len() - 1);
     }

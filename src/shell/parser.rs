@@ -26,6 +26,8 @@ use ast::{
 pub mod syntax_error;
 use syntax_error::{SyntaxError, SyntaxErrorKind};
 
+use self::lexer::escape_char;
+
 pub mod shell_error;
 
 pub type Result<T> = std::result::Result<T, SyntaxErrorKind>;
@@ -299,11 +301,9 @@ impl Parser {
                     Err(_) => Ok(Compound::Statement(Statement::Return(None))),
                 }
             }
-            TokenType::Symbol(symbol) => match symbol.as_str() {
-                "export" => Ok(Compound::Statement(self.parse_declaration(true)?)),
-                "let" => Ok(Compound::Statement(self.parse_declaration(false)?)),
-                _ => Ok(Compound::Expr(self.parse_expr(None)?)),
-            },
+            TokenType::Let => Ok(Compound::Statement(self.parse_declaration(false)?)),
+            TokenType::Export => Ok(Compound::Statement(self.parse_declaration(true)?)),
+            TokenType::Symbol(_) => Ok(Compound::Expr(self.parse_expr(None)?)),
             TokenType::Exec
             | TokenType::Dollar
             | TokenType::Int(_, _)
@@ -350,9 +350,22 @@ impl Parser {
                 _ => {
                     let token = self.eat()?;
                     let new = self.get_span_from_src(token.span);
+                    let mut escaped = String::new();
+                    let mut index = 0;
+                    while index < new.len() {
+                        let byte = new.as_bytes()[index];
+                        if byte == b'\\' {
+                            index += 1;
+                            let escape = escape_char(*new.as_bytes().get(index).unwrap_or(&b'\\'));
+                            unsafe { escaped.as_mut_vec().push(escape) };
+                        } else {
+                            unsafe { escaped.as_mut_vec().push(byte) };
+                        }
+                        index += 1;
+                    }
                     match expand.content.last_mut() {
-                        Some(ExpandKind::String(string)) => string.push_str(new),
-                        _ => expand.content.push(ExpandKind::String(new.to_string())),
+                        Some(ExpandKind::String(string)) => string.push_str(&escaped),
+                        _ => expand.content.push(ExpandKind::String(escaped)),
                     }
                 }
             }

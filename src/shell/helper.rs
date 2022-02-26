@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use rustyline::{
     completion::{Completer, Pair},
-    highlight::Highlighter,
+    highlight,
     hint::Hinter,
     history::SearchDirection,
     validate::Validator,
@@ -12,6 +12,8 @@ use yansi::Paint;
 
 mod completer;
 use completer::FilenameCompleter;
+
+use crate::parser::lexer::{token::TokenType, Lexer};
 
 pub struct EditorHelper {
     filename_completer: FilenameCompleter,
@@ -45,13 +47,84 @@ impl Completer for EditorHelper {
     }
 }
 
-impl Highlighter for EditorHelper {
+impl highlight::Highlighter for EditorHelper {
     fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
         Cow::Owned(Paint::new(hint).dimmed().to_string())
     }
 
     fn highlight_prompt<'b, 's: 'b, 'p: 'b>(&'s self, _: &'p str, _: bool) -> Cow<'b, str> {
         Cow::Borrowed(&self.prompt)
+    }
+
+    fn highlight<'l>(&self, line: &'l str, _: usize) -> Cow<'l, str> {
+        if line.is_empty() {
+            Cow::Borrowed(line)
+        } else {
+            let highlighter = Highlighter::new(line);
+            Cow::Owned(highlighter.highlight())
+        }
+    }
+
+    fn highlight_char(&self, _: &str, _: usize) -> bool {
+        true
+    }
+}
+
+pub struct Highlighter<'a> {
+    lexer: Lexer,
+    index: usize,
+    line: &'a str,
+    output: String,
+}
+
+impl<'a> Highlighter<'a> {
+    fn new(line: &'a str) -> Self {
+        Self {
+            lexer: Lexer::new(line.to_string()),
+            index: 0,
+            line,
+            output: String::new(),
+        }
+    }
+
+    fn highlight(mut self) -> String {
+        for token in self.lexer.by_ref() {
+            unsafe {
+                self.output
+                    .as_mut_vec()
+                    .extend_from_slice(&self.line.as_bytes()[self.index..token.span.start()])
+            }
+
+            match &token.token_type {
+                TokenType::Float(..) | TokenType::Int(..) => {
+                    let s =
+                        Paint::yellow(&self.line[token.span.start()..token.span.end()]).to_string();
+                    self.output.push_str(&s);
+                }
+                TokenType::Variable(..) => {
+                    let s =
+                        Paint::red(&self.line[token.span.start()..token.span.end()]).to_string();
+                    self.output.push_str(&s);
+                }
+                TokenType::String(_) => {
+                    let s =
+                        Paint::green(&self.line[token.span.start()..token.span.end()]).to_string();
+                    self.output.push_str(&s);
+                }
+                token_type => {
+                    if token_type.is_keyword() {
+                        let s = Paint::magenta(&self.line[token.span.start()..token.span.end()])
+                            .to_string();
+                        self.output.push_str(&s);
+                    } else {
+                        self.output
+                            .push_str(&self.line[token.span.start()..token.span.end()]);
+                    }
+                }
+            }
+            self.index = token.span.end();
+        }
+        self.output
     }
 }
 
