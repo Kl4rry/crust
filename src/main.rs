@@ -1,6 +1,9 @@
 #![feature(type_alias_impl_trait)]
 #![feature(once_cell)]
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use clap::{Arg, Command};
 mod shell;
@@ -55,7 +58,9 @@ fn start() -> Result<i32, ShellErrorKind> {
         .get_matches();
 
     if let Some(path) = matches.value_of("PATH") {
-        let _ = std::env::set_current_dir(path);
+        let path = Path::new(path);
+        std::env::set_current_dir(path)
+            .map_err(|e| ShellErrorKind::Io(Some(path.to_path_buf()), e))?;
     }
 
     let args: Vec<_> = match matches.values_of("ARGS") {
