@@ -68,11 +68,6 @@ impl Shell {
         })
         .unwrap();
 
-        let home_dir = normalize_slashes_path(directories::UserDirs::new().unwrap().home_dir());
-
-        let mut history_file = home_dir.clone();
-        history_file.push(".crust_history");
-
         let project_dirs = ProjectDirs::from("", "", "crust").unwrap();
         let user_dirs = UserDirs::new().unwrap();
 
@@ -291,7 +286,7 @@ pub fn current_dir_str() -> String {
 }
 
 pub fn normalize_slashes_path(path: impl AsRef<Path>) -> PathBuf {
-    PathBuf::from(path.as_ref().to_string_lossy().replace("\\", "/"))
+    PathBuf::from(path.as_ref().to_string_lossy().replace('\\', "/"))
 }
 
 pub fn report_error(error: impl Diagnostic) {

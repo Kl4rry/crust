@@ -28,7 +28,7 @@ pub mod unop;
 use unop::UnOp;
 
 pub mod command;
-use command::Command;
+use command::CommandPart;
 
 pub mod argument;
 use argument::{Argument, ArgumentValue};
@@ -92,7 +92,7 @@ macro_rules! compare_impl {
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    Call(Command, Vec<Argument>),
+    Call(Vec<CommandPart>, Vec<Argument>),
     Pipe(Vec<Expr>),
     Variable(Variable),
     Binary(BinOp, P<Expr>, P<Expr>),
@@ -471,7 +471,7 @@ fn get_call_type(shell: &Shell, cmd: String, args: Vec<Value>) -> CallType {
 
 fn expand_call(
     shell: &mut Shell,
-    command: &Command,
+    commandparts: &[CommandPart],
     args: &[Argument],
     output: &mut OutputStream,
 ) -> Result<(String, Vec<Value>), ShellErrorKind> {
@@ -483,7 +483,11 @@ fn expand_call(
             ArgumentValue::Multi(vec) => expanded_args.extend(vec.into_iter()),
         }
     }
-    let mut command = command.eval(shell, output)?;
+
+    let mut command = String::new();
+    for part in commandparts.iter() {
+        command.push_str(&part.eval(shell, output)?);
+    }
 
     if let Some(alias) = shell.aliases.get(&command) {
         let mut split = alias.split_whitespace();

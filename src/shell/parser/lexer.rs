@@ -106,7 +106,7 @@ impl Lexer {
     fn parse_arg(&mut self) -> Token {
         let start = self.index;
         let mut value = String::new();
-        const DISALLOWED: &[u8] = b"\0#$\"(){}[]|;&,";
+        const DISALLOWED: &[u8] = b"\0#$\"\'(){}[]|;&,";
         while !DISALLOWED.contains(&self.current)
             && !self.current.is_ascii_whitespace()
             && !self.eof

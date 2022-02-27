@@ -198,8 +198,6 @@ impl TokenType {
                 | TokenType::Return
                 | TokenType::Continue
                 | TokenType::Fn
-                | TokenType::True
-                | TokenType::False
                 | TokenType::Let
                 | TokenType::Export
         )

@@ -13,7 +13,7 @@ use ast::{
     expr::{
         argument::{Argument, Expand, ExpandKind, Identifier},
         binop::BinOp,
-        command::Command,
+        command::CommandPart,
         unop::UnOp,
         Expr,
     },
@@ -600,19 +600,29 @@ impl Parser {
         Ok(Expr::Call(command, args))
     }
 
-    fn parse_command(&mut self) -> Result<Command> {
-        let token = self.eat()?;
-        match token.token_type {
-            TokenType::Exec => {
-                self.skip_whitespace();
-                match self.peek()?.token_type {
-                    TokenType::Quote => Ok(Command::Expand(self.parse_expand()?)),
-                    _ => self.eat()?.try_into(),
-                }
-            }
-            TokenType::Symbol(text) => Ok(Command::String(text)),
-            _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
+    fn parse_command(&mut self) -> Result<Vec<CommandPart>> {
+        if self.peek()?.token_type == TokenType::Exec {
+            self.eat()?;
+            self.skip_whitespace();
         }
+
+        let mut parts = Vec::new();
+        while let Ok(token) = self.peek() {
+            let part = match &token.token_type {
+                TokenType::Quote => CommandPart::Expand(self.parse_expand()?),
+                TokenType::Space
+                | TokenType::NewLine
+                | TokenType::SemiColon
+                | TokenType::LeftBrace
+                | TokenType::RightBrace
+                | TokenType::LeftParen
+                | TokenType::RightParen
+                | TokenType::Comma => break,
+                _ => self.eat()?.try_into()?,
+            };
+            parts.push(part);
+        }
+        Ok(parts)
     }
 
     fn parse_argument(&mut self) -> Result<Argument> {
