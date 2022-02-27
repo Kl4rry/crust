@@ -10,7 +10,7 @@ use std::{
 };
 
 use crossterm::{execute, terminal::SetTitle};
-use directories::ProjectDirs;
+use directories::{ProjectDirs, UserDirs};
 use executable_finder::{executables, Executable};
 use miette::{Diagnostic, GraphicalReportHandler};
 use rustyline::{config::BellStyle, error::ReadlineError, Editor};
@@ -33,7 +33,8 @@ mod helper;
 pub struct Shell {
     running: bool,
     exit_status: i128,
-    home_dir: PathBuf,
+    //home_dir: PathBuf,
+    user_dirs: UserDirs,
     project_dirs: ProjectDirs,
     child_id: Arc<Mutex<Option<u32>>>,
     stack: Vec<Frame>,
@@ -68,19 +69,18 @@ impl Shell {
         })
         .unwrap();
 
-        let home_dir = directories::UserDirs::new()
-            .unwrap()
-            .home_dir()
-            .to_path_buf();
+        let home_dir = normalize_slashes_path(directories::UserDirs::new().unwrap().home_dir());
+
         let mut history_file = home_dir.clone();
         history_file.push(".crust_history");
 
         let project_dirs = ProjectDirs::from("", "", "crust").unwrap();
+        let user_dirs = UserDirs::new().unwrap();
 
         Shell {
             running: true,
             exit_status: 0,
-            home_dir,
+            user_dirs,
             project_dirs,
             child_id,
             stack: vec![Frame::default()],
@@ -205,27 +205,33 @@ impl Shell {
     }
 
     fn default_prompt(&self) -> String {
-        let dir = std::env::current_dir().unwrap();
         let name = format!(
             "{}@{}",
             whoami::username().to_ascii_lowercase(),
             whoami::devicename().to_ascii_lowercase(),
         );
-        let dir = dir.to_string_lossy();
-        let dir = dir.replace(self.home_dir.to_str().unwrap(), "~");
+        let dir = current_dir_str().replace(&*self.home_dir().to_string_lossy(), "~");
         format!("{} {} {}", name, dir, "> ")
     }
 
     pub fn history_path(&self) -> PathBuf {
-        [self.project_dirs.data_dir(), Path::new(".crust_history")]
-            .iter()
-            .collect()
+        normalize_slashes_path(
+            [self.project_dirs.data_dir(), Path::new(".crust_history")]
+                .iter()
+                .collect::<PathBuf>(),
+        )
     }
 
     pub fn config_path(&self) -> PathBuf {
-        [self.project_dirs.config_dir(), Path::new("config.crust")]
-            .iter()
-            .collect()
+        normalize_slashes_path(
+            [self.project_dirs.config_dir(), Path::new("config.crust")]
+                .iter()
+                .collect::<PathBuf>(),
+        )
+    }
+
+    pub fn home_dir(&self) -> PathBuf {
+        normalize_slashes_path(self.user_dirs.home_dir())
     }
 
     // does this functoin really need to do a linear search?
@@ -275,6 +281,18 @@ impl Default for Shell {
     fn default() -> Self {
         Self::new(Vec::new())
     }
+}
+
+pub fn current_dir_path() -> PathBuf {
+    normalize_slashes_path(std::env::current_dir().unwrap())
+}
+
+pub fn current_dir_str() -> String {
+    current_dir_path().to_string_lossy().to_string()
+}
+
+pub fn normalize_slashes_path(path: impl AsRef<Path>) -> PathBuf {
+    PathBuf::from(path.as_ref().to_string_lossy().replace("\\", "/"))
 }
 
 pub fn report_error(error: impl Diagnostic) {

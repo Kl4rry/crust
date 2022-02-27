@@ -1,11 +1,5 @@
 // This file contains a modded version of the rustyline file completer
-use std::{
-    borrow::Cow,
-    cmp,
-    env::current_dir,
-    fs,
-    path::Path,
-};
+use std::{borrow::Cow, cmp, fs, path::Path};
 
 use directories::BaseDirs;
 use memchr::memchr;
@@ -14,7 +8,7 @@ use rustyline::{
     Context, Result,
 };
 
-use crate::parser::lexer::escape_char;
+use crate::{parser::lexer::escape_char, shell::current_dir_path};
 
 pub struct FilenameCompleter {
     break_chars: &'static [u8],
@@ -25,8 +19,8 @@ const DOUBLE_QUOTES_ESCAPE_CHAR: Option<char> = Some('\\');
 
 // rl_basic_word_break_characters, rl_completer_word_break_characters
 const DEFAULT_BREAK_CHARS: [u8; 19] = [
-    b' ', b'\t', b'\n', b'"', b'\\', b'\'', b'@', b'$', b'>', b'<', b'=', b';', b'|', b'&',
-    b'{', b'(', b'\0', b'}', b')',
+    b' ', b'\t', b'\n', b'"', b'\\', b'\'', b'@', b'$', b'>', b'<', b'=', b';', b'|', b'&', b'{',
+    b'(', b'\0', b'}', b')',
 ];
 const ESCAPE_CHAR: Option<char> = Some('\\');
 // In double quotes, not all break_chars need to be escaped
@@ -147,11 +141,7 @@ fn filename_complete(
         }
     } else if dir_path.is_relative() {
         // TODO ~user[/...] (https://crates.io/crates/users)
-        if let Ok(cwd) = current_dir() {
-            cwd.join(dir_path)
-        } else {
-            dir_path.to_path_buf()
-        }
+        current_dir_path().join(dir_path)
     } else {
         dir_path.to_path_buf()
     };

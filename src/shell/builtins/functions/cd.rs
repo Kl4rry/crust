@@ -33,19 +33,15 @@ pub fn cd(
         },
     };
 
-    let temp;
     let dir = match matches.value(&String::from("directory")) {
         Some(value) => match value {
-            Value::String(ref s) => s.as_str(),
+            Value::String(ref s) => s.to_string(),
             _ => panic!("directory must be string this is a bug"),
         },
-        None => {
-            temp = shell.home_dir.to_string_lossy();
-            &temp
-        }
+        None => shell.home_dir().to_string_lossy().to_string(),
     };
 
-    let new_dir = Path::new(dir);
+    let new_dir = Path::new(&dir);
     std::env::set_current_dir(&new_dir).map_err(|err| ShellErrorKind::Io(None, err))?;
     Ok(())
 }

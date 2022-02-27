@@ -4,6 +4,7 @@ use crate::{
     argparse::{App, ParseErrorKind},
     parser::shell_error::ShellErrorKind,
     shell::{
+        current_dir_str,
         stream::{OutputStream, ValueStream},
         Shell, Value,
     },
@@ -29,12 +30,7 @@ pub fn pwd(
         },
     };
 
-    output.push(Value::String(
-        std::env::current_dir()
-            .unwrap()
-            .to_string_lossy()
-            .replace("\\", "/"),
-    ));
+    output.push(Value::String(current_dir_str()));
 
     Ok(())
 }

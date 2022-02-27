@@ -89,7 +89,7 @@ impl Argument {
                         glob = true;
                     }
                     if string.contains('~') {
-                        string = string.replace('~', &shell.home_dir.as_os_str().to_string_lossy());
+                        string = string.replace('~', &shell.home_dir().to_string_lossy());
                     }
                     (Value::String(string), false)
                 }

@@ -1,7 +1,7 @@
 use phf::*;
 use rand::Rng;
 
-use crate::shell::{value::Value, Shell};
+use crate::shell::{current_dir_str, value::Value, Shell};
 
 type BulitinVar = fn(&mut Shell) -> Value;
 
@@ -65,14 +65,7 @@ pub fn hostname(_: &mut Shell) -> Value {
 }
 
 pub fn home(shell: &mut Shell) -> Value {
-    Value::String(
-        shell
-            .home_dir
-            .as_os_str()
-            .to_string_lossy()
-            .as_ref()
-            .to_string(),
-    )
+    Value::String(shell.home_dir().to_string_lossy().to_string())
 }
 
 pub fn os(_: &mut Shell) -> Value {
@@ -96,13 +89,7 @@ pub fn status(shell: &mut Shell) -> Value {
 }
 
 pub fn pwd(_: &mut Shell) -> Value {
-    Value::String(
-        std::env::current_dir()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .to_string(),
-    )
+    Value::String(current_dir_str())
 }
 
 pub fn version(_: &mut Shell) -> Value {
