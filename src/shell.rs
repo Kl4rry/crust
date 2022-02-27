@@ -33,7 +33,6 @@ mod helper;
 pub struct Shell {
     running: bool,
     exit_status: i128,
-    //home_dir: PathBuf,
     user_dirs: UserDirs,
     project_dirs: ProjectDirs,
     child_id: Arc<Mutex<Option<u32>>>,
