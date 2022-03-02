@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     fs::{self, OpenOptions},
-    io::{stdout, Write},
+    io::Write,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -9,7 +9,7 @@ use std::{
     },
 };
 
-use crossterm::{execute, terminal::SetTitle};
+use console::Term;
 use directories::{ProjectDirs, UserDirs};
 use executable_finder::{executables, Executable};
 use miette::{Diagnostic, GraphicalReportHandler};
@@ -133,12 +133,6 @@ impl Shell {
     }
 
     pub fn run(mut self) -> Result<i128, ShellErrorKind> {
-        (execute! {
-            stdout(),
-            SetTitle("Crust"),
-        })
-        .map_err(|e| ShellErrorKind::Io(None, e))?;
-
         let config = rustyline::Config::builder()
             .color_mode(rustyline::ColorMode::Forced)
             .bell_style(BellStyle::None)
@@ -150,7 +144,12 @@ impl Shell {
 
         let mut output = OutputStream::new_output();
 
+        let term = Term::stdout();
         while self.running {
+            term.set_title(format!(
+                "Crust: {}",
+                current_dir_str().replace(&self.home_dir().to_string_lossy().to_string(), "~")
+            ));
             let helper = editor.helper_mut().unwrap();
             helper.prompt = self.prompt().unwrap_or_else(|_| self.default_prompt());
             let stripped = console::strip_ansi_codes(&helper.prompt).to_string();
@@ -286,7 +285,10 @@ pub fn current_dir_str() -> String {
 }
 
 pub fn normalize_slashes_path(path: impl AsRef<Path>) -> PathBuf {
-    PathBuf::from(path.as_ref().to_string_lossy().replace('\\', "/"))
+    #[cfg(target_os = "windows")]
+    return PathBuf::from(path.as_ref().to_string_lossy().replace('\\', "/"));
+    #[cfg(not(target_os = "windows"))]
+    return PathBuf::from(path.as_ref());
 }
 
 pub fn report_error(error: impl Diagnostic) {
