@@ -43,7 +43,7 @@ This readme contains notes to myself.
 | exit       | ✅               | Exit shell                   |
 | echo       | ✅               | Echo value back              |
 | pwd        | ✅               | Print working directory      |
-| import     | ✅ (Not locking) | Import code from file or URL |
+| import     | ✅ (Not locking / integrity) | Import code from file or URL |
 | read/input | ❌               | Read user input from stdin   |
 | open       | ❌               | Open file                    |
 
