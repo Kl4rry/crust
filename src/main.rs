@@ -75,18 +75,24 @@ fn start() -> Result<i32, ShellErrorKind> {
     shell.init()?;
 
     let status = match matches.value_of("FILE") {
-        Some(input) => shell.run_src(
-            fs::read_to_string(input)
-                .map_err(|e| ShellErrorKind::Io(Some(PathBuf::from(input)), e))?,
-            String::from(input),
-            &mut OutputStream::new_output(),
-        ),
-        None => match matches.value_of("COMMAND") {
-            Some(command) => shell.run_src(
-                command.to_string(),
-                String::from("shell"),
+        Some(input) => {
+            shell.run_src(
+                fs::read_to_string(input)
+                    .map_err(|e| ShellErrorKind::Io(Some(PathBuf::from(input)), e))?,
+                String::from(input),
                 &mut OutputStream::new_output(),
-            ),
+            );
+            shell.status()
+        }
+        None => match matches.value_of("COMMAND") {
+            Some(command) => {
+                shell.run_src(
+                    command.to_string(),
+                    String::from("shell"),
+                    &mut OutputStream::new_output(),
+                );
+                shell.status()
+            }
             None => shell.run()?,
         },
     };

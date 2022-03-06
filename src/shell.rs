@@ -116,7 +116,7 @@ impl Shell {
         Ok(())
     }
 
-    pub fn run_src(&mut self, src: String, name: String, output: &mut OutputStream) -> i128 {
+    pub fn run_src(&mut self, src: String, name: String, output: &mut OutputStream) {
         match Parser::new(src, name).parse() {
             Ok(ast) => {
                 self.interrupt.store(false, Ordering::SeqCst);
@@ -129,7 +129,6 @@ impl Shell {
             }
             Err(error) => report_error(error),
         };
-        self.exit_status
     }
 
     pub fn run(mut self) -> Result<i128, ShellErrorKind> {
@@ -261,6 +260,10 @@ impl Shell {
             ExitStatus::Other(status) => status as i128,
             ExitStatus::Undetermined => 0,
         };
+    }
+
+    pub fn status(&self) -> i128 {
+        self.exit_status
     }
 }
 

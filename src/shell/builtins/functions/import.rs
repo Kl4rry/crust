@@ -48,13 +48,7 @@ pub fn import(
         get_from_file(&path)?
     };
 
-    // this bad
-    // it does not capture the output stream correctly
-    // it should probably be possible to pipe this output into another command
-
-    //TODO FIX THIS
     shell.run_src(src, path, output);
-
     Ok(())
 }
 
