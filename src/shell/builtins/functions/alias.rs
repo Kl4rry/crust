@@ -1,48 +1,83 @@
-use std::io::Write;
+use std::lazy::SyncLazy;
 
-use crate::{parser::shell_error::ShellErrorKind, shell::Shell};
+use crate::{
+    argparse::{App, Arg, ParseErrorKind},
+    parser::shell_error::ShellErrorKind,
+    shell::{
+        stream::{OutputStream, ValueStream},
+        value::{Type, Value},
+        Shell,
+    },
+};
 
-pub fn _alias(
-    shell: &mut Shell,
-    args: &[String],
-    _: &mut dyn Write,
-) -> Result<i128, ShellErrorKind> {
-    let matches = clap::Command::new("alias")
-        .about("set alias")
+static APP: SyncLazy<App> = SyncLazy::new(|| {
+    App::new("alias")
+        .about("Set alias")
         .arg(
-            clap::Arg::new("NAME")
+            Arg::new("name", Type::String)
                 .help("Name of the alias")
                 .required(true),
         )
         .arg(
-            clap::Arg::new("COMMAND")
+            Arg::new("command", Type::String)
                 .help("The command that will be run")
                 .required(true),
         )
-        .no_binary_name(true)
-        .try_get_matches_from(args.iter());
+});
 
-    let matches = match matches {
-        Ok(matches) => matches,
-        Err(err) => {
-            eprintln!("{}", err);
-            return Ok(-1);
-        }
+pub fn alias(
+    shell: &mut Shell,
+    args: Vec<Value>,
+    _: ValueStream,
+    output: &mut OutputStream,
+) -> Result<(), ShellErrorKind> {
+    let mut matches = match APP.parse(args.into_iter()) {
+        Ok(m) => m,
+        Err(e) => match e.error {
+            ParseErrorKind::Help(m) => {
+                output.push(Value::String(m));
+                return Ok(());
+            }
+            _ => return Err(e.into()),
+        },
     };
 
-    let name = matches.value_of("NAME").unwrap();
-    let command = matches.value_of("COMMAND").unwrap();
+    let name = matches
+        .take_value(&String::from("name"))
+        .unwrap()
+        .unwrap_string();
+    let command = matches
+        .take_value(&String::from("command"))
+        .unwrap()
+        .unwrap_string();
 
     if name.is_empty() {
-        eprintln!("alias: NAME must be atleast on character long");
-        return Ok(-1);
+        return Err(ShellErrorKind::Basic(
+            "Alias Error",
+            format!(
+                "alias [name] must be atleast one character long\n\n{}",
+                APP.usage()
+            ),
+        ));
     }
 
     if command.is_empty() {
-        eprintln!("alias: COMMAND must be atleast on character long");
-        return Ok(-1);
+        return Err(ShellErrorKind::Basic(
+            "Alias Error",
+            format!(
+                "alias [command] must be atleast one character long\n\n{}",
+                APP.usage()
+            ),
+        ));
     }
 
-    shell.aliases.insert(name.to_string(), command.to_string());
-    Ok(0)
+    if name.chars().any(|c| c.is_whitespace()) {
+        return Err(ShellErrorKind::Basic(
+            "Alias Error",
+            format!("alias [name] cannot contain whitespace\n\n{}", APP.usage()),
+        ));
+    }
+
+    shell.aliases.insert(name, command);
+    Ok(())
 }

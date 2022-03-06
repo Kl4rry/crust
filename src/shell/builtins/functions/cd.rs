@@ -22,7 +22,7 @@ pub fn cd(
     _: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    let matches = match APP.parse(args.into_iter()) {
+    let mut matches = match APP.parse(args.into_iter()) {
         Ok(m) => m,
         Err(e) => match e.error {
             ParseErrorKind::Help(m) => {
@@ -33,11 +33,8 @@ pub fn cd(
         },
     };
 
-    let dir = match matches.value(&String::from("directory")) {
-        Some(value) => match value {
-            Value::String(ref s) => s.to_string(),
-            _ => panic!("directory must be string this is a bug"),
-        },
+    let dir = match matches.take_value(&String::from("directory")) {
+        Some(value) => value.unwrap_string(),
         None => shell.home_dir().to_string_lossy().to_string(),
     };
 

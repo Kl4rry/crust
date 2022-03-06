@@ -1,6 +1,13 @@
 #![allow(unused)]
 #![allow(clippy::needless_borrow)]
-use std::{cmp, collections::HashMap, error::Error, fmt, fmt::Write, iter::Peekable};
+use std::{
+    cmp,
+    collections::{HashMap, VecDeque},
+    error::Error,
+    fmt,
+    fmt::Write,
+    iter::Peekable,
+};
 
 use unicode_width::UnicodeWidthStr;
 use yansi::Paint;
@@ -118,7 +125,7 @@ impl App {
         false
     }
 
-    fn usage(&self) -> String {
+    pub fn usage(&self) -> String {
         let mut output = String::new();
         write!(
             output,
@@ -528,10 +535,10 @@ where
                     let arg_match = insert_arg_match!(self, &option.name);
 
                     if option.multiple {
-                        arg_match.values.push(self.args.next().unwrap());
+                        arg_match.values.push_back(self.args.next().unwrap());
                         self.parse_option(&option)?;
                     } else {
-                        arg_match.values.push(self.args.next().unwrap());
+                        arg_match.values.push_back(self.args.next().unwrap());
                         arg_match.occurs += 1;
                     }
                 }
@@ -562,16 +569,16 @@ where
                         }
                         break;
                     }
-                    arg_match.values.push(self.args.next().unwrap());
+                    arg_match.values.push_back(self.args.next().unwrap());
                 }
             }
         } else if let Some(arg) = self.args.peek() {
             match arg {
                 Value::String(s) if !s.starts_with('-') => {
-                    arg_match.values.push(self.args.next().unwrap())
+                    arg_match.values.push_back(self.args.next().unwrap())
                 }
                 Value::String(_) => (),
-                value => arg_match.values.push(self.args.next().unwrap()),
+                value => arg_match.values.push_back(self.args.next().unwrap()),
             }
         }
 
@@ -597,7 +604,7 @@ where
             }
         };
         let arg_match = insert_arg_match!(self, &arg.name);
-        arg_match.values.push(self.args.next().unwrap());
+        arg_match.values.push_back(self.args.next().unwrap());
         arg_match.occurs += 1;
         self.arg_index += 1;
         Ok(())
@@ -614,7 +621,7 @@ where
         };
         let arg_match = insert_arg_match!(self, &arg.name);
         for arg in self.args.by_ref() {
-            arg_match.values.push(arg);
+            arg_match.values.push_back(arg);
             arg_match.occurs += 1;
         }
         self.arg_index += 1;
@@ -624,7 +631,7 @@ where
 
 #[derive(Default, Debug)]
 pub struct ArgMatch {
-    values: Vec<Value>,
+    values: VecDeque<Value>,
     occurs: usize,
 }
 
@@ -643,14 +650,17 @@ impl Matches {
     }
 
     pub fn value(&self, key: &String) -> Option<&Value> {
-        self.args.get(key).map(|a| a.values.first().unwrap())
-    }
-
-    pub fn values(&self, key: &String) -> Option<&[Value]> {
-        self.args.get(key).map(|a| &*a.values)
+        self.args.get(key).map(|a| &a.values[0])
     }
 
     pub fn occurences(&self, key: &String) -> usize {
         self.args.get(key).map(|a| a.occurs).unwrap_or_default()
+    }
+
+    pub fn take_value(&mut self, key: &String) -> Option<Value> {
+        match self.args.get_mut(key) {
+            Some(arg) => arg.values.pop_front(),
+            None => None,
+        }
     }
 }

@@ -57,6 +57,7 @@ pub enum ShellErrorKind {
     Interrupt,
 
     // real errors
+    Basic(&'static str, String),
     NoMatch(String),
     MaxRecursion(usize),
     IndexOutOfBounds {
@@ -83,7 +84,7 @@ pub enum ShellErrorKind {
     IntegerOverFlow,
     InvalidPipelineInput {
         expected: Type,
-        got: Type,
+        recived: Type,
     },
     ArgParse(ParseError),
     Io(Option<PathBuf>, io::Error),
@@ -99,6 +100,7 @@ pub enum ShellErrorKind {
 impl fmt::Display for ShellErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Self::Basic(_, e) => write!(f, "{e}"),
             Self::ArgParse(e) => write!(f, "{e}"),
             Self::FileNotFound(path) => write!(f, "Cannot open '{path}' file not found"),
             Self::FilePermissionDenied(path) => write!(f, "Cannot open '{path}' permission denied"),
@@ -106,45 +108,36 @@ impl fmt::Display for ShellErrorKind {
             Self::CommandPermissionDenied(name) => {
                 write!(f, "Cannot run '{name}' permission denied")
             }
-            Self::NoMatch(pattern) => write!(f, "No match found for pattern '{}'", pattern),
-            Self::VariableNotFound(name) => write!(f, "Variable with name '{}' not found", name),
+            Self::NoMatch(pattern) => write!(f, "No match found for pattern '{pattern}'"),
+            Self::VariableNotFound(name) => write!(f, "Variable with name '{name}' not found"),
             Self::IntegerOverFlow => write!(f, "Integer literal too large"),
             Self::Interrupt => write!(f, "^C"),
-            Self::InvalidPipelineInput { expected, got } => {
-                write!(f, "Pipeline expected '{}' recived '{}'", expected, got)
+            Self::InvalidPipelineInput { expected, recived } => {
+                write!(f, "Pipeline expected '{expected}' recived '{recived}'")
             }
             Self::ToFewArguments {
                 name,
                 expected,
                 recived,
             } => {
-                write!(
-                    f,
-                    "{} expected {} arguments, recived {}",
-                    name, expected, recived
-                )
+                write!(f, "{name} expected {expected} arguments, recived {recived}",)
             }
             Self::InvalidBinaryOperand(binop, lhs, rhs) => {
-                write!(
-                    f,
-                    "'{}' not supported between '{}' and '{}'",
-                    binop, lhs, rhs
-                )
+                write!(f, "'{binop}' not supported between '{lhs}' and '{rhs}'",)
             }
             Self::InvalidUnaryOperand(unop, value) => {
-                write!(f, "'{}' not supported for '{}'", unop, value)
+                write!(f, "'{unop}' not supported for '{value}'")
             }
             Self::InvalidIterator(value) => {
-                write!(f, "Cannot iterate over type '{}'", value)
+                write!(f, "Cannot iterate over type '{value}'")
             }
             Self::InvalidConversion { from, to } => {
-                write!(f, "Cannot convert '{}' to '{}'", from, to)
+                write!(f, "Cannot convert '{from}' to '{to}'")
             }
-            Self::MaxRecursion(limit) => write!(f, "max recursion limit of {} reached", limit),
+            Self::MaxRecursion(limit) => write!(f, "max recursion limit of {limit} reached"),
             Self::IndexOutOfBounds { length, index } => write!(
                 f,
-                "index is out of bounds, length is {} but the index is {}",
-                length, index
+                "index is out of bounds, length is {length} but the index is {index}"
             ),
             Self::Io(path, error) => match path {
                 Some(path) => write!(f, "{} {}", error, path.to_string_lossy()),
@@ -172,7 +165,23 @@ impl Diagnostic for ShellError {
     }
 
     fn code<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
-        Some(Box::new("Shell Error"))
+        use ShellErrorKind::*;
+        Some(match self.error {
+            Basic(n, _) => Box::new(n),
+            InvalidBinaryOperand(..)
+            | InvalidUnaryOperand(..)
+            | InvalidIterator(..)
+            | InvalidPipelineInput { .. } => Box::new("Type Error"),
+            Glob(..) | Pattern(..) | NoMatch(..) => Box::new("Glob Error"),
+            InvalidConversion { .. } => Box::new("Coercion Error"),
+            Ureq(..) => Box::new("Http Error"),
+            Break | Return(..) | Continue => Box::new("Syntax Error"),
+            Interrupt => Box::new("Interrupt"),
+            MaxRecursion(..) => Box::new("Recursion Error"),
+            CommandNotFound(..) | CommandPermissionDenied(..) => Box::new("Command Error"),
+            FileNotFound(..) | FilePermissionDenied(..) => Box::new("File Error"),
+            _ => Box::new("Shell Error"),
+        })
     }
 
     fn severity(&self) -> Option<miette::Severity> {

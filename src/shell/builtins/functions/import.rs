@@ -26,7 +26,7 @@ pub fn import(
     _: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    let matches = match APP.parse(args.into_iter()) {
+    let mut matches = match APP.parse(args.into_iter()) {
         Ok(m) => m,
         Err(e) => match e.error {
             ParseErrorKind::Help(m) => {
@@ -37,7 +37,10 @@ pub fn import(
         },
     };
 
-    let path = matches.value(&String::from("path")).unwrap().to_string();
+    let path = matches
+        .take_value(&String::from("path"))
+        .unwrap()
+        .unwrap_string();
 
     let src = if path.starts_with("https://") || path.starts_with("http://") {
         get_from_url(&path)?

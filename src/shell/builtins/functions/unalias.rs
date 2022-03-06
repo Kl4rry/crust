@@ -1,33 +1,52 @@
-use std::io::Write;
+use std::lazy::SyncLazy;
 
-use crate::{parser::shell_error::ShellErrorKind, shell::Shell};
+use crate::{
+    argparse::{App, Arg, ParseErrorKind},
+    parser::shell_error::ShellErrorKind,
+    shell::{
+        stream::{OutputStream, ValueStream},
+        value::{Type, Value},
+        Shell,
+    },
+};
 
-pub fn _unalias(
+static APP: SyncLazy<App> = SyncLazy::new(|| {
+    App::new("unalias").about("Remove alias").arg(
+        Arg::new("name", Type::String)
+            .help("Name of the alias")
+            .required(true),
+    )
+});
+
+pub fn unalias(
     shell: &mut Shell,
-    args: &[String],
-    _: &mut dyn Write,
-) -> Result<i128, ShellErrorKind> {
-    let matches = clap::Command::new("unalias")
-        .about("set alias")
-        .arg(clap::Arg::new("all").short('a').help("Clear all alias"))
-        .arg(
-            clap::Arg::new("NAME")
-                .help("Name of the alias")
-                .required(true),
-        )
-        .no_binary_name(true)
-        .try_get_matches_from(args.iter());
-
-    let matches = match matches {
-        Ok(matches) => matches,
-        Err(err) => {
-            eprintln!("{}", err);
-            return Ok(-1);
-        }
+    args: Vec<Value>,
+    _: ValueStream,
+    output: &mut OutputStream,
+) -> Result<(), ShellErrorKind> {
+    let mut matches = match APP.parse(args.into_iter()) {
+        Ok(m) => m,
+        Err(e) => match e.error {
+            ParseErrorKind::Help(m) => {
+                output.push(Value::String(m));
+                return Ok(());
+            }
+            _ => return Err(e.into()),
+        },
     };
 
-    let name = matches.value_of("NAME").unwrap();
-    shell.aliases.remove(name);
+    let name = matches
+        .take_value(&String::from("name"))
+        .unwrap()
+        .unwrap_string();
 
-    Ok(0)
+    let r = shell.aliases.remove(&name);
+    if r.is_none() {
+        return Err(ShellErrorKind::Basic(
+            "Alias Error",
+            format!("alias not found\n\n{}", APP.usage()),
+        ));
+    }
+
+    Ok(())
 }
