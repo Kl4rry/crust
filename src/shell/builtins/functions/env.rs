@@ -1,25 +1,43 @@
-use std::io::Write;
+use std::lazy::SyncLazy;
 
-use crate::{parser::shell_error::ShellErrorKind, shell::Shell};
+use crate::{
+    argparse::{App, Flag, ParseErrorKind},
+    parser::shell_error::ShellErrorKind,
+    shell::{
+        stream::{OutputStream, ValueStream},
+        value::Value,
+        Shell,
+    },
+};
 
-pub fn _env(_: &mut Shell, args: &[String], out: &mut dyn Write) -> Result<i128, ShellErrorKind> {
-    let matches = clap::Command::new("env")
-        .about("List all environment variable")
-        .no_binary_name(true)
-        .try_get_matches_from(args.iter());
+static APP: SyncLazy<App> = SyncLazy::new(|| {
+    App::new("clear").about("Clears the terminal").flag(
+        Flag::new("SCROLLBACK")
+            .short('x')
+            .help("Do not clear scrollback"),
+    )
+});
 
-    let _ = match matches {
-        Ok(matches) => matches,
-        Err(err) => {
-            eprintln!("{}", err);
-            return Ok(-1);
-        }
+pub fn env(
+    shell: &mut Shell,
+    args: Vec<Value>,
+    _: ValueStream,
+    output: &mut OutputStream,
+) -> Result<(), ShellErrorKind> {
+    let _ = match APP.parse(args.into_iter()) {
+        Ok(m) => m,
+        Err(e) => match e.error {
+            ParseErrorKind::Help(m) => {
+                output.push(Value::String(m));
+                return Ok(());
+            }
+            _ => return Err(e.into()),
+        },
     };
 
-    for (key, value) in std::env::vars() {
-        writeln!(out, "{}={}", key, value).map_err(|err| ShellErrorKind::Io(None, err))?;
+    for (key, value) in shell.env() {
+        output.push(Value::String(format!("{}={}\n", key, value)));
     }
-    out.flush().map_err(|err| ShellErrorKind::Io(None, err))?;
 
-    Ok(0)
+    Ok(())
 }

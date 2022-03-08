@@ -21,7 +21,7 @@ This readme contains notes to myself.
 | Return                          | ✅       | ✅    |
 | Assignment                      | ✅       | ✅    |
 | Variable declaration            | ✅       | ✅    |
-| Export                          | ✅       | ❌    |
+| Export                          | ✅       | ✅    |
 | Alias                           | ✅       | ✅    |
 | Lists                           | ✅       | ✅    |
 | Indexing/Slicing                | ❌       | ❌    |

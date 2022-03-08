@@ -405,36 +405,19 @@ impl Parser {
         self.eat()?;
         self.skip_space()?;
 
-        let token = self.eat()?;
-        let variable: Variable = token.try_into()?;
+        let variable: Variable = self.eat()?.try_into()?;
 
         self.skip_optional_space();
-        let token = match self.eat() {
-            Ok(token) => token,
-            Err(_) => {
-                if export {
-                    return Ok(Statement::Export(variable, None));
-                } else {
-                    return Ok(Statement::Declaration(variable, None));
-                }
-            }
-        };
 
+        let token = self.eat()?;
         match token.token_type {
             TokenType::Assignment => {
-                let _ = self.skip_space();
+                self.skip_optional_space();
                 let expr = self.parse_expr(None)?;
                 if export {
-                    Ok(Statement::Export(variable, Some(expr)))
+                    Ok(Statement::Export(variable, expr))
                 } else {
-                    Ok(Statement::Declaration(variable, Some(expr)))
-                }
-            }
-            TokenType::SemiColon | TokenType::NewLine => {
-                if export {
-                    Ok(Statement::Export(variable, None))
-                } else {
-                    Ok(Statement::Declaration(variable, None))
+                    Ok(Statement::Declaration(variable, expr))
                 }
             }
             _ => Err(SyntaxErrorKind::UnexpectedToken(token)),

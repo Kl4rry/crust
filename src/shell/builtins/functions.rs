@@ -31,7 +31,7 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "import" => import::import,
     "alias" => alias::alias,
     "unalias" => unalias::unalias,
-    /*"env" => env::env,*/
+    "env" => env::env,
 };
 
 pub fn get_builtin(command: &str) -> Option<BulitinFn> {

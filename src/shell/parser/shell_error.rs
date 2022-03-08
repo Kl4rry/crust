@@ -72,6 +72,7 @@ pub enum ShellErrorKind {
     InvalidBinaryOperand(BinOp, Type, Type),
     InvalidUnaryOperand(UnOp, Type),
     InvalidIterator(Type),
+    InvalidEnvVar(Type),
     CommandNotFound(String),
     CommandPermissionDenied(String),
     FileNotFound(String),
@@ -115,6 +116,7 @@ impl fmt::Display for ShellErrorKind {
             Self::InvalidPipelineInput { expected, recived } => {
                 write!(f, "Pipeline expected '{expected}' recived '{recived}'")
             }
+            Self::InvalidEnvVar(t) => write!(f, "cannot assign type '{t}' to environment variable"),
             Self::ToFewArguments {
                 name,
                 expected,
@@ -171,6 +173,7 @@ impl Diagnostic for ShellError {
             InvalidBinaryOperand(..)
             | InvalidUnaryOperand(..)
             | InvalidIterator(..)
+            | InvalidEnvVar(..)
             | InvalidPipelineInput { .. } => Box::new("Type Error"),
             Glob(..) | Pattern(..) | NoMatch(..) => Box::new("Glob Error"),
             InvalidConversion { .. } => Box::new("Coercion Error"),

@@ -311,10 +311,7 @@ impl Expr {
                             for (i, var) in vars.iter().enumerate() {
                                 match args.get(i) {
                                     Some(arg) => {
-                                        input_vars.insert(
-                                            var.name.clone(),
-                                            Value::String(arg.to_string()),
-                                        );
+                                        input_vars.insert(var.name.clone(), (false, arg.clone()));
                                     }
                                     None => {
                                         return Err(ShellErrorKind::ToFewArguments {
@@ -400,6 +397,7 @@ fn run_pipeline(
         Redirection::None
     };
 
+    let env = shell.env();
     if execs.len() == 1 {
         let (exec, name) = if capture_output {
             let (exec, name) = execs.pop().unwrap();
@@ -407,7 +405,7 @@ fn run_pipeline(
         } else {
             execs.pop().unwrap()
         };
-        let exec = exec.stdin(stdin);
+        let exec = exec.stdin(stdin).env_clear().env_extend(&env);
 
         let mut child = exec.popen().map_err(|e| popen_to_shell_err(e, name))?;
         shell.set_child(child.pid());
@@ -427,7 +425,9 @@ fn run_pipeline(
         }
     } else {
         //  this also need to be turned into a command not found error
-        let execs = execs.into_iter().map(|(exec, _)| exec);
+        let execs = execs
+            .into_iter()
+            .map(|(exec, _)| exec.env_clear().env_extend(&env));
         let pipeline = Pipeline::from_exec_iter(execs).stdin(stdin);
         let mut children = pipeline.popen()?;
         children

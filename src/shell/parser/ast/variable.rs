@@ -22,15 +22,11 @@ impl Variable {
         }
 
         for frame in shell.stack.iter().rev() {
-            if let Some(value) = frame.variables.get(&self.name) {
+            if let Some((_, value)) = frame.variables.get(&self.name) {
                 return Ok(value.clone());
             }
         }
-
-        match std::env::var(&self.name) {
-            Ok(value) => Ok(Value::String(value)),
-            Err(_) => Err(ShellErrorKind::VariableNotFound(self.name.clone())),
-        }
+        Err(ShellErrorKind::VariableNotFound(self.name.clone()))
     }
 }
 

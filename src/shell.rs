@@ -87,7 +87,16 @@ impl Shell {
         }
     }
 
+    fn load_env(&mut self) {
+        for (key, value) in std::env::vars() {
+            self.stack[0]
+                .variables
+                .insert(key, (true, Value::String(value)));
+        }
+    }
+
     pub fn init(&mut self) -> Result<(), ShellErrorKind> {
+        self.load_env();
         fs::create_dir_all(self.project_dirs.config_dir()).map_err(|e| {
             ShellErrorKind::Io(Some(self.project_dirs.config_dir().to_path_buf()), e)
         })?;
@@ -247,6 +256,18 @@ impl Shell {
         }
 
         None
+    }
+
+    pub fn env(&self) -> Vec<(String, String)> {
+        let mut vars = Vec::new();
+        for frame in &self.stack {
+            for (name, (export, var)) in &frame.variables {
+                if *export {
+                    vars.push((name.to_string(), var.to_string()));
+                }
+            }
+        }
+        vars
     }
 
     pub fn set_child(&mut self, pid: Option<u32>) {

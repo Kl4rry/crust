@@ -81,7 +81,7 @@ impl Block {
     pub fn eval(
         &self,
         shell: &mut Shell,
-        variables: Option<HashMap<String, Value>>,
+        variables: Option<HashMap<String, (bool, Value)>>,
         input: Option<ValueStream>,
         output: &mut OutputStream,
     ) -> Result<(), ShellErrorKind> {

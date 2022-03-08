@@ -15,8 +15,8 @@ use assign_op::AssignOp;
 
 #[derive(Debug, Clone)]
 pub enum Statement {
-    Export(Variable, Option<Expr>),
-    Declaration(Variable, Option<Expr>),
+    Export(Variable, Expr),
+    Declaration(Variable, Expr),
     Assign(Variable, Expr),
     AssignOp(Variable, AssignOp, Expr),
     If(Expr, Block, Option<P<Statement>>),
@@ -41,7 +41,7 @@ impl Statement {
                 let value = expr.eval(shell, output)?;
 
                 for frame in shell.stack.iter_mut().rev() {
-                    if let Some(heap_value) = frame.variables.get_mut(&var.name) {
+                    if let Some((_, heap_value)) = frame.variables.get_mut(&var.name) {
                         *heap_value = value;
                         return Ok(());
                     }
@@ -52,7 +52,7 @@ impl Statement {
                     .last_mut()
                     .expect("stack is empty this should be impossible")
                     .variables
-                    .insert(var.name.clone(), value);
+                    .insert(var.name.clone(), (false, value));
                 Ok(())
             }
             Self::Declaration(var, expr) => {
@@ -61,31 +61,22 @@ impl Statement {
                     return Ok(());
                 }
 
-                if let Some(expr) = expr {
-                    let value = expr.eval(shell, output)?;
-                    shell
-                        .stack
-                        .last_mut()
-                        .expect("stack is empty this should be impossible")
-                        .variables
-                        .insert(var.name.clone(), value);
-                } else if !shell
+                let value = expr.eval(shell, output)?;
+                shell
                     .stack
                     .last_mut()
                     .expect("stack is empty this should be impossible")
                     .variables
-                    .contains_key(&var.name)
-                {
-                    shell
-                        .stack
-                        .last_mut()
-                        .expect("stack is empty this should be impossible")
-                        .variables
-                        .insert(var.name.clone(), Value::String(String::from("")));
-                }
+                    .insert(var.name.clone(), (false, value));
+
                 Ok(())
             }
             Self::AssignOp(var, op, expr) => {
+                if is_builtin(&var.name) {
+                    // this should be a hard error
+                    return Ok(());
+                }
+
                 let current = var.eval(shell)?;
                 let res = match op {
                     AssignOp::Expo => current.try_expo(expr.eval(shell, output)?),
@@ -96,16 +87,26 @@ impl Statement {
                     AssignOp::Mod => current.try_mod(expr.eval(shell, output)?),
                 }?;
 
+                for frame in shell.stack.iter_mut().rev() {
+                    if let Some((_, heap_value)) = frame.variables.get_mut(&var.name) {
+                        *heap_value = res;
+                        return Ok(());
+                    }
+                }
+                Ok(())
+            }
+            Self::Export(var, expr) => {
                 if is_builtin(&var.name) {
                     // this should be a hard error
                     return Ok(());
                 }
 
-                for frame in shell.stack.iter_mut().rev() {
-                    if let Some(heap_value) = frame.variables.get_mut(&var.name) {
-                        *heap_value = res;
-                        return Ok(());
-                    }
+                let value = expr.eval(shell, output)?;
+                if !matches!(
+                    &value,
+                    Value::Bool(_) | Value::Int(_) | Value::Float(_) | Value::String(_)
+                ) {
+                    return Err(ShellErrorKind::InvalidEnvVar(value.to_type()));
                 }
 
                 shell
@@ -113,10 +114,9 @@ impl Statement {
                     .last_mut()
                     .expect("stack is empty this should be impossible")
                     .variables
-                    .insert(var.name.clone(), res);
+                    .insert(var.name.clone(), (true, value));
                 Ok(())
             }
-            Self::Export(_var, _expr) => todo!("export not impl"),
             Self::If(expr, block, else_clause) => {
                 let value = expr.eval(shell, output)?;
                 if value.truthy() {
@@ -166,8 +166,8 @@ impl Statement {
                                 return Err(ShellErrorKind::Interrupt);
                             }
 
-                            let mut variables: HashMap<String, Value> = HashMap::new();
-                            variables.insert(name.clone(), item.clone());
+                            let mut variables: HashMap<String, (bool, Value)> = HashMap::new();
+                            variables.insert(name.clone(), (false, item.clone()));
                             match block.eval(shell, Some(variables), None, output) {
                                 Ok(()) => (),
                                 Err(ShellErrorKind::Break) => break,
@@ -182,9 +182,9 @@ impl Statement {
                                 return Err(ShellErrorKind::Interrupt);
                             }
 
-                            let mut variables: HashMap<String, Value> = HashMap::new();
+                            let mut variables: HashMap<String, (bool, Value)> = HashMap::new();
                             let item: Value = Value::String(String::from(c));
-                            variables.insert(name.clone(), item.clone());
+                            variables.insert(name.clone(), (false, item.clone()));
                             match block.eval(shell, Some(variables), None, output) {
                                 Ok(()) => (),
                                 Err(ShellErrorKind::Break) => break,
@@ -199,9 +199,9 @@ impl Statement {
                                 return Err(ShellErrorKind::Interrupt);
                             }
 
-                            let mut variables: HashMap<String, Value> = HashMap::new();
+                            let mut variables: HashMap<String, (bool, Value)> = HashMap::new();
                             let item: Value = Value::Int(i);
-                            variables.insert(name.clone(), item.clone());
+                            variables.insert(name.clone(), (false, item.clone()));
                             match block.eval(shell, Some(variables), None, output) {
                                 Ok(()) => (),
                                 Err(ShellErrorKind::Break) => break,
