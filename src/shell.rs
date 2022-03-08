@@ -259,15 +259,17 @@ impl Shell {
     }
 
     pub fn env(&self) -> Vec<(String, String)> {
-        let mut vars = Vec::new();
-        for frame in &self.stack {
+        let mut vars = HashMap::new();
+        for frame in self.stack.iter().rev() {
             for (name, (export, var)) in &frame.variables {
                 if *export {
-                    vars.push((name.to_string(), var.to_string()));
+                    if !vars.contains_key(name) {
+                        vars.insert(name.to_string(), var.to_string());
+                    }
                 }
             }
         }
-        vars
+        vars.into_iter().collect()
     }
 
     pub fn set_child(&mut self, pid: Option<u32>) {
