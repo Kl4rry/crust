@@ -365,20 +365,20 @@ struct Parser<'a, T: Iterator<Item = Value>> {
     matches: Matches,
 }
 
-macro_rules! insert_arg_match {
-    ($self: expr, $name: expr) => {
-        match $self.matches.args.get_mut($name) {
-            Some(arg_match) => arg_match,
-            None => {
-                $self
-                    .matches
-                    .args
-                    .insert($name.clone(), ArgMatch::default());
-                unsafe { $self.matches.args.get_mut($name).unwrap_unchecked() }
-            }
-        }
-    };
-}
+// macro_rules! insert_arg_match {
+//     ($self: expr, $name: expr) => {
+//         match $self.matches.args.get_mut($name) {
+//             Some(arg_match) => arg_match,
+//             None => {
+//                 $self
+//                     .matches
+//                     .args
+//                     .insert($name.clone(), ArgMatch::default());
+//                 unsafe { $self.matches.args.get_mut($name).unwrap_unchecked() }
+//             }
+//         }
+//     };
+// }
 
 impl<'a, T> Parser<'a, T>
 where
@@ -532,7 +532,11 @@ where
                 } else {
                     // do some weridness here to get parse option to work
                     // this is very nasty code duping
-                    let arg_match = insert_arg_match!(self, &option.name);
+                    let arg_match = self
+                        .matches
+                        .args
+                        .entry(option.name.clone())
+                        .or_insert(ArgMatch::default());
 
                     if option.multiple {
                         arg_match.values.push_back(self.args.next().unwrap());
@@ -554,7 +558,11 @@ where
     }
 
     fn parse_option(&mut self, option: &Opt) -> Result<(), ParseErrorKind> {
-        let arg_match = insert_arg_match!(self, &option.name);
+        let arg_match = self
+            .matches
+            .args
+            .entry(option.name.clone())
+            .or_insert(ArgMatch::default());
 
         if option.multiple {
             while let Some(arg) = self.args.peek() {
@@ -590,7 +598,11 @@ where
     }
 
     fn parse_flag(&mut self, flag: &Flag) {
-        let arg_match = insert_arg_match!(self, &flag.name);
+        let arg_match = self
+            .matches
+            .args
+            .entry(flag.name.clone())
+            .or_insert(ArgMatch::default());
         arg_match.occurs += 1;
     }
 
@@ -603,7 +615,11 @@ where
                 ))
             }
         };
-        let arg_match = insert_arg_match!(self, &arg.name);
+        let arg_match = self
+            .matches
+            .args
+            .entry(arg.name.clone())
+            .or_insert(ArgMatch::default());
         arg_match.values.push_back(self.args.next().unwrap());
         arg_match.occurs += 1;
         self.arg_index += 1;
@@ -619,7 +635,11 @@ where
                 ))
             }
         };
-        let arg_match = insert_arg_match!(self, &arg.name);
+        let arg_match = self
+            .matches
+            .args
+            .entry(arg.name.clone())
+            .or_insert(ArgMatch::default());
         for arg in self.args.by_ref() {
             arg_match.values.push_back(arg);
             arg_match.occurs += 1;
