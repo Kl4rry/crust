@@ -26,7 +26,7 @@ use value::Value;
 mod frame;
 use frame::Frame;
 
-use self::{parser::ast::Block, stream::OutputStream};
+use self::{helper::EditorHelper, parser::ast::Block, stream::OutputStream};
 
 mod helper;
 
@@ -43,6 +43,7 @@ pub struct Shell {
     executables: Vec<Executable>,
     args: Vec<String>,
     prompt: Option<Block>,
+    editor: Editor<EditorHelper>,
 }
 
 impl Shell {
@@ -71,6 +72,15 @@ impl Shell {
         let project_dirs = ProjectDirs::from("", "", "crust").unwrap();
         let user_dirs = UserDirs::new().unwrap();
 
+        let config = rustyline::Config::builder()
+            .color_mode(rustyline::ColorMode::Forced)
+            .bell_style(BellStyle::None)
+            .build();
+
+        let mut editor = Editor::with_config(config);
+        editor.set_helper(Some(helper::EditorHelper::new()));
+        let _ = editor.load_history(&history_path(&project_dirs));
+
         Shell {
             running: true,
             exit_status: 0,
@@ -84,6 +94,7 @@ impl Shell {
             executables: executables().unwrap(),
             args,
             prompt: None,
+            editor,
         }
     }
 
@@ -141,15 +152,6 @@ impl Shell {
     }
 
     pub fn run(mut self) -> Result<i128, ShellErrorKind> {
-        let config = rustyline::Config::builder()
-            .color_mode(rustyline::ColorMode::Forced)
-            .bell_style(BellStyle::None)
-            .build();
-
-        let mut editor = Editor::with_config(config);
-        editor.set_helper(Some(helper::EditorHelper::new()));
-        let _ = editor.load_history(&self.history_path());
-
         let mut output = OutputStream::new_output();
 
         let term = Term::stdout();
@@ -158,18 +160,20 @@ impl Shell {
                 "Crust: {}",
                 current_dir_str().replace(&self.home_dir().to_string_lossy().to_string(), "~")
             ));
-            let helper = editor.helper_mut().unwrap();
-            helper.prompt = self.prompt().unwrap_or_else(|_| self.default_prompt());
-            let stripped = console::strip_ansi_codes(&helper.prompt).to_string();
 
-            let readline = editor.readline(&stripped);
+            self.editor.helper_mut().unwrap().prompt =
+                self.prompt().unwrap_or_else(|_| self.default_prompt());
+            let stripped =
+                console::strip_ansi_codes(&self.editor.helper_mut().unwrap().prompt).to_string();
+
+            let readline = self.editor.readline(&stripped);
             match readline {
                 Ok(line) => {
                     if line.is_empty() {
                         continue;
                     }
 
-                    editor.add_history_entry(&line);
+                    self.editor.add_history_entry(&line);
                     self.run_src(line, String::from("shell"), &mut output);
                 }
                 Err(ReadlineError::Interrupted) => {
@@ -191,7 +195,6 @@ impl Shell {
                 }
             }
         }
-        editor.save_history(&self.history_path()).unwrap();
         Ok(self.exit_status)
     }
 
@@ -216,11 +219,7 @@ impl Shell {
     }
 
     pub fn history_path(&self) -> PathBuf {
-        normalize_slashes_path(
-            [self.project_dirs.data_dir(), Path::new(".crust_history")]
-                .iter()
-                .collect::<PathBuf>(),
-        )
+        history_path(&self.project_dirs)
     }
 
     pub fn config_path(&self) -> PathBuf {
@@ -292,7 +291,7 @@ impl Shell {
 
 impl Drop for Shell {
     fn drop(&mut self) {
-        self.stack.clear();
+        let _ = self.editor.save_history(&self.history_path());
     }
 }
 
@@ -315,6 +314,14 @@ pub fn normalize_slashes_path(path: impl AsRef<Path>) -> PathBuf {
     return PathBuf::from(path.as_ref().to_string_lossy().replace('\\', "/"));
     #[cfg(not(target_os = "windows"))]
     return PathBuf::from(path.as_ref());
+}
+
+pub fn history_path(project_dirs: &ProjectDirs) -> PathBuf {
+    normalize_slashes_path(
+        [project_dirs.data_dir(), Path::new(".crust_history")]
+            .iter()
+            .collect::<PathBuf>(),
+    )
 }
 
 pub fn report_error(error: impl Diagnostic) {
