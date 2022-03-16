@@ -197,7 +197,9 @@ impl Lexer {
         let mut value = Vec::new();
         while (self.current.is_ascii_digit()
             || self.current == b'_'
-            || (self.current == b'.' && self.peek(1).is_ascii_digit()))
+            || (self.current == b'.'
+                && self.index + 1 < self.src.len()
+                && self.peek(1).is_ascii_digit()))
             && !self.eof
         {
             if self.current == b'.' {

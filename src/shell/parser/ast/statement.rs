@@ -159,60 +159,47 @@ impl Statement {
             Self::For(var, expr, block) => {
                 let name = var.name.clone();
                 let value = expr.eval(shell, output)?;
-                match value {
-                    Value::List(list) => {
-                        for item in list.iter() {
-                            if shell.interrupt.load(Ordering::SeqCst) {
-                                return Err(ShellErrorKind::Interrupt);
-                            }
 
-                            let mut variables: HashMap<String, (bool, Value)> = HashMap::new();
-                            variables.insert(name.clone(), (false, item.clone()));
-                            match block.eval(shell, Some(variables), None, output) {
-                                Ok(()) => (),
-                                Err(ShellErrorKind::Break) => break,
-                                Err(ShellErrorKind::Continue) => continue,
-                                Err(error) => return Err(error),
-                            }
+                fn for_loop(
+                    shell: &mut Shell,
+                    iterator: impl Iterator<Item = Value>,
+                    name: &str,
+                    block: &Block,
+                    output: &mut OutputStream,
+                ) -> Result<(), ShellErrorKind> {
+                    for item in iterator {
+                        if shell.interrupt.load(Ordering::SeqCst) {
+                            return Err(ShellErrorKind::Interrupt);
+                        }
+
+                        let mut variables: HashMap<String, (bool, Value)> = HashMap::new();
+                        variables.insert(name.to_string(), (false, item.clone()));
+                        match block.eval(shell, Some(variables), None, output) {
+                            Ok(()) => (),
+                            Err(ShellErrorKind::Break) => break,
+                            Err(ShellErrorKind::Continue) => continue,
+                            Err(error) => return Err(error),
                         }
                     }
-                    Value::String(string) => {
-                        for c in string.chars() {
-                            if shell.interrupt.load(Ordering::SeqCst) {
-                                return Err(ShellErrorKind::Interrupt);
-                            }
-
-                            let mut variables: HashMap<String, (bool, Value)> = HashMap::new();
-                            let item: Value = Value::String(String::from(c));
-                            variables.insert(name.clone(), (false, item.clone()));
-                            match block.eval(shell, Some(variables), None, output) {
-                                Ok(()) => (),
-                                Err(ShellErrorKind::Break) => break,
-                                Err(ShellErrorKind::Continue) => continue,
-                                Err(error) => return Err(error),
-                            }
-                        }
-                    }
-                    Value::Range(range) => {
-                        for i in (*range).clone() {
-                            if shell.interrupt.load(Ordering::SeqCst) {
-                                return Err(ShellErrorKind::Interrupt);
-                            }
-
-                            let mut variables: HashMap<String, (bool, Value)> = HashMap::new();
-                            let item: Value = Value::Int(i);
-                            variables.insert(name.clone(), (false, item.clone()));
-                            match block.eval(shell, Some(variables), None, output) {
-                                Ok(()) => (),
-                                Err(ShellErrorKind::Break) => break,
-                                Err(ShellErrorKind::Continue) => continue,
-                                Err(error) => return Err(error),
-                            }
-                        }
-                    }
-                    _ => return Err(ShellErrorKind::InvalidIterator(value.to_type())),
+                    Ok(())
                 }
-                Ok(())
+
+                match value {
+                    Value::List(list) => for_loop(shell, list.into_iter(), &name, block, output),
+                    Value::String(string) => for_loop(
+                        shell,
+                        string.chars().map(|c| Value::String(String::from(c))),
+                        &name,
+                        block,
+                        output,
+                    ),
+                    Value::Range(range) =>
+                    {
+                        #[allow(clippy::redundant_closure)]
+                        for_loop(shell, range.map(|i| Value::Int(i)), &name, block, output)
+                    }
+                    _ => Err(ShellErrorKind::InvalidIterator(value.to_type())),
+                }
             }
             Self::Fn(name, func) => {
                 if name == "prompt" && func.0.is_empty() {

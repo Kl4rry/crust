@@ -261,10 +261,8 @@ impl Shell {
         let mut vars = HashMap::new();
         for frame in self.stack.iter().rev() {
             for (name, (export, var)) in &frame.variables {
-                if *export {
-                    if !vars.contains_key(name) {
-                        vars.insert(name.to_string(), var.to_string());
-                    }
+                if *export && !vars.contains_key(name) {
+                    vars.insert(name.to_string(), var.to_string());
                 }
             }
         }

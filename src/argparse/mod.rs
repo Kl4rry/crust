@@ -536,7 +536,7 @@ where
                         .matches
                         .args
                         .entry(option.name.clone())
-                        .or_insert(ArgMatch::default());
+                        .or_insert_with(ArgMatch::default);
 
                     if option.multiple {
                         arg_match.values.push_back(self.args.next().unwrap());
@@ -562,7 +562,7 @@ where
             .matches
             .args
             .entry(option.name.clone())
-            .or_insert(ArgMatch::default());
+            .or_insert_with(ArgMatch::default);
 
         if option.multiple {
             while let Some(arg) = self.args.peek() {
@@ -602,7 +602,7 @@ where
             .matches
             .args
             .entry(flag.name.clone())
-            .or_insert(ArgMatch::default());
+            .or_insert_with(ArgMatch::default);
         arg_match.occurs += 1;
     }
 
@@ -619,7 +619,7 @@ where
             .matches
             .args
             .entry(arg.name.clone())
-            .or_insert(ArgMatch::default());
+            .or_insert_with(ArgMatch::default);
         arg_match.values.push_back(self.args.next().unwrap());
         arg_match.occurs += 1;
         self.arg_index += 1;
@@ -639,7 +639,7 @@ where
             .matches
             .args
             .entry(arg.name.clone())
-            .or_insert(ArgMatch::default());
+            .or_insert_with(ArgMatch::default);
         for arg in self.args.by_ref() {
             arg_match.values.push_back(arg);
             arg_match.occurs += 1;
