@@ -139,7 +139,6 @@ impl Shell {
     pub fn run_src(&mut self, src: String, name: String, output: &mut OutputStream) {
         match Parser::new(src, name).parse() {
             Ok(ast) => {
-                self.interrupt.store(false, Ordering::SeqCst);
                 let res = ast.eval(self, output);
                 if let Err(error) = res {
                     if !error.is_exit() {
@@ -156,6 +155,7 @@ impl Shell {
 
         let term = Term::stdout();
         while self.running {
+            self.interrupt.store(false, Ordering::SeqCst);
             term.set_title(format!(
                 "Crust: {}",
                 current_dir_str().replace(&self.home_dir().to_string_lossy().to_string(), "~")
