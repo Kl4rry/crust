@@ -285,11 +285,15 @@ impl Shell {
     pub fn status(&self) -> i128 {
         self.exit_status
     }
+
+    fn save_history(&mut self) {
+        let _ = self.editor.save_history(&self.history_path());
+    }
 }
 
 impl Drop for Shell {
     fn drop(&mut self) {
-        let _ = self.editor.save_history(&self.history_path());
+        self.save_history();
     }
 }
 

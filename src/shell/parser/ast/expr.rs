@@ -409,7 +409,7 @@ fn run_pipeline(
 
         let mut child = exec.popen().map_err(|e| popen_to_shell_err(e, name))?;
         shell.set_child(child.pid());
-        if capture_output {
+        let res = if capture_output {
             let mut com = child.communicate_start(input_data);
             let t = thread::spawn::<_, Result<Option<String>, CommunicateError>>(move || {
                 let (out, _) = com.read_string()?;
@@ -422,7 +422,9 @@ fn run_pipeline(
             let _ = child.communicate_start(input_data);
             shell.set_status(child.wait()?);
             Ok(None)
-        }
+        };
+        shell.set_child(None);
+        res
     } else {
         //  this also need to be turned into a command not found error
         let execs = execs
