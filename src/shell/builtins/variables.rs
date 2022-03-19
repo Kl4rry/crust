@@ -102,7 +102,7 @@ pub fn family(_: &mut Shell) -> Value {
 
 pub fn random(_: &mut Shell) -> Value {
     let mut rng = rand::thread_rng();
-    Value::Int(rng.gen_range(0..i128::MAX))
+    Value::Int(rng.gen_range(0..u32::MAX as i128))
 }
 
 pub fn lines(_: &mut Shell) -> Value {
