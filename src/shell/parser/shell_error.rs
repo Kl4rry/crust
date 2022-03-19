@@ -58,6 +58,7 @@ pub enum ShellErrorKind {
 
     // real errors
     Basic(&'static str, String),
+    DivisionByZero,
     NoMatch(String),
     MaxRecursion(usize),
     IndexOutOfBounds {
@@ -102,6 +103,7 @@ impl fmt::Display for ShellErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Basic(_, e) => write!(f, "{e}"),
+            Self::DivisionByZero => write!(f, "Division by zero."),
             Self::ArgParse(e) => write!(f, "{e}"),
             Self::FileNotFound(path) => write!(f, "Cannot open '{path}' file not found"),
             Self::FilePermissionDenied(path) => write!(f, "Cannot open '{path}' permission denied"),
@@ -170,6 +172,7 @@ impl Diagnostic for ShellError {
         use ShellErrorKind::*;
         Some(match self.error {
             Basic(n, _) => Box::new(n),
+            DivisionByZero => Box::new("Division by Zero Error"),
             InvalidBinaryOperand(..)
             | InvalidUnaryOperand(..)
             | InvalidIterator(..)

@@ -378,6 +378,10 @@ impl Value {
     }
 
     pub fn try_div(self, rhs: Value) -> Result<Value, ShellErrorKind> {
+        if rhs.is_zero() {
+            return Err(ShellErrorKind::DivisionByZero);
+        }
+
         match self.as_ref() {
             Value::Int(number) => match rhs.try_as_float() {
                 Some(rhs) => Ok(Value::Float(*number as f64 / rhs)),
@@ -446,9 +450,13 @@ impl Value {
     }
 
     pub fn try_mod(self, rhs: Value) -> Result<Value, ShellErrorKind> {
+        if rhs.is_zero() {
+            return Err(ShellErrorKind::DivisionByZero);
+        }
+
         match self.as_ref() {
             Value::Int(number) => match rhs.as_ref() {
-                Value::Int(rhs) => Ok(Value::Float(*number as f64 % *rhs as f64)),
+                Value::Int(rhs) => Ok(Value::Int(*number % *rhs)),
                 Value::Float(rhs) => Ok(Value::Float(*number as f64 % rhs)),
                 _ => Err(ShellErrorKind::InvalidBinaryOperand(
                     BinOp::Mod,
@@ -465,7 +473,7 @@ impl Value {
                 )),
             },
             Value::Bool(boolean) => match rhs.as_ref() {
-                Value::Int(rhs) => Ok(Value::Float(*boolean as u8 as f64 % *rhs as f64)),
+                Value::Int(rhs) => Ok(Value::Int(*boolean as i128 % *rhs as i128)),
                 Value::Float(rhs) => Ok(Value::Float(*boolean as u8 as f64 % rhs)),
                 _ => Err(ShellErrorKind::InvalidBinaryOperand(
                     BinOp::Mod,
@@ -543,6 +551,14 @@ impl Value {
                 "called `Value::unwrap_i128()` on a `{}` value",
                 self.to_type()
             ),
+        }
+    }
+
+    pub fn is_zero(&self) -> bool {
+        match self {
+            Value::Bool(false) | Value::Int(0) => true,
+            Value::Float(number) if *number == 0.0 => true,
+            _ => false,
         }
     }
 }
