@@ -54,7 +54,7 @@ impl Shell {
         let handle = interrupt.clone();
         ctrlc::set_handler(move || {
             handle.store(true, Ordering::SeqCst);
-            let guard: MutexGuard<Option<u32>> = handler_child.lock().unwrap();
+            let mut guard: MutexGuard<Option<u32>> = handler_child.lock().unwrap();
             if let Some(id) = &*guard {
                 #[cfg(target_family = "windows")]
                 unsafe {
@@ -65,6 +65,7 @@ impl Shell {
                     use nix::{sys::signal, unistd::Pid};
                     signal::kill(Pid::from_raw(*id as i32), signal::Signal::SIGINT).unwrap();
                 }
+                *guard = None;
             }
         })
         .unwrap();
@@ -73,6 +74,7 @@ impl Shell {
         let user_dirs = UserDirs::new().unwrap();
 
         let config = rustyline::Config::builder()
+            .max_history_size(500)
             .color_mode(rustyline::ColorMode::Forced)
             .bell_style(BellStyle::None)
             .build();
@@ -174,6 +176,7 @@ impl Shell {
                     }
 
                     self.editor.add_history_entry(&line);
+                    self.save_history();
                     self.run_src(line, String::from("shell"), &mut output);
                 }
                 Err(ReadlineError::Interrupted) => {
@@ -287,13 +290,7 @@ impl Shell {
     }
 
     fn save_history(&mut self) {
-        let _ = self.editor.save_history(&self.history_path());
-    }
-}
-
-impl Drop for Shell {
-    fn drop(&mut self) {
-        self.save_history();
+        let _ = self.editor.append_history(&self.history_path());
     }
 }
 
