@@ -14,5 +14,7 @@ for $i in 1..100 {
         $output = $i
     }
 
+    $output += "\n"
+
     echo $output
 }

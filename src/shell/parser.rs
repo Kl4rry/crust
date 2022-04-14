@@ -149,25 +149,12 @@ impl Parser {
                 TokenType::RightBrace if block => return Ok(sequence),
                 _ => sequence.push(self.parse_compound()?),
             };
-
-            self.skip_optional_space();
-
-            let token = match self.peek() {
-                Ok(token) => token,
-                Err(_) => return Ok(sequence),
-            };
-
-            match token.token_type {
-                TokenType::NewLine | TokenType::SemiColon => self.skip_whitespace_and_semi(),
-                _ => return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
-            };
         }
     }
 
     fn parse_block(&mut self) -> Result<Block> {
         self.eat()?.expect(TokenType::LeftBrace)?;
         let sequence = self.parse_sequence(true)?;
-        self.skip_whitespace_and_semi();
         self.eat()?.expect(TokenType::RightBrace)?;
         Ok(Block { sequence })
     }
