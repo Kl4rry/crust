@@ -20,11 +20,18 @@ pub struct Lexer {
 
 impl Lexer {
     pub fn new(src: String) -> Self {
+        let (current, eof) = if src.is_empty() {
+            // this null byte should NEVER be read as the eof flag is set to true
+            (b'\0', true)
+        } else {
+            (src.as_bytes()[0], false)
+        };
+
         Self {
-            current: src.as_bytes()[0],
+            current,
             index: 0,
             src,
-            eof: false,
+            eof,
         }
     }
 
