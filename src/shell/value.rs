@@ -1,19 +1,19 @@
-use std::{
-    fmt::{self, Write},
-    ops::Range,
-};
+use std::{fmt, hash::Hash, ops::Range};
 
 use bitflags::bitflags;
 use num_traits::ops::wrapping::{WrappingAdd, WrappingMul, WrappingSub};
+use unicode_width::UnicodeWidthStr;
+use yansi::Paint;
 
 use super::stream::ValueStream;
 use crate::parser::{ast::expr::binop::BinOp, shell_error::ShellErrorKind, P};
 
 bitflags! {
+    #[rustfmt::skip]
     pub struct Type: u8 {
         const NULL =        0b00000001;
         const INT =         0b00000010;
-        const FLOAT =      0b00000100;
+        const FLOAT =       0b00000100;
         const BOOL =        0b00001000;
         const STRING =      0b00010000;
         const LIST =        0b00100000;
@@ -102,12 +102,61 @@ impl fmt::Display for Value {
             Self::Float(number) => number.fmt(f),
             Self::String(string) => string.fmt(f),
             Self::List(list) => {
-                //f.write_char('[')?;
+                let mut longest = 0;
+                let mut values = Vec::new();
                 for value in list.iter() {
-                    value.fmt(f)?;
-                    f.write_char(' ')?;
+                    values.push(value.to_compact_string());
+                    longest = std::cmp::max(
+                        longest,
+                        console::strip_ansi_codes(unsafe { values.last().unwrap_unchecked() })
+                            .width_cjk(),
+                    );
                 }
-                //f.write_char(']')?;
+
+                let index_len = values.len().to_string().len();
+
+                {
+                    let mut top = String::new();
+                    top.push('╭');
+                    for _ in 0..index_len + 2 {
+                        top.push('─');
+                    }
+                    top.push('┬');
+                    for _ in 0..longest + 2 {
+                        top.push('─');
+                    }
+                    top.push_str("╮\n");
+                    write!(f, "{}", Paint::rgb(171, 178, 191, top))?;
+                }
+
+                let bar = Paint::rgb(171, 178, 191, "│");
+                for (index, value) in values.into_iter().enumerate() {
+                    let index_spacing = index_len - index.to_string().len();
+                    let value_spacing = longest - console::strip_ansi_codes(&value).width_cjk();
+                    writeln!(
+                        f,
+                        "{bar} {:index_spacing$}{} {bar} {:value_spacing$}{} {bar}",
+                        "",
+                        Paint::green(index),
+                        "",
+                        value
+                    )?;
+                }
+
+                {
+                    let mut bot = String::new();
+                    bot.push('╰');
+                    for _ in 0..index_len + 2 {
+                        bot.push('─');
+                    }
+                    bot.push('┴');
+                    for _ in 0..longest + 2 {
+                        bot.push('─');
+                    }
+                    bot.push_str("╯\n");
+                    write!(f, "{}", Paint::rgb(171, 178, 191, bot))?;
+                }
+
                 Ok(())
             }
             Self::Range(range) => {
@@ -177,6 +226,19 @@ impl AsRef<Value> for Value {
 }
 
 impl Value {
+    pub fn to_compact_string(&self) -> String {
+        match self {
+            Value::Null => Paint::yellow("null").to_string(),
+            Self::Int(number) => Paint::yellow(number).to_string(),
+            Self::Float(number) => Paint::yellow(number).to_string(),
+            Self::String(string) => string.to_string(),
+            Self::List(list) => format!("[list with {} items]", list.len()),
+            Self::Range(range) => format!("[range from {} to {}]]", range.start, range.end),
+            Self::Bool(boolean) => Paint::yellow(boolean).to_string(),
+            Self::ValueStream(_) => String::from("[value stream]"),
+        }
+    }
+
     pub fn try_add(self, rhs: Value) -> Result<Value, ShellErrorKind> {
         match self.as_ref() {
             Value::Int(number) => match rhs.as_ref() {

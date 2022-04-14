@@ -69,9 +69,6 @@ fn start() -> Result<i32, ShellErrorKind> {
     };
 
     let mut shell = Shell::new(args);
-    if matches.value_of("FILE").is_none() && matches.value_of("COMMAND").is_none() {
-        print!("{}", ansi_escapes::ClearScreen);
-    }
     shell.init()?;
 
     let status = match matches.value_of("FILE") {
