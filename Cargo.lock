@@ -233,6 +233,7 @@ version = "0.1.0"
 dependencies = [
  "ansi-escapes",
  "bigdecimal",
+ "bitflags",
  "clap",
  "console",
  "crossterm",

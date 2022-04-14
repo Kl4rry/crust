@@ -324,7 +324,7 @@ impl fmt::Display for ParseErrorKind {
                 recived,
             } => write!(
                 f,
-                "{name} expected value of type '{expected}' but recived '{recived}'",
+                "{name} expected value of type {expected} but recived {recived}",
             ),
         }
     }
@@ -482,9 +482,8 @@ where
         // This typecheck impl is quite lazy
         for arg in &self.app.args {
             if let Some(m) = self.matches.get(&arg.name) {
-                if m.values.iter().any(|v| v.to_type() != arg.value) {}
                 for v in &m.values {
-                    if v.to_type() != arg.value {
+                    if !v.to_type().intersects(arg.value) {
                         return Err(ParseErrorKind::WrongType {
                             name: arg.to_string(),
                             expected: arg.value,

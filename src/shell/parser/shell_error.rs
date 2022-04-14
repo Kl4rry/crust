@@ -116,9 +116,9 @@ impl fmt::Display for ShellErrorKind {
             Self::IntegerOverFlow => write!(f, "Integer literal too large"),
             Self::Interrupt => write!(f, "^C"),
             Self::InvalidPipelineInput { expected, recived } => {
-                write!(f, "Pipeline expected '{expected}' recived '{recived}'")
+                write!(f, "Pipeline expected {expected} recived {recived}")
             }
-            Self::InvalidEnvVar(t) => write!(f, "cannot assign type '{t}' to environment variable"),
+            Self::InvalidEnvVar(t) => write!(f, "cannot assign type {t} to environment variable"),
             Self::ToFewArguments {
                 name,
                 expected,
@@ -127,16 +127,16 @@ impl fmt::Display for ShellErrorKind {
                 write!(f, "{name} expected {expected} arguments, recived {recived}",)
             }
             Self::InvalidBinaryOperand(binop, lhs, rhs) => {
-                write!(f, "'{binop}' not supported between '{lhs}' and '{rhs}'",)
+                write!(f, "'{binop}' not supported between {lhs} and {rhs}",)
             }
             Self::InvalidUnaryOperand(unop, value) => {
-                write!(f, "'{unop}' not supported for '{value}'")
+                write!(f, "'{unop}' not supported for {value}")
             }
             Self::InvalidIterator(value) => {
-                write!(f, "Cannot iterate over type '{value}'")
+                write!(f, "Cannot iterate over type {value}")
             }
             Self::InvalidConversion { from, to } => {
-                write!(f, "Cannot convert '{from}' to '{to}'")
+                write!(f, "Cannot convert {from} to {to}")
             }
             Self::MaxRecursion(limit) => write!(f, "max recursion limit of {limit} reached"),
             Self::IndexOutOfBounds { length, index } => write!(

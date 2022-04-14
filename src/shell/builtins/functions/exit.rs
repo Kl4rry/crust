@@ -13,7 +13,7 @@ use crate::{
 static APP: SyncLazy<App> = SyncLazy::new(|| {
     App::new("exit")
         .about("Exit the shell")
-        .arg(Arg::new("status", Type::Int).help("The exit status of the shell"))
+        .arg(Arg::new("status", Type::INT).help("The exit status of the shell"))
 });
 
 pub fn exit(

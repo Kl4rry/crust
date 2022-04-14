@@ -3,47 +3,82 @@ use std::{
     ops::Range,
 };
 
+use bitflags::bitflags;
 use num_traits::ops::wrapping::{WrappingAdd, WrappingMul, WrappingSub};
 
 use super::stream::ValueStream;
 use crate::parser::{ast::expr::binop::BinOp, shell_error::ShellErrorKind, P};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Type {
-    Null,
-    Int,
-    Float,
-    Bool,
-    String,
-    List,
-    Range,
-    ValueStream,
-}
-
-impl Type {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Null => "null",
-            Self::Int => "int",
-            Self::Float => "float",
-            Self::Bool => "bool",
-            Self::String => "string",
-            Self::List => "list",
-            Self::Range => "range",
-            Self::ValueStream => "output stream",
-        }
-    }
-}
-
-impl AsRef<str> for Type {
-    fn as_ref(&self) -> &str {
-        self.as_str()
+bitflags! {
+    pub struct Type: u8 {
+        const NULL =        0b00000001;
+        const INT =         0b00000010;
+        const FLOAT =      0b00000100;
+        const BOOL =        0b00001000;
+        const STRING =      0b00010000;
+        const LIST =        0b00100000;
+        const RANGE =       0b01000000;
+        const VALUESTREAM = 0b10000000;
     }
 }
 
 impl fmt::Display for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_ref())
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut is_first = false;
+
+        if self.intersects(Self::NULL) {
+            write!(f, "'null'")?;
+            is_first = true;
+        }
+
+        if self.intersects(Self::INT) {
+            if is_first {
+                write!(f, " or ")?;
+            }
+            is_first = true;
+            write!(f, "'int'")?;
+        }
+
+        if self.intersects(Self::FLOAT) {
+            if is_first {
+                write!(f, " or ")?;
+            }
+            is_first = true;
+            write!(f, "'float'")?;
+        }
+
+        if self.intersects(Self::STRING) {
+            if is_first {
+                write!(f, " or ")?;
+            }
+            is_first = true;
+            write!(f, "'string'")?;
+        }
+
+        if self.intersects(Self::LIST) {
+            if is_first {
+                write!(f, " or ")?;
+            }
+            is_first = true;
+            write!(f, "'list'")?;
+        }
+
+        if self.intersects(Self::RANGE) {
+            if is_first {
+                write!(f, " or ")?;
+            }
+            is_first = true;
+            write!(f, "'range'")?;
+        }
+
+        if self.intersects(Self::VALUESTREAM) {
+            if is_first {
+                write!(f, " or ")?;
+            }
+            write!(f, "'stream'")?;
+        }
+
+        Ok(())
     }
 }
 
@@ -491,14 +526,14 @@ impl Value {
 
     pub fn to_type(&self) -> Type {
         match self {
-            Self::Int(_) => Type::Int,
-            Self::Float(_) => Type::Float,
-            Self::Bool(_) => Type::Bool,
-            Self::String(_) => Type::String,
-            Self::List(_) => Type::List,
-            Self::Range(_) => Type::Range,
-            Self::Null => Type::Null,
-            Self::ValueStream(_) => Type::ValueStream,
+            Self::Int(_) => Type::INT,
+            Self::Float(_) => Type::FLOAT,
+            Self::Bool(_) => Type::BOOL,
+            Self::String(_) => Type::STRING,
+            Self::List(_) => Type::LIST,
+            Self::Range(_) => Type::RANGE,
+            Self::Null => Type::NULL,
+            Self::ValueStream(_) => Type::VALUESTREAM,
         }
     }
 

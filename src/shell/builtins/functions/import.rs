@@ -14,7 +14,7 @@ static APP: SyncLazy<App> = SyncLazy::new(|| {
     App::new("import")
         .about("Import file for http url or filepath")
         .arg(
-            Arg::new("path", Type::String)
+            Arg::new("path", Type::STRING)
                 .help("Path or url to import from")
                 .required(true),
         )

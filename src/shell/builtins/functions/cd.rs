@@ -13,7 +13,7 @@ use crate::{
 static APP: SyncLazy<App> = SyncLazy::new(|| {
     App::new("cd")
         .about("Change working directory")
-        .arg(Arg::new("directory", Type::String).help("The new working directory"))
+        .arg(Arg::new("directory", Type::STRING).help("The new working directory"))
 });
 
 pub fn cd(

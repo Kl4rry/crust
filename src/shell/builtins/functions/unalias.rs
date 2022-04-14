@@ -12,7 +12,7 @@ use crate::{
 
 static APP: SyncLazy<App> = SyncLazy::new(|| {
     App::new("unalias").about("Remove alias").arg(
-        Arg::new("name", Type::String)
+        Arg::new("name", Type::STRING)
             .help("Name of the alias")
             .required(true),
     )

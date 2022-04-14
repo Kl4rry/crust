@@ -14,12 +14,12 @@ static APP: SyncLazy<App> = SyncLazy::new(|| {
     App::new("alias")
         .about("Set alias")
         .arg(
-            Arg::new("name", Type::String)
+            Arg::new("name", Type::STRING)
                 .help("Name of the alias")
                 .required(true),
         )
         .arg(
-            Arg::new("command", Type::String)
+            Arg::new("command", Type::STRING)
                 .help("The command that will be run")
                 .required(true),
         )

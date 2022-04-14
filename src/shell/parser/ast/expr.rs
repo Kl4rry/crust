@@ -379,7 +379,7 @@ fn run_pipeline(
             }
             _ => {
                 return Err(ShellErrorKind::InvalidPipelineInput {
-                    expected: Type::String,
+                    expected: Type::STRING,
                     recived: value.to_type(),
                 })
             }
