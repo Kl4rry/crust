@@ -35,15 +35,7 @@ impl Literal {
             Literal::List(list) => {
                 let mut values: Vec<Value> = Vec::new();
                 for expr in list.iter() {
-                    let value = expr.eval(shell, output)?;
-                    match value {
-                        Value::List(ref list) => {
-                            for item in list {
-                                values.push(item.clone());
-                            }
-                        }
-                        _ => values.push(value),
-                    }
+                    values.push(expr.eval(shell, output)?);
                 }
                 Ok(Value::List(values))
             }
