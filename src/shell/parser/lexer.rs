@@ -175,17 +175,20 @@ impl Lexer {
     fn parse_string(&mut self) -> Token {
         let start = self.index;
         self.advance();
+        let mut value = String::new();
         while !self.eof {
-            self.advance();
             if self.current == b'\'' {
+                self.advance();
                 break;
+            } else {
+                unsafe { value.as_mut_vec().push(self.current) };
+                self.advance();
             }
         }
-        self.advance();
         let end = self.index;
 
         Token {
-            token_type: TokenType::String(self.src[start + 1..end - 1].to_string()),
+            token_type: TokenType::String(value),
             span: Span::new(start, end),
         }
     }
