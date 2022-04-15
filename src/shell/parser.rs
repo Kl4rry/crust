@@ -592,6 +592,7 @@ impl Parser {
         match self.peek()?.token_type {
             TokenType::Quote => Ok(Argument::Expand(self.parse_expand()?)),
             TokenType::Dollar => Ok(Argument::Expr(P::new(self.parse_expr_expand()?))),
+            TokenType::LeftBracket => Ok(Argument::Expr(P::new(self.parse_list()?))),
             _ => {
                 let mut arg = self.eat()?.try_into_arg()?;
                 if let Argument::Bare(ref mut string) = arg {
