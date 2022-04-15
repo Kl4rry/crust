@@ -11,9 +11,9 @@ pub mod ast;
 
 use ast::{
     expr::{
-        argument::{Argument, Expand, ExpandKind, Identifier},
+        argument::{Argument, Expand, ExpandKind},
         binop::BinOp,
-        command::CommandPart,
+        command::Command,
         unop::UnOp,
         Expr,
     },
@@ -77,13 +77,14 @@ impl Parser {
 
     #[inline(always)]
     pub fn skip_space(&mut self) -> Result<()> {
+        self.eat()?.expect(TokenType::Space)?;
         while let Ok(token) = self.peek() {
             if !token.is_space() {
                 return Ok(());
             }
             self.eat()?;
         }
-        Err(SyntaxErrorKind::ExpectedToken)
+        Ok(())
     }
 
     #[inline(always)]
@@ -411,6 +412,34 @@ impl Parser {
         }
     }
 
+    fn parse_list(&mut self) -> Result<Expr> {
+        self.eat()?;
+        let mut list = Vec::new();
+        let mut last_was_comma = false;
+        loop {
+            self.skip_whitespace();
+            match self.peek()?.token_type {
+                TokenType::RightBracket => {
+                    self.eat()?;
+                    break;
+                }
+                TokenType::Comma => {
+                    if last_was_comma {
+                        return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?));
+                    } else {
+                        self.eat()?;
+                        last_was_comma = true;
+                    }
+                }
+                _ => {
+                    last_was_comma = false;
+                    list.push(self.parse_expr(None)?)
+                }
+            }
+        }
+        Ok(Expr::Literal(Literal::List(list)))
+    }
+
     fn parse_primary(&mut self, unop: Option<UnOp>) -> Result<Expr> {
         match self.peek()?.token_type {
             TokenType::True | TokenType::False => {
@@ -443,33 +472,7 @@ impl Parser {
                 self.skip_optional_space();
                 Ok(self.parse_expr(Some(inner))?.wrap(unop))
             }
-            TokenType::LeftBracket => {
-                let mut list = Vec::new();
-                self.eat()?;
-                let mut last_was_comma = false;
-                loop {
-                    self.skip_whitespace();
-                    match self.peek()?.token_type {
-                        TokenType::RightBracket => {
-                            self.eat()?;
-                            break;
-                        }
-                        TokenType::Comma => {
-                            if last_was_comma {
-                                return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?));
-                            } else {
-                                self.eat()?;
-                                last_was_comma = true;
-                            }
-                        }
-                        _ => {
-                            last_was_comma = false;
-                            list.push(self.parse_expr(None)?)
-                        }
-                    }
-                }
-                Ok(Expr::Literal(Literal::List(list)))
-            }
+            TokenType::LeftBracket => self.parse_list(),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         }
     }
@@ -553,139 +556,60 @@ impl Parser {
         let command = self.parse_command()?;
         let mut args = Vec::new();
 
-        while let Ok(token) = self.peek() {
-            match token.token_type {
-                TokenType::Space => {
-                    self.eat()?;
-                }
-                _ => {
-                    if token.is_valid_id() {
-                        args.push(self.parse_argument()?);
-                    } else {
-                        break;
-                    }
+        loop {
+            if let Ok(_) = self.peek() {
+                self.skip_space()?;
+            } else {
+                break;
+            }
+
+            if let Ok(token) = self.peek() {
+                if token.is_valid_arg() {
+                    args.push(self.parse_argument()?);
+                } else {
+                    break;
                 }
             }
         }
+
         Ok(Expr::Call(command, args))
     }
 
-    fn parse_command(&mut self) -> Result<Vec<CommandPart>> {
+    fn parse_command(&mut self) -> Result<Command> {
         if self.peek()?.token_type == TokenType::Exec {
             self.eat()?;
             self.skip_whitespace();
         }
 
-        let mut parts = Vec::new();
-        while let Ok(token) = self.peek() {
-            let part = match &token.token_type {
-                TokenType::Quote => CommandPart::Expand(self.parse_expand()?),
-                TokenType::Space
-                | TokenType::NewLine
-                | TokenType::SemiColon
-                | TokenType::LeftBrace
-                | TokenType::RightBrace
-                | TokenType::LeftParen
-                | TokenType::RightParen
-                | TokenType::Comma => break,
-                _ => self.eat()?.try_into()?,
-            };
-            parts.push(part);
+        let token = self.peek()?;
+        match &token.token_type {
+            TokenType::Quote => Ok(Command::Expand(self.parse_expand()?)),
+            _ => Command::try_from(self.eat()?),
         }
-        Ok(parts)
     }
 
     fn parse_argument(&mut self) -> Result<Argument> {
-        let mut ids = Vec::new();
-
-        let id = match self.peek()?.token_type {
-            TokenType::Quote => Identifier::Expand(self.parse_expand()?),
-            TokenType::Dollar => Identifier::Expr(P::new(self.parse_expr_expand()?)),
-            _ => self.eat()?.try_into_id()?,
-        };
-
-        ids.push(id);
-        while let Ok(token) = self.peek() {
-            if token.is_valid_id() {
-                match token.token_type {
-                    TokenType::Quote => {
-                        ids.push(Identifier::Expand(self.parse_expand()?));
-                        continue;
-                    }
-                    TokenType::Dollar => {
-                        ids.push(Identifier::Expr(P::new(self.parse_expr_expand()?)));
-                        continue;
-                    }
-                    _ => (),
-                }
-
-                let token = self.eat()?;
-                match token.token_type {
-                    TokenType::String(string) => match ids.last_mut() {
-                        Some(Identifier::Quoted(text)) => {
-                            text.push_str(&string);
-                        }
-                        _ => ids.push(Identifier::Quoted(string)),
-                    },
-                    TokenType::Symbol(string) => match ids.last_mut() {
-                        Some(Identifier::Bare(text)) => {
-                            text.push_str(&string);
-                        }
-                        _ => ids.push(Identifier::Bare(string)),
-                    },
-                    TokenType::Variable(_) => ids.push(Identifier::Variable(token.try_into()?)),
-                    TokenType::Int(number, _) => ids.push(Identifier::Int(number.into())),
-                    TokenType::Float(number, _) => ids.push(Identifier::Float(number)),
-                    _ => {
-                        let string = token.try_into_glob_str()?;
-                        match ids.last_mut() {
-                            Some(Identifier::Bare(text)) => {
-                                text.push_str(string);
-                            }
-                            _ => ids.push(Identifier::Bare(string.to_string())),
+        match self.peek()?.token_type {
+            TokenType::Quote => Ok(Argument::Expand(self.parse_expand()?)),
+            TokenType::Dollar => Ok(Argument::Expr(P::new(self.parse_expr_expand()?))),
+            _ => {
+                let mut arg = self.eat()?.try_into_arg()?;
+                if let Argument::Bare(ref mut string) = arg {
+                    while let Ok(token) = self.peek() {
+                        if token.is_valid_arg() {
+                            let token = self.eat()?;
+                            let text = match token.token_type {
+                                TokenType::Symbol(text) => text,
+                                _ => token.try_into_glob_str()?.to_string(),
+                            };
+                            string.push_str(&text);
+                        } else {
+                            break;
                         }
                     }
                 }
-            } else {
-                break;
+                Ok(arg)
             }
         }
-
-        let last = ids.last().unwrap();
-        if let Identifier::Int(_) = last {
-            if let Identifier::Bare(s) = ids.first().unwrap() {
-                if s.bytes().all(|b| b == b'-') {
-                    let neg = !s.len() % 2 == 0;
-                    let last = ids.pop().unwrap();
-                    let mut number = match last {
-                        Identifier::Int(number) => number,
-                        _ => unreachable!(),
-                    };
-                    ids.clear();
-                    if !neg {
-                        number = -number;
-                    }
-                    ids.push(Identifier::Int(number));
-                }
-            }
-        } else if let Identifier::Float(_) = last {
-            if let Identifier::Bare(s) = ids.first().unwrap() {
-                if s.bytes().all(|b| b == b'-') {
-                    let neg = !s.len() % 2 == 0;
-                    let last = ids.pop().unwrap();
-                    let mut number = match last {
-                        Identifier::Float(number) => number,
-                        _ => unreachable!(),
-                    };
-                    ids.clear();
-                    if !neg {
-                        number = -number;
-                    }
-                    ids.push(Identifier::Float(number));
-                }
-            }
-        }
-
-        Ok(Argument { parts: ids })
     }
 }
