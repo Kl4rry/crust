@@ -140,7 +140,6 @@ fn filename_complete(
             }
         }
     } else if dir_path.is_relative() {
-        // TODO ~user[/...] (https://crates.io/crates/users)
         current_dir_path().join(dir_path)
     } else {
         dir_path.to_path_buf()

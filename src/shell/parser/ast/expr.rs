@@ -467,6 +467,9 @@ fn get_call_type(shell: &Shell, cmd: String, args: Vec<Value>) -> CallType {
         None => cmd,
     };
 
+    // todo fix this stringification of args
+    // it should flatten arrays
+    // and throw error when it cannot convert it to a string
     let args: Vec<_> = args.into_iter().map(|v| v.to_string()).collect();
     CallType::External(Exec::cmd(cmd.clone()).args(&args), cmd)
 }
