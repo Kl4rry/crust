@@ -175,25 +175,16 @@ impl Lexer {
     fn parse_string(&mut self) -> Token {
         let start = self.index;
         self.advance();
-        let mut value = String::new();
         while !self.eof {
+            self.advance();
             if self.current == b'\'' {
-                self.advance();
                 break;
-            } else if self.current == b'\\' {
-                self.advance();
-                let escape = escape_char(self.current);
-                unsafe { value.as_mut_vec().push(escape) };
-                self.advance();
-            } else {
-                unsafe { value.as_mut_vec().push(self.current) };
-                self.advance();
             }
         }
         let end = self.index;
 
         Token {
-            token_type: TokenType::String(value),
+            token_type: TokenType::String(self.src[start + 1..end].to_string()),
             span: Span::new(start, end),
         }
     }
