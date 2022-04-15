@@ -7,7 +7,7 @@ use span::Span;
 
 use crate::parser::{
     ast::{
-        expr::{binop::BinOp, argument::Argument},
+        expr::{argument::Argument, binop::BinOp},
         statement::assign_op::AssignOp,
     },
     syntax_error::SyntaxErrorKind,

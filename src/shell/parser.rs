@@ -557,7 +557,7 @@ impl Parser {
         let mut args = Vec::new();
 
         loop {
-            if let Ok(_) = self.peek() {
+            if self.peek().is_ok() {
                 self.skip_space()?;
             } else {
                 break;

@@ -159,14 +159,13 @@ impl Shell {
         while self.running {
             self.interrupt.store(false, Ordering::SeqCst);
 
-            let mut title = format!(
-                "Crust: {}",
-                current_dir_str().replace(&self.home_dir().to_string_lossy().to_string(), "~")
-            );
             #[cfg(debug_assertions)]
-            title.push_str(" (DEBUG)");
+            let info = " (DEBUG)";
+            #[cfg(not(debug_assertions))]
+            let info =
+                current_dir_str().replace(&self.home_dir().to_string_lossy().to_string(), "~");
 
-            term.set_title(title);
+            term.set_title(format!("Crust: {info}",));
 
             self.editor.helper_mut().unwrap().prompt =
                 self.prompt().unwrap_or_else(|_| self.default_prompt());

@@ -54,7 +54,7 @@ impl Argument {
                 } else {
                     Ok(Value::String(value))
                 }
-            },
+            }
             Argument::Quoted(string) => Ok(Value::String(string.clone())),
             Argument::Expr(expr) => Ok(expr.eval(shell, output)?),
             Argument::Float(number) => Ok(Value::Float(number.to_f64().unwrap())),
