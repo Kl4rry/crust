@@ -181,10 +181,11 @@ impl Lexer {
                 break;
             }
         }
+        self.advance();
         let end = self.index;
 
         Token {
-            token_type: TokenType::String(self.src[start + 1..end].to_string()),
+            token_type: TokenType::String(self.src[start + 1..end - 1].to_string()),
             span: Span::new(start, end),
         }
     }
