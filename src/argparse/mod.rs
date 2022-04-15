@@ -365,21 +365,6 @@ struct Parser<'a, T: Iterator<Item = Value>> {
     matches: Matches,
 }
 
-// macro_rules! insert_arg_match {
-//     ($self: expr, $name: expr) => {
-//         match $self.matches.args.get_mut($name) {
-//             Some(arg_match) => arg_match,
-//             None => {
-//                 $self
-//                     .matches
-//                     .args
-//                     .insert($name.clone(), ArgMatch::default());
-//                 unsafe { $self.matches.args.get_mut($name).unwrap_unchecked() }
-//             }
-//         }
-//     };
-// }
-
 impl<'a, T> Parser<'a, T>
 where
     T: Iterator<Item = Value>,
