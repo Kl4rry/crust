@@ -25,7 +25,7 @@ impl CommandPart {
         output: &mut OutputStream,
     ) -> Result<String, ShellErrorKind> {
         match self {
-            CommandPart::Variable(var) => Ok(var.eval(shell)?.as_ref().to_string()),
+            CommandPart::Variable(var) => Ok(var.eval(shell)?.to_string()),
             CommandPart::Expand(expand) => Ok(expand.eval(shell, output)?),
             CommandPart::String(string) => Ok(string.clone()),
         }

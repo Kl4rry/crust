@@ -40,8 +40,8 @@ macro_rules! compare_impl {
     ($arg_lhs:expr, $arg_rhs:expr, $arg_binop:expr, $op:tt) => {{
         #[inline(always)]
         fn compare_impl_fn(lhs: Value, rhs: Value, binop: BinOp) -> Result<Value, ShellErrorKind> {
-            match lhs.as_ref() {
-                Value::Int(number) => match rhs.as_ref() {
+            match &lhs {
+                Value::Int(number) => match &rhs {
                     Value::Int(rhs) => Ok(Value::Bool(number $op rhs)),
                     Value::Float(rhs) => Ok(Value::Bool((*number as f64) $op *rhs)),
                     Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as i128)),
@@ -51,7 +51,7 @@ macro_rules! compare_impl {
                         rhs.to_type(),
                     )),
                 },
-                Value::Float(number) => match rhs.as_ref() {
+                Value::Float(number) => match &rhs {
                     Value::Int(rhs) => Ok(Value::Bool(*number $op *rhs as f64)),
                     Value::Float(rhs) => Ok(Value::Bool(number $op rhs)),
                     Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as u8 as f64)),
@@ -61,7 +61,7 @@ macro_rules! compare_impl {
                         rhs.to_type(),
                     )),
                 },
-                Value::Bool(boolean) => match rhs.as_ref() {
+                Value::Bool(boolean) => match &rhs {
                     Value::Int(rhs) => Ok(Value::Bool((*boolean as i128) $op *rhs)),
                     Value::Float(rhs) => Ok(Value::Bool((*boolean as u8 as f64) $op *rhs)),
                     Value::Bool(rhs) => Ok(Value::Bool(*boolean $op *rhs)),
@@ -71,7 +71,7 @@ macro_rules! compare_impl {
                         rhs.to_type(),
                     )),
                 },
-                Value::String(string) => match rhs.as_ref() {
+                Value::String(string) => match &rhs {
                     Value::String(rhs) => Ok(Value::Bool(string $op rhs)),
                     _ => Err(ShellErrorKind::InvalidBinaryOperand(
                         binop,
@@ -125,7 +125,7 @@ impl Expr {
             Self::Unary(unop, expr) => {
                 let value = expr.eval(shell, output)?;
                 match unop {
-                    UnOp::Neg => match value.as_ref() {
+                    UnOp::Neg => match &value {
                         Value::Int(int) => Ok(Value::Int(-*int)),
                         Value::Float(float) => Ok(Value::Float(-*float)),
                         Value::Bool(boolean) => Ok(Value::Int(-(*boolean as i128))),
@@ -152,7 +152,7 @@ impl Expr {
                     }
 
                     // SAFETY
-                    // this is safe because we check that lhs and rhs is some
+                    // this is safe because we check neither lhs or rhs is none
                     unsafe {
                         let lhs = lhs.unwrap_unchecked();
                         let rhs = rhs.unwrap_unchecked();
