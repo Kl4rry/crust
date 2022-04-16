@@ -36,16 +36,16 @@ This readme contains notes to myself.
 | Escapes sequences               | ✅       | ✅    |
 
 ### Standard functions
-| Name       | Completed       | About                        |
-| ---------- | --------------- | ---------------------------- |
-| clear      | ✅               | Clear screen                 |
-| cd         | ✅               | Change working directory     |
-| exit       | ✅               | Exit shell                   |
-| echo       | ✅               | Echo value back              |
-| pwd        | ✅               | Print working directory      |
+| Name       | Completed                   | About                        |
+| ---------- | --------------------------- | ---------------------------- |
+| clear      | ✅                           | Clear screen                 |
+| cd         | ✅                           | Change working directory     |
+| exit       | ✅                           | Exit shell                   |
+| echo       | ✅                           | Echo value back              |
+| pwd        | ✅                           | Print working directory      |
 | import     | ✅ (Not locking / integrity) | Import code from file or URL |
-| read/input | ❌               | Read user input from stdin   |
-| open       | ❌               | Open file                    |
+| read/input | ❌                           | Read user input from stdin   |
+| open       | ❌                           | Open file                    |
 
 (More functions to come)
 
@@ -62,13 +62,13 @@ import https://raw.githubusercontent.com/Kl4rry/crust/main/libs/starship.crust
 
 ## Todo
 Propagate errors better with streams.  
+Todo fix expression parsing and subexpression output capture.  
+Todo remove the stream type and turn them into list or singular values.
 
 ## Bugs
 A bunch of places convert values to string where it should throw an hard error instead.  
 Comparison operator chaining is currently permitted but should not be.  
 Streams cannot be used like normal return values. They should be unpacked when used in a sub expr.  
-Todo fix expression parsing and subexpression output capture.  
-Todo remove the stream type and turn them into list or singular values.
 
 ## Questions to be answered
 Should lists expand to multiple arguments when passed to a function. Should this depend on if it is an internal or external command?  
