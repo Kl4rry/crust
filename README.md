@@ -68,6 +68,7 @@ A bunch of places convert values to string where it should throw an hard error i
 Comparison operator chaining is currently permitted but should not be.  
 Streams cannot be used like normal return values. They should be unpacked when used in a sub expr.  
 Todo fix expression parsing and subexpression output capture.  
+Todo remove the stream type and turn them into list or singular values.
 
 ## Questions to be answered
 Should lists expand to multiple arguments when passed to a function. Should this depend on if it is an internal or external command?  

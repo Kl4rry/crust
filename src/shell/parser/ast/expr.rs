@@ -353,6 +353,7 @@ impl Expr {
             Self::SubExpr(expr) => {
                 let mut capture = OutputStream::new_capture();
                 let value = expr.eval(shell, &mut capture)?;
+                // todo
                 // i really dont know if this is correct
                 // i probably isnt
                 if value == Value::Null {
@@ -427,7 +428,7 @@ fn run_pipeline(
         shell.set_child(None);
         res
     } else {
-        //  this also need to be turned into a command not found error
+        // todo this also need to be turned into a command not found error
         let execs = execs
             .into_iter()
             .map(|(exec, _)| exec.env_clear().env_extend(&env));
