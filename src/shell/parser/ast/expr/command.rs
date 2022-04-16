@@ -12,35 +12,35 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub enum Command {
+pub enum CommandPart {
     Expand(Expand),
     String(String),
     Variable(Variable),
 }
 
-impl Command {
+impl CommandPart {
     pub fn eval(
         &self,
         shell: &mut Shell,
         output: &mut OutputStream,
     ) -> Result<String, ShellErrorKind> {
         match self {
-            Command::Variable(var) => Ok(var.eval(shell)?.as_ref().to_string()),
-            Command::Expand(expand) => Ok(expand.eval(shell, output)?),
-            Command::String(string) => Ok(string.clone()),
+            CommandPart::Variable(var) => Ok(var.eval(shell)?.as_ref().to_string()),
+            CommandPart::Expand(expand) => Ok(expand.eval(shell, output)?),
+            CommandPart::String(string) => Ok(string.clone()),
         }
     }
 }
 
-impl TryFrom<Token> for Command {
+impl TryFrom<Token> for CommandPart {
     type Error = SyntaxErrorKind;
     fn try_from(token: Token) -> Result<Self, Self::Error> {
         match token.token_type {
-            TokenType::String(text) => Ok(Command::String(text)),
-            TokenType::Symbol(text) => Ok(Command::String(text)),
-            TokenType::Int(_, text) => Ok(Command::String(text)),
-            TokenType::Float(_, text) => Ok(Command::String(text)),
-            TokenType::Variable(_) => Ok(Command::Variable(token.try_into()?)),
+            TokenType::String(text) => Ok(CommandPart::String(text)),
+            TokenType::Symbol(text) => Ok(CommandPart::String(text)),
+            TokenType::Int(_, text) => Ok(CommandPart::String(text)),
+            TokenType::Float(_, text) => Ok(CommandPart::String(text)),
+            TokenType::Variable(_) => Ok(CommandPart::Variable(token.try_into()?)),
             _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
         }
     }

@@ -28,7 +28,7 @@ pub mod unop;
 use unop::UnOp;
 
 pub mod command;
-use command::Command;
+use command::CommandPart;
 
 pub mod argument;
 use argument::Argument;
@@ -92,7 +92,7 @@ macro_rules! compare_impl {
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    Call(Command, Vec<Argument>),
+    Call(Vec<CommandPart>, Vec<Argument>),
     Pipe(Vec<Expr>),
     Variable(Variable),
     Binary(BinOp, P<Expr>, P<Expr>),
@@ -128,6 +128,7 @@ impl Expr {
                     UnOp::Neg => match value.as_ref() {
                         Value::Int(int) => Ok(Value::Int(-*int)),
                         Value::Float(float) => Ok(Value::Float(-*float)),
+                        Value::Bool(boolean) => Ok(Value::Int(-(*boolean as i128))),
                         _ => Err(ShellErrorKind::InvalidUnaryOperand(*unop, value.to_type())),
                     },
                     UnOp::Not => Ok(Value::Bool(!value.truthy())),
@@ -476,16 +477,19 @@ fn get_call_type(shell: &Shell, cmd: String, args: Vec<Value>) -> CallType {
 
 fn expand_call(
     shell: &mut Shell,
-    command: &Command,
+    commandparts: &[CommandPart],
     args: &[Argument],
     output: &mut OutputStream,
 ) -> Result<(String, Vec<Value>), ShellErrorKind> {
     let mut expanded_args = Vec::new();
     for arg in args {
-        let arg = arg.eval(shell, output)?;
-        expanded_args.push(arg);
+        expanded_args.push(arg.eval(shell, output)?);
     }
-    let mut command = command.eval(shell, output)?;
+
+    let mut command = String::new();
+    for part in commandparts.iter() {
+        command.push_str(&part.eval(shell, output)?);
+    }
 
     if let Some(alias) = shell.aliases.get(&command) {
         let mut split = alias.split_whitespace();

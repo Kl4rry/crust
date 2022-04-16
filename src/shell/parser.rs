@@ -11,9 +11,9 @@ pub mod ast;
 
 use ast::{
     expr::{
-        argument::{Argument, Expand, ExpandKind},
+        argument::{Argument, ArgumentPart, Expand, ExpandKind},
         binop::BinOp,
-        command::Command,
+        command::CommandPart,
         unop::UnOp,
         Expr,
     },
@@ -77,14 +77,13 @@ impl Parser {
 
     #[inline(always)]
     pub fn skip_space(&mut self) -> Result<()> {
-        self.eat()?.expect(TokenType::Space)?;
         while let Ok(token) = self.peek() {
             if !token.is_space() {
                 return Ok(());
             }
             self.eat()?;
         }
-        Ok(())
+        Err(SyntaxErrorKind::ExpectedToken)
     }
 
     #[inline(always)]
@@ -472,7 +471,7 @@ impl Parser {
                 self.skip_optional_space();
                 Ok(self.parse_expr(Some(inner))?.wrap(unop))
             }
-            TokenType::LeftBracket => self.parse_list(),
+            TokenType::LeftBracket => Ok(self.parse_list()?.wrap(unop)),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         }
     }
@@ -556,61 +555,144 @@ impl Parser {
         let command = self.parse_command()?;
         let mut args = Vec::new();
 
-        loop {
-            if self.peek().is_ok() {
-                self.skip_space()?;
-            } else {
-                break;
-            }
-
-            if let Ok(token) = self.peek() {
-                if token.is_valid_arg() {
-                    args.push(self.parse_argument()?);
-                } else {
-                    break;
+        while let Ok(token) = self.peek() {
+            match token.token_type {
+                TokenType::Space => {
+                    self.eat()?;
+                }
+                _ => {
+                    if token.is_valid_argpart() {
+                        args.push(self.parse_argument()?);
+                    } else {
+                        break;
+                    }
                 }
             }
         }
-
         Ok(Expr::Call(command, args))
     }
 
-    fn parse_command(&mut self) -> Result<Command> {
+    fn parse_command(&mut self) -> Result<Vec<CommandPart>> {
         if self.peek()?.token_type == TokenType::Exec {
             self.eat()?;
             self.skip_whitespace();
         }
 
-        let token = self.peek()?;
-        match &token.token_type {
-            TokenType::Quote => Ok(Command::Expand(self.parse_expand()?)),
-            _ => Command::try_from(self.eat()?),
+        let mut parts = Vec::new();
+        while let Ok(token) = self.peek() {
+            let part = match &token.token_type {
+                TokenType::Quote => CommandPart::Expand(self.parse_expand()?),
+                TokenType::Space
+                | TokenType::NewLine
+                | TokenType::SemiColon
+                | TokenType::LeftBrace
+                | TokenType::RightBrace
+                | TokenType::LeftParen
+                | TokenType::RightParen
+                | TokenType::Comma => break,
+                _ => self.eat()?.try_into()?,
+            };
+            parts.push(part);
         }
+        Ok(parts)
     }
 
     fn parse_argument(&mut self) -> Result<Argument> {
-        match self.peek()?.token_type {
-            TokenType::Quote => Ok(Argument::Expand(self.parse_expand()?)),
-            TokenType::Dollar => Ok(Argument::Expr(P::new(self.parse_expr_expand()?))),
-            TokenType::LeftBracket => Ok(Argument::Expr(P::new(self.parse_list()?))),
-            _ => {
-                let mut arg = self.eat()?.try_into_arg()?;
-                if let Argument::Bare(ref mut string) = arg {
-                    while let Ok(token) = self.peek() {
-                        if token.is_valid_arg() {
-                            let token = self.eat()?;
-                            let text = match token.token_type {
-                                TokenType::Symbol(text) => text,
-                                _ => token.try_into_glob_str()?.to_string(),
-                            };
-                            string.push_str(&text);
-                        } else {
-                            break;
+        let mut ids = Vec::new();
+
+        let id = match self.peek()?.token_type {
+            TokenType::Quote => ArgumentPart::Expand(self.parse_expand()?),
+            TokenType::Dollar => ArgumentPart::Expr(self.parse_expr_expand()?),
+            TokenType::LeftBracket => ArgumentPart::Expr(self.parse_list()?),
+            _ => self.eat()?.try_into_argpart()?,
+        };
+
+        ids.push(id);
+        while let Ok(token) = self.peek() {
+            if token.is_valid_argpart() {
+                match token.token_type {
+                    TokenType::Quote => {
+                        ids.push(ArgumentPart::Expand(self.parse_expand()?));
+                        continue;
+                    }
+                    TokenType::Dollar => {
+                        ids.push(ArgumentPart::Expr(self.parse_expr_expand()?));
+                        continue;
+                    }
+                    _ => (),
+                }
+
+                let token = self.eat()?;
+                match token.token_type {
+                    TokenType::String(string) => match ids.last_mut() {
+                        Some(ArgumentPart::Quoted(text)) => {
+                            text.push_str(&string);
+                        }
+                        _ => ids.push(ArgumentPart::Quoted(string)),
+                    },
+                    TokenType::Symbol(string) => match ids.last_mut() {
+                        Some(ArgumentPart::Bare(text)) => {
+                            text.push_str(&string);
+                        }
+                        _ => ids.push(ArgumentPart::Bare(string)),
+                    },
+                    TokenType::Variable(_) => ids.push(ArgumentPart::Variable(token.try_into()?)),
+                    TokenType::Int(number, _) => ids.push(ArgumentPart::Int(number.into())),
+                    TokenType::Float(number, _) => ids.push(ArgumentPart::Float(number)),
+                    _ => {
+                        let string = token.try_into_glob_str()?;
+                        match ids.last_mut() {
+                            Some(ArgumentPart::Bare(text)) => {
+                                text.push_str(string);
+                            }
+                            _ => ids.push(ArgumentPart::Bare(string.to_string())),
                         }
                     }
                 }
-                Ok(arg)
+            } else {
+                break;
             }
         }
+
+        // todo
+        // fix this fucking thing
+        // it should make it a real expression and eval it with the correct operands
+        // or it could just accept that it is a string
+        let last = ids.last().unwrap();
+        if let ArgumentPart::Int(_) = last {
+            if let ArgumentPart::Bare(s) = ids.first().unwrap() {
+                if s.bytes().all(|b| b == b'-') {
+                    let neg = !s.len() % 2 == 0;
+                    let last = ids.pop().unwrap();
+                    let mut number = match last {
+                        ArgumentPart::Int(number) => number,
+                        _ => unreachable!(),
+                    };
+                    ids.clear();
+                    if neg {
+                        number = -number;
+                    }
+                    ids.push(ArgumentPart::Int(number));
+                }
+            }
+        } else if let ArgumentPart::Float(_) = last {
+            if let ArgumentPart::Bare(s) = ids.first().unwrap() {
+                if s.bytes().all(|b| b == b'-') {
+                    let neg = !s.len() % 2 == 0;
+                    let last = ids.pop().unwrap();
+                    let mut number = match last {
+                        ArgumentPart::Float(number) => number,
+                        _ => unreachable!(),
+                    };
+                    ids.clear();
+                    if neg {
+                        number = -number;
+                    }
+                    ids.push(ArgumentPart::Float(number));
+                }
+            }
+        }
+
+        Ok(Argument { parts: ids })
     }
 }

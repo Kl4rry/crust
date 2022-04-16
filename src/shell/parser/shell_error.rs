@@ -69,6 +69,7 @@ pub enum ShellErrorKind {
         from: Type,
         to: Type,
     },
+    InvalidConcatination(Type, Type),
     VariableNotFound(String),
     InvalidBinaryOperand(BinOp, Type, Type),
     InvalidUnaryOperand(UnOp, Type),
@@ -138,10 +139,13 @@ impl fmt::Display for ShellErrorKind {
             Self::InvalidConversion { from, to } => {
                 write!(f, "Cannot convert {from} to {to}")
             }
-            Self::MaxRecursion(limit) => write!(f, "max recursion limit of {limit} reached"),
+            Self::InvalidConcatination(rhs, lhs) => {
+                write!(f, "Cannot concatenate {rhs} with {lhs}")
+            }
+            Self::MaxRecursion(limit) => write!(f, "Max recursion limit of {limit} reached"),
             Self::IndexOutOfBounds { length, index } => write!(
                 f,
-                "index is out of bounds, length is {length} but the index is {index}"
+                "Index is out of bounds, length is {length} but the index is {index}"
             ),
             Self::Io(path, error) => match path {
                 Some(path) => write!(f, "{} {}", error, path.to_string_lossy()),

@@ -7,7 +7,8 @@ use span::Span;
 
 use crate::parser::{
     ast::{
-        expr::{argument::Argument, binop::BinOp},
+        expr::{argument::ArgumentPart, binop::BinOp, Expr},
+        literal::Literal,
         statement::assign_op::AssignOp,
     },
     syntax_error::SyntaxErrorKind,
@@ -146,7 +147,7 @@ impl TokenType {
     }
 
     // check if token can be passed as a string arg to a call
-    pub fn is_valid_arg(&self) -> bool {
+    pub fn is_valid_argpart(&self) -> bool {
         matches!(
             *self,
             TokenType::Dollar
@@ -225,18 +226,19 @@ impl Token {
         self.token_type.is_unop()
     }
 
-    pub fn is_valid_arg(&self) -> bool {
-        self.token_type.is_valid_arg()
+    pub fn is_valid_argpart(&self) -> bool {
+        self.token_type.is_valid_argpart()
     }
 
-    pub fn try_into_arg(self) -> Result<Argument> {
+    pub fn try_into_argpart(self) -> Result<ArgumentPart> {
         match self.token_type {
-            TokenType::String(text) => Ok(Argument::Quoted(text)),
-            TokenType::Symbol(text) => Ok(Argument::Bare(text)),
-            TokenType::Variable(_) => Ok(Argument::Variable(self.try_into()?)),
-            TokenType::Int(number, _) => Ok(Argument::Int(number.into())),
-            TokenType::Float(number, _) => Ok(Argument::Float(number)),
-            _ => return Ok(Argument::Bare(self.try_into_glob_str()?.to_string())),
+            TokenType::String(text) => Ok(ArgumentPart::Quoted(text)),
+            TokenType::Symbol(text) => Ok(ArgumentPart::Bare(text)),
+            TokenType::Variable(_) => Ok(ArgumentPart::Variable(self.try_into()?)),
+            TokenType::Int(number, _) => Ok(ArgumentPart::Int(number.into())),
+            TokenType::Float(number, _) => Ok(ArgumentPart::Float(number)),
+            TokenType::True => Ok(ArgumentPart::Expr(Expr::Literal(Literal::Bool(true)))),
+            _ => return Ok(ArgumentPart::Bare(self.try_into_glob_str()?.to_string())),
         }
     }
 

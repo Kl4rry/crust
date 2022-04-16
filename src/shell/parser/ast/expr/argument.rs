@@ -7,58 +7,30 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub enum Argument {
+pub enum ArgumentPart {
     Variable(Variable),
     Expand(Expand),
     Bare(String),
     Float(BigDecimal),
     Int(BigInt),
     Quoted(String),
-    Expr(P<Expr>),
+    Expr(Expr),
 }
 
-impl Argument {
+impl ArgumentPart {
     pub fn eval(
         &self,
         shell: &mut Shell,
         output: &mut OutputStream,
     ) -> Result<Value, ShellErrorKind> {
         match self {
-            Argument::Variable(var) => Ok(var.eval(shell)?),
-            Argument::Expand(expand) => Ok(Value::String(expand.eval(shell, output)?)),
-            Argument::Bare(string) => {
-                let glob = string.contains('*');
-
-                let value = if string.contains('~') {
-                    let replacement = if glob {
-                        shell.home_dir().to_string_lossy().to_string()
-                    } else {
-                        glob::Pattern::escape(&*shell.home_dir().to_string_lossy())
-                    };
-                    string.replace('~', &replacement)
-                } else {
-                    string.to_string()
-                };
-
-                if glob {
-                    let mut entries = Vec::new();
-                    for entry in glob::glob(&format!("./{}", &value))? {
-                        entries.push(Value::String(entry?.to_string_lossy().to_string()));
-                    }
-
-                    if entries.is_empty() {
-                        Err(ShellErrorKind::NoMatch(value))
-                    } else {
-                        Ok(Value::List(entries))
-                    }
-                } else {
-                    Ok(Value::String(value))
-                }
-            }
-            Argument::Quoted(string) => Ok(Value::String(string.clone())),
-            Argument::Expr(expr) => Ok(expr.eval(shell, output)?),
-            Argument::Float(number) => Ok(Value::Float(number.to_f64().unwrap())),
-            Argument::Int(number) => match number.to_i128() {
+            ArgumentPart::Variable(var) => Ok(var.eval(shell)?),
+            ArgumentPart::Expand(expand) => Ok(Value::String(expand.eval(shell, output)?)),
+            ArgumentPart::Bare(value) => Ok(Value::String(value.to_string())),
+            ArgumentPart::Quoted(string) => Ok(Value::String(string.clone())),
+            ArgumentPart::Expr(expr) => Ok(expr.eval(shell, output)?),
+            ArgumentPart::Float(number) => Ok(Value::Float(number.to_f64().unwrap())),
+            ArgumentPart::Int(number) => match number.to_i128() {
                 Some(number) => Ok(Value::Int(number)),
                 None => Err(ShellErrorKind::IntegerOverFlow),
             },
@@ -94,4 +66,79 @@ pub enum ExpandKind {
     String(String),
     Expr(P<Expr>),
     Variable(Variable),
+}
+
+#[derive(Debug, Clone)]
+pub struct Argument {
+    pub parts: Vec<ArgumentPart>,
+}
+
+impl Argument {
+    pub fn eval(
+        &self,
+        shell: &mut Shell,
+        output: &mut OutputStream,
+    ) -> Result<Value, ShellErrorKind> {
+        let mut parts = Vec::new();
+        let mut glob = false;
+        for part in self.parts.iter() {
+            let (string, escape) = match part {
+                ArgumentPart::Bare(value) => {
+                    let mut string = value.to_string();
+                    if string.contains('*') {
+                        glob = true;
+                    }
+                    if string.contains('~') {
+                        string = if glob {
+                            string.replace(
+                                '~',
+                                &glob::Pattern::escape(&shell.home_dir().to_string_lossy()),
+                            )
+                        } else {
+                            string.replace('~', &shell.home_dir().to_string_lossy())
+                        }
+                    }
+                    (Value::String(string), false)
+                }
+                _ => (part.eval(shell, output)?, true),
+            };
+            parts.push((escape, string));
+        }
+
+        if glob {
+            let mut pattern = String::new();
+            for (escape, value) in parts {
+                pattern.push_str(&if escape {
+                    glob::Pattern::escape(&value.unwrap_string())
+                } else {
+                    value.try_as_string()?
+                });
+            }
+
+            let mut entries = Vec::new();
+            for entry in glob::glob(&format!("./{}", &pattern))? {
+                entries.push(Value::String(entry?.to_string_lossy().to_string()));
+            }
+
+            if !entries.is_empty() {
+                Ok(Value::List(entries))
+            } else {
+                Err(ShellErrorKind::NoMatch(pattern))
+            }
+        } else {
+            Ok(if parts.len() > 1 {
+                // this should also fail under some conditions
+                // todo throw a concatination error when concatianting non compatible types
+                // and it should not alloacte a new string on every value
+                Value::String(
+                    parts
+                        .into_iter()
+                        .map(|(_, value)| value.to_string())
+                        .collect(),
+                )
+            } else {
+                parts.pop().unwrap().1
+            })
+        }
+    }
 }

@@ -226,6 +226,9 @@ impl AsRef<Value> for Value {
 }
 
 impl Value {
+    // this function should only be used for displaying values
+    // only the display trait should ever call it
+    // it should never be used just to convert a value to a string
     pub fn to_compact_string(&self) -> String {
         match self {
             Value::Null => Paint::yellow("null").to_string(),
@@ -236,6 +239,19 @@ impl Value {
             Self::Range(range) => format!("[range from {} to {}]]", range.start, range.end),
             Self::Bool(boolean) => Paint::yellow(boolean).to_string(),
             Self::ValueStream(_) => String::from("[value stream]"),
+        }
+    }
+
+    // this function converts a value if it can be done so losslessly
+    pub fn try_as_string(&self) -> Result<String, ShellErrorKind> {
+        match self {
+            Self::Int(number) => Ok(number.to_string()),
+            Self::Float(number) => Ok(number.to_string()),
+            Self::String(string) => Ok(string.to_string()),
+            _ => Err(ShellErrorKind::InvalidConversion {
+                from: self.to_type(),
+                to: Type::STRING,
+            }),
         }
     }
 
@@ -288,7 +304,7 @@ impl Value {
                     )),
                 },
             },
-            Value::String(string) => {
+            Value::String(_) => {
                 if let Value::List(rhs) = rhs.as_ref() {
                     let mut list: Vec<Value> = vec![self.clone()];
                     list.extend(rhs.iter().cloned());
@@ -306,12 +322,12 @@ impl Value {
                     }
                 };
 
-                let mut new = string.clone();
+                let mut new = self.unwrap_string();
                 new.push_str(&rhs);
                 Ok(Value::String(new))
             }
-            Value::List(lhs) => {
-                let mut list = lhs.clone();
+            Value::List(_) => {
+                let mut list = self.unwrap_list();
                 list.push(rhs);
                 Ok(Value::List(list))
             }
@@ -641,11 +657,31 @@ impl Value {
         }
     }
 
-    pub fn unwrap_i128(&self) -> i128 {
+    pub fn unwrap_int(&self) -> i128 {
         match self {
             Self::Int(s) => *s,
             _ => panic!(
-                "called `Value::unwrap_i128()` on a `{}` value",
+                "called `Value::unwrap_int()` on a `{}` value",
+                self.to_type()
+            ),
+        }
+    }
+
+    pub fn unwrap_list(self) -> Vec<Value> {
+        match self {
+            Self::List(s) => s,
+            _ => panic!(
+                "called `Value::unwrap_list()` on a `{}` value",
+                self.to_type()
+            ),
+        }
+    }
+
+    pub fn unwrap_float(&self) -> f64 {
+        match self {
+            Self::Float(s) => *s,
+            _ => panic!(
+                "called `Value::unwrap_float()` on a `{}` value",
                 self.to_type()
             ),
         }

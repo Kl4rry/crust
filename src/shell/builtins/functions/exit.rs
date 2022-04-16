@@ -36,7 +36,7 @@ pub fn exit(
     let status = matches
         .value(&String::from("status"))
         .unwrap_or(&Value::Int(0));
-    shell.exit_status = status.unwrap_i128();
+    shell.exit_status = status.unwrap_int();
 
     shell.running = false;
     Err(ShellErrorKind::Exit)
