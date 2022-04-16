@@ -160,8 +160,6 @@ impl TokenType {
                 | TokenType::ModAssign
                 | TokenType::Assignment
                 | TokenType::Colon
-                | TokenType::RightBracket
-                | TokenType::LeftBracket
                 | TokenType::Range
                 | TokenType::Add
                 | TokenType::Sub

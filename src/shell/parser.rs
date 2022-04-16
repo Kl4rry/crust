@@ -585,10 +585,11 @@ impl Parser {
                 TokenType::Space
                 | TokenType::NewLine
                 | TokenType::SemiColon
+                // by finding a left brace here a lambda function could be parsed
                 | TokenType::LeftBrace
                 | TokenType::RightBrace
-                | TokenType::LeftParen
                 | TokenType::RightParen
+                | TokenType::RightBracket
                 | TokenType::Comma => break,
                 _ => self.eat()?.try_into()?,
             };
