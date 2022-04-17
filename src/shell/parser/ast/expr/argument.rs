@@ -1,7 +1,7 @@
 use bigdecimal::{num_bigint::BigInt, BigDecimal, ToPrimitive};
 
 use crate::{
-    parser::{shell_error::ShellErrorKind, Expr, Variable, P},
+    parser::{shell_error::ShellErrorKind, Expr, Variable},
     shell::{stream::OutputStream, value::Value},
     Shell,
 };
@@ -64,7 +64,7 @@ impl Expand {
 #[derive(Debug, Clone)]
 pub enum ExpandKind {
     String(String),
-    Expr(P<Expr>),
+    Expr(Expr),
     Variable(Variable),
 }
 
@@ -116,7 +116,7 @@ impl Argument {
             }
 
             let mut entries = Vec::new();
-            for entry in glob::glob(&format!("./{}", &pattern))? {
+            for entry in glob::glob(&pattern)? {
                 entries.push(Value::String(entry?.to_string_lossy().to_string()));
             }
 

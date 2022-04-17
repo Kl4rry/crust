@@ -101,6 +101,10 @@ impl fmt::Display for Value {
             Self::Float(number) => number.fmt(f),
             Self::String(string) => string.fmt(f),
             Self::List(list) => {
+                if list.is_empty() {
+                    return Ok(());
+                }
+
                 let mut longest = 0;
                 let mut values = Vec::new();
                 for value in list.iter() {
@@ -112,7 +116,7 @@ impl fmt::Display for Value {
                     );
                 }
 
-                let index_len = values.len().to_string().len();
+                let index_len = (values.len() - 1).to_string().len();
 
                 {
                     let mut top = String::new();

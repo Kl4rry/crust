@@ -30,7 +30,7 @@ This readme contains notes to myself.
 | Glob                            | ✅       | ✅    |
 | Questionmark / single char glob | ✅       | ✅    |
 | Bracket globing char            | ✅       | ✅    |
-| Subexpr $(expr)                 | ✅       | ✅    |
+| Subexpressions                  | ✅       | ✅    |
 | Assign and modify += *= etc     | ✅       | ✅    |
 | run in background using &       | ❌       | ❌    |
 | Escapes sequences               | ✅       | ✅    |
@@ -62,7 +62,6 @@ import https://raw.githubusercontent.com/Kl4rry/crust/main/libs/starship.crust
 
 ## Todo
 Propagate errors better with streams.  
-Todo fix expression parsing and subexpression output capture.  
 Todo remove the stream type and turn them into list or singular values.
 
 ## Bugs

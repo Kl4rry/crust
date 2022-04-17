@@ -188,7 +188,7 @@ impl Parser {
                                 )));
                             } else if token_type.is_binop() {
                                 return Ok(Compound::Expr(
-                                    self.parse_sub_expr(Some(Expr::Variable(var)), 0)?,
+                                    self.parse_expr_part(Some(Expr::Variable(var)), 0)?,
                                 ));
                             } else {
                                 return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?));
@@ -307,12 +307,6 @@ impl Parser {
         }
     }
 
-    fn parse_expr_expand(&mut self) -> Result<Expr> {
-        self.eat()?.expect(TokenType::Dollar)?;
-        let expr = Expr::SubExpr(P::new(self.parse_expr(None)?));
-        Ok(expr)
-    }
-
     fn parse_expand(&mut self) -> Result<Expand> {
         self.eat()?.expect(TokenType::Quote)?;
         let mut expand = Expand {
@@ -322,9 +316,11 @@ impl Parser {
         loop {
             let token = self.peek()?;
             match token.token_type {
-                TokenType::Dollar => expand
-                    .content
-                    .push(ExpandKind::Expr(P::new(self.parse_expr_expand()?))),
+                TokenType::LeftParen => {
+                    expand
+                        .content
+                        .push(ExpandKind::Expr(self.parse_sub_expr()?));
+                }
                 TokenType::Variable(_) => {
                     expand
                         .content
@@ -439,22 +435,23 @@ impl Parser {
         Ok(Expr::Literal(Literal::List(list)))
     }
 
+    fn parse_sub_expr(&mut self) -> Result<Expr> {
+        self.eat()?.expect(TokenType::LeftParen)?;
+        self.skip_whitespace();
+        let expr = self.parse_expr(None)?;
+        self.skip_whitespace();
+        self.eat()?.expect(TokenType::RightParen)?;
+        Ok(Expr::SubExpr(P::new(expr)))
+    }
+
     fn parse_primary(&mut self, unop: Option<UnOp>) -> Result<Expr> {
         match self.peek()?.token_type {
             TokenType::True | TokenType::False => {
                 Ok(Expr::Literal(self.eat()?.try_into()?).wrap(unop))
             }
             TokenType::Symbol(_) | TokenType::Exec => Ok(self.parse_pipe()?.wrap(unop)),
-            TokenType::LeftParen => {
-                self.eat()?.expect(TokenType::LeftParen)?;
-                self.skip_whitespace();
-                let expr = self.parse_expr(None)?;
-                self.skip_whitespace();
-                self.eat()?.expect(TokenType::RightParen)?;
-                Ok(Expr::Paren(P::new(expr)).wrap(unop))
-            }
+            TokenType::LeftParen => Ok(self.parse_sub_expr()?.wrap(unop)),
             TokenType::Variable(_) => Ok(Expr::Variable(self.eat()?.try_into()?).wrap(unop)),
-            TokenType::Dollar => Ok(self.parse_expr_expand()?.wrap(unop)),
             TokenType::String(_)
             | TokenType::Int(_, _)
             | TokenType::Float(_, _)
@@ -479,10 +476,10 @@ impl Parser {
     fn parse_expr(&mut self, unop: Option<UnOp>) -> Result<Expr> {
         let primary = self.parse_primary(unop)?;
         self.skip_optional_space();
-        self.parse_sub_expr(Some(primary), 0)
+        self.parse_expr_part(Some(primary), 0)
     }
 
-    fn parse_sub_expr(&mut self, lhs: Option<Expr>, min_precedence: u8) -> Result<Expr> {
+    fn parse_expr_part(&mut self, lhs: Option<Expr>, min_precedence: u8) -> Result<Expr> {
         let mut lhs = if let Some(expr) = lhs {
             expr
         } else {
@@ -515,7 +512,7 @@ impl Parser {
 
             self.eat()?;
             self.skip_whitespace();
-            let rhs = self.parse_sub_expr(None, next_min)?;
+            let rhs = self.parse_expr_part(None, next_min)?;
             self.skip_optional_space();
 
             lookahead = match self.peek() {
@@ -603,7 +600,8 @@ impl Parser {
 
         let id = match self.peek()?.token_type {
             TokenType::Quote => ArgumentPart::Expand(self.parse_expand()?),
-            TokenType::Dollar => ArgumentPart::Expr(self.parse_expr_expand()?),
+            TokenType::LeftParen => ArgumentPart::Expr(self.parse_sub_expr()?),
+            // todo list should maybe be parsed below to allow for concatination
             TokenType::LeftBracket => ArgumentPart::Expr(self.parse_list()?),
             _ => self.eat()?.try_into_argpart()?,
         };
@@ -616,8 +614,8 @@ impl Parser {
                         ids.push(ArgumentPart::Expand(self.parse_expand()?));
                         continue;
                     }
-                    TokenType::Dollar => {
-                        ids.push(ArgumentPart::Expr(self.parse_expr_expand()?));
+                    TokenType::LeftParen => {
+                        ids.push(ArgumentPart::Expr(self.parse_sub_expr()?));
                         continue;
                     }
                     _ => (),

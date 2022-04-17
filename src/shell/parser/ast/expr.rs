@@ -96,7 +96,6 @@ pub enum Expr {
     Pipe(Vec<Expr>),
     Variable(Variable),
     Binary(BinOp, P<Expr>, P<Expr>),
-    Paren(P<Expr>),
     Unary(UnOp, P<Expr>),
     Literal(Literal),
     SubExpr(P<Expr>),
@@ -134,7 +133,6 @@ impl Expr {
                     UnOp::Not => Ok(Value::Bool(!value.truthy())),
                 }
             }
-            Self::Paren(expr) => expr.eval(shell, output),
             Self::Binary(binop, lhs, rhs) => match binop {
                 BinOp::Range => {
                     let lhs_value = lhs.eval(shell, output)?;
@@ -351,15 +349,12 @@ impl Expr {
                 Ok(Value::Null)
             }
             Self::SubExpr(expr) => {
-                let mut capture = OutputStream::new_capture();
-                let value = expr.eval(shell, &mut capture)?;
-                // todo
-                // i really dont know if this is correct
-                // i probably isnt
-                if value == Value::Null {
+                if matches!(**expr, Self::Call { .. } | Self::Pipe { .. }) {
+                    let mut capture = OutputStream::new_capture();
+                    expr.eval(shell, &mut capture)?;
                     Ok(Value::ValueStream(P::new(capture.into_value_stream())))
                 } else {
-                    Ok(value)
+                    expr.eval(shell, output)
                 }
             }
         }
