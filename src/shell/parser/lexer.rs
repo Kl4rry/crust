@@ -293,7 +293,7 @@ impl Iterator for Lexer {
                 b'{' => self.advance_with(TokenType::LeftBrace, 1),
                 b']' => self.advance_with(TokenType::RightBracket, 1),
                 b'[' => self.advance_with(TokenType::LeftBracket, 1),
-                //b':' => self.advance_with(TokenType::Colon, 1),
+                b':' => self.advance_with(TokenType::Colon, 1),
                 b';' => self.advance_with(TokenType::SemiColon, 1),
                 // binary operators
                 b'=' => {

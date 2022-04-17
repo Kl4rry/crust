@@ -25,7 +25,8 @@ This readme contains notes to myself.
 | Alias                           | ✅       | ✅    |
 | Lists                           | ✅       | ✅    |
 | Indexing/Slicing                | ❌       | ❌    |
-| Maps/Tables                     | ❌       | ❌    |
+| Maps                            | ✅       | ✅    |
+| Tables                          | ❌       | ❌    |
 | Pipes                           | ✅       | ✅    |
 | Glob                            | ✅       | ✅    |
 | Questionmark / single char glob | ✅       | ✅    |
@@ -68,6 +69,7 @@ Todo remove the stream type and turn them into list or singular values.
 A bunch of places convert values to string where it should throw an hard error instead.  
 Comparison operator chaining is currently permitted but should not be.  
 Streams cannot be used like normal return values. They should be unpacked when used in a sub expr.  
+Using command in map as key returns weird error. It should just be treated as a bare word.  
 
 ## Questions to be answered
 Should lists expand to multiple arguments when passed to a function. Should this depend on if it is an internal or external command?  

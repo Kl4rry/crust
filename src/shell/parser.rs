@@ -149,6 +149,14 @@ impl Parser {
                 TokenType::RightBrace if block => return Ok(sequence),
                 _ => sequence.push(self.parse_compound()?),
             };
+            self.skip_optional_space();
+
+            if let Ok(token) = self.eat() {
+                match token.token_type {
+                    TokenType::SemiColon | TokenType::NewLine => continue,
+                    _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
+                }
+            }
         }
     }
 
@@ -408,9 +416,9 @@ impl Parser {
     }
 
     fn parse_list(&mut self) -> Result<Expr> {
-        self.eat()?;
+        self.eat()?.expect(TokenType::LeftBracket)?;
         let mut list = Vec::new();
-        let mut last_was_comma = false;
+        let mut last_was_comma = true;
         loop {
             self.skip_whitespace();
             match self.peek()?.token_type {
@@ -433,6 +441,40 @@ impl Parser {
             }
         }
         Ok(Expr::Literal(Literal::List(list)))
+    }
+
+    fn parse_map(&mut self) -> Result<Expr> {
+        self.eat()?.expect(TokenType::Dollar)?;
+        self.eat()?.expect(TokenType::LeftBrace)?;
+        let mut exprs: Vec<(Expr, Expr)> = Vec::new();
+        let mut last_was_comma = true;
+        loop {
+            self.skip_whitespace();
+            match self.peek()?.token_type {
+                TokenType::RightBrace => {
+                    self.eat()?;
+                    break;
+                }
+                TokenType::Comma => {
+                    if last_was_comma {
+                        return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?));
+                    } else {
+                        self.eat()?;
+                        last_was_comma = true;
+                    }
+                }
+                _ => {
+                    last_was_comma = false;
+                    let key = self.parse_expr(None)?;
+                    self.skip_whitespace();
+                    self.eat()?.expect(TokenType::Colon)?;
+                    self.skip_whitespace();
+                    let value = self.parse_expr(None)?;
+                    exprs.push((key, value));
+                }
+            }
+        }
+        Ok(Expr::Literal(Literal::Map(exprs)))
     }
 
     fn parse_sub_expr(&mut self) -> Result<Expr> {
@@ -469,6 +511,7 @@ impl Parser {
                 Ok(self.parse_expr(Some(inner))?.wrap(unop))
             }
             TokenType::LeftBracket => Ok(self.parse_list()?.wrap(unop)),
+            TokenType::Dollar => Ok(self.parse_map()?.wrap(unop)),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         }
     }

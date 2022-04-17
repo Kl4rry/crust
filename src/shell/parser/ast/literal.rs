@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::{collections::HashMap, convert::TryFrom};
 
 use bigdecimal::{num_bigint::BigUint, BigDecimal};
 use num_traits::cast::ToPrimitive;
@@ -8,7 +8,7 @@ use crate::{
         ast::{expr::argument::Expand, Expr},
         shell_error::ShellErrorKind,
         syntax_error::SyntaxErrorKind,
-        Token, TokenType,
+        Token, TokenType, P,
     },
     shell::{stream::OutputStream, value::Value, Shell},
 };
@@ -18,6 +18,7 @@ pub enum Literal {
     String(String),
     Expand(Expand),
     List(Vec<Expr>),
+    Map(Vec<(Expr, Expr)>),
     Float(BigDecimal),
     Int(BigUint),
     Bool(bool),
@@ -38,6 +39,15 @@ impl Literal {
                     values.push(expr.eval(shell, output)?);
                 }
                 Ok(Value::List(values))
+            }
+            Literal::Map(exprs) => {
+                let mut map = HashMap::new();
+                for (key, value) in exprs {
+                    let key = key.eval(shell, output)?.try_as_string()?;
+                    let value = value.eval(shell, output)?;
+                    map.insert(key, value);
+                }
+                Ok(Value::Map(P::new(map)))
             }
             Literal::Float(number) => Ok(Value::Float(number.to_f64().unwrap())),
             Literal::Int(number) => match number.to_i128() {

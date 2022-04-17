@@ -1,23 +1,25 @@
-use std::{fmt, hash::Hash, ops::Range};
+use std::{collections::HashMap, fmt, hash::Hash, ops::Range};
 
 use bitflags::bitflags;
-use unicode_width::UnicodeWidthStr;
 use yansi::Paint;
 
 use super::stream::ValueStream;
 use crate::parser::{ast::expr::binop::BinOp, shell_error::ShellErrorKind, P};
 
+mod format;
+
 bitflags! {
     #[rustfmt::skip]
-    pub struct Type: u8 {
-        const NULL =        0b00000001;
-        const INT =         0b00000010;
-        const FLOAT =       0b00000100;
-        const BOOL =        0b00001000;
-        const STRING =      0b00010000;
-        const LIST =        0b00100000;
-        const RANGE =       0b01000000;
-        const VALUESTREAM = 0b10000000;
+    pub struct Type: u16 {
+        const NULL =        0b0000000001;
+        const INT =         0b0000000010;
+        const FLOAT =       0b0000000100;
+        const BOOL =        0b0000001000;
+        const STRING =      0b0000010000;
+        const LIST =        0b0000100000;
+        const MAP =         0b0001000000;
+        const RANGE =       0b0010000000;
+        const VALUESTREAM = 0b0100000000;
     }
 }
 
@@ -62,6 +64,14 @@ impl fmt::Display for Type {
             write!(f, "'list'")?;
         }
 
+        if self.intersects(Self::LIST) {
+            if is_first {
+                write!(f, " or ")?;
+            }
+            is_first = true;
+            write!(f, "'map'")?;
+        }
+
         if self.intersects(Self::RANGE) {
             if is_first {
                 write!(f, " or ")?;
@@ -90,6 +100,7 @@ pub enum Value {
     Bool(bool),
     String(String),
     List(Vec<Value>),
+    Map(P<HashMap<String, Value>>),
     Range(P<Range<i128>>),
     ValueStream(P<ValueStream>),
 }
@@ -105,62 +116,14 @@ impl fmt::Display for Value {
                     return Ok(());
                 }
 
-                let mut longest = 0;
-                let mut values = Vec::new();
-                for value in list.iter() {
-                    values.push(value.to_compact_string());
-                    longest = std::cmp::max(
-                        longest,
-                        console::strip_ansi_codes(unsafe { values.last().unwrap_unchecked() })
-                            .width_cjk(),
-                    );
+                format::format_columns(f, (0..list.len()).map(Paint::green).zip(list))
+            }
+            Self::Map(map) => {
+                if map.is_empty() {
+                    return Ok(());
                 }
 
-                let index_len = (values.len() - 1).to_string().len();
-
-                {
-                    let mut top = String::new();
-                    top.push('╭');
-                    for _ in 0..index_len + 2 {
-                        top.push('─');
-                    }
-                    top.push('┬');
-                    for _ in 0..longest + 2 {
-                        top.push('─');
-                    }
-                    top.push_str("╮\n");
-                    write!(f, "{}", Paint::rgb(171, 178, 191, top))?;
-                }
-
-                let bar = Paint::rgb(171, 178, 191, "│");
-                for (index, value) in values.into_iter().enumerate() {
-                    let index_spacing = index_len - index.to_string().len();
-                    let value_spacing = longest - console::strip_ansi_codes(&value).width_cjk();
-                    writeln!(
-                        f,
-                        "{bar} {:index_spacing$}{} {bar} {:value_spacing$}{} {bar}",
-                        "",
-                        Paint::green(index),
-                        "",
-                        value
-                    )?;
-                }
-
-                {
-                    let mut bot = String::new();
-                    bot.push('╰');
-                    for _ in 0..index_len + 2 {
-                        bot.push('─');
-                    }
-                    bot.push('┴');
-                    for _ in 0..longest + 2 {
-                        bot.push('─');
-                    }
-                    bot.push_str("╯\n");
-                    write!(f, "{}", Paint::rgb(171, 178, 191, bot))?;
-                }
-
-                Ok(())
+                format::format_columns(f, map.iter())
             }
             Self::Range(range) => {
                 for i in range.clone() {
@@ -196,6 +159,7 @@ impl PartialEq for Value {
                 Value::Bool(rhs) => boolean == rhs,
                 Value::String(string) => string.is_empty() != *boolean,
                 Value::List(list) => list.is_empty() != *boolean,
+                Value::Map(map) => map.is_empty() != *boolean,
                 Value::Range(range) => (range.start == 0 && range.end == 0) != *boolean,
                 Value::Null => false,
                 Value::ValueStream(stream) => stream.is_empty() != *boolean,
@@ -208,6 +172,11 @@ impl PartialEq for Value {
             Value::List(list) => match other {
                 Value::List(rhs) => list == rhs,
                 Value::Bool(rhs) => list.is_empty() != *rhs,
+                _ => false,
+            },
+            Value::Map(map) => match other {
+                Value::Map(rhs) => map == rhs,
+                Value::Bool(rhs) => map.is_empty() != *rhs,
                 _ => false,
             },
             Value::Range(range) => match other {
@@ -227,11 +196,12 @@ impl Value {
     // it should never be used just to convert a value to a string
     pub fn to_compact_string(&self) -> String {
         match self {
-            Value::Null => Paint::yellow("null").to_string(),
+            Value::Null => String::new(),
             Self::Int(number) => Paint::yellow(number).to_string(),
             Self::Float(number) => Paint::yellow(number).to_string(),
             Self::String(string) => string.to_string(),
             Self::List(list) => format!("[list with {} items]", list.len()),
+            Self::Map(map) => format!("[map with {} items]", map.len()),
             Self::Range(range) => format!("[range from {} to {}]]", range.start, range.end),
             Self::Bool(boolean) => Paint::yellow(boolean).to_string(),
             Self::ValueStream(_) => String::from("[value stream]"),
@@ -603,6 +573,7 @@ impl Value {
             Self::Bool(_) => Type::BOOL,
             Self::String(_) => Type::STRING,
             Self::List(_) => Type::LIST,
+            Self::Map(_) => Type::MAP,
             Self::Range(_) => Type::RANGE,
             Self::Null => Type::NULL,
             Self::ValueStream(_) => Type::VALUESTREAM,
@@ -635,6 +606,7 @@ impl Value {
             Self::String(string) => !string.is_empty(),
             Self::Bool(boolean) => *boolean,
             Self::List(list) => !list.is_empty(),
+            Self::Map(map) => !map.is_empty(),
             Self::Range(range) => range.start != 0 && range.end != 0,
             Self::Null => false,
             Self::ValueStream(stream) => !stream.is_empty(),
