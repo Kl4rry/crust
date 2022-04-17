@@ -1,6 +1,7 @@
-use std::{collections::HashMap, fmt, hash::Hash, ops::Range};
+use std::{fmt, hash::Hash, ops::Range};
 
 use bitflags::bitflags;
+use indexmap::IndexMap;
 use yansi::Paint;
 
 use super::stream::ValueStream;
@@ -64,7 +65,7 @@ impl fmt::Display for Type {
             write!(f, "'list'")?;
         }
 
-        if self.intersects(Self::LIST) {
+        if self.intersects(Self::MAP) {
             if is_first {
                 write!(f, " or ")?;
             }
@@ -100,7 +101,7 @@ pub enum Value {
     Bool(bool),
     String(String),
     List(Vec<Value>),
-    Map(P<HashMap<String, Value>>),
+    Map(P<IndexMap<String, Value>>),
     Range(P<Range<i128>>),
     ValueStream(P<ValueStream>),
 }
@@ -208,12 +209,12 @@ impl Value {
         }
     }
 
-    // this function converts a value if it can be done so losslessly
-    pub fn try_as_string(&self) -> Result<String, ShellErrorKind> {
+    // this function converts a value to a string if it can be done so losslessly
+    pub fn try_into_string(self) -> Result<String, ShellErrorKind> {
         match self {
             Self::Int(number) => Ok(number.to_string()),
             Self::Float(number) => Ok(number.to_string()),
-            Self::String(string) => Ok(string.to_string()),
+            Self::String(string) => Ok(string),
             _ => Err(ShellErrorKind::InvalidConversion {
                 from: self.to_type(),
                 to: Type::STRING,

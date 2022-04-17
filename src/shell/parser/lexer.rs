@@ -286,6 +286,7 @@ impl Iterator for Lexer {
                     }
                 }
                 b'\'' => self.parse_string(),
+                b'@' => self.advance_with(TokenType::At, 1),
                 b'"' => self.advance_with(TokenType::Quote, 1),
                 b')' => self.advance_with(TokenType::RightParen, 1),
                 b'(' => self.advance_with(TokenType::LeftParen, 1),

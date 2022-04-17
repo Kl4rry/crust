@@ -1,6 +1,7 @@
-use std::{collections::HashMap, convert::TryFrom};
+use std::convert::TryFrom;
 
 use bigdecimal::{num_bigint::BigUint, BigDecimal};
+use indexmap::IndexMap;
 use num_traits::cast::ToPrimitive;
 
 use crate::{
@@ -41,9 +42,9 @@ impl Literal {
                 Ok(Value::List(values))
             }
             Literal::Map(exprs) => {
-                let mut map = HashMap::new();
+                let mut map = IndexMap::new();
                 for (key, value) in exprs {
-                    let key = key.eval(shell, output)?.try_as_string()?;
+                    let key = key.eval(shell, output)?.try_into_string()?;
                     let value = value.eval(shell, output)?;
                     map.insert(key, value);
                 }

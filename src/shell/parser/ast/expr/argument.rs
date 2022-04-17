@@ -111,7 +111,7 @@ impl Argument {
                 pattern.push_str(&if escape {
                     glob::Pattern::escape(&value.unwrap_string())
                 } else {
-                    value.try_as_string()?
+                    value.try_into_string()?
                 });
             }
 
@@ -127,15 +127,11 @@ impl Argument {
             }
         } else {
             Ok(if parts.len() > 1 {
-                // this should also fail under some conditions
-                // todo throw a concatination error when concatianting non compatible types
-                // and it should not alloacte a new string on every value
-                Value::String(
-                    parts
-                        .into_iter()
-                        .map(|(_, value)| value.to_string())
-                        .collect(),
-                )
+                let mut string = String::new();
+                for (_, value) in parts {
+                    string.push_str(&value.try_into_string()?);
+                }
+                Value::String(string)
             } else {
                 parts.pop().unwrap().1
             })

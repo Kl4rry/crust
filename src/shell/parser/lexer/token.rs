@@ -43,6 +43,7 @@ pub enum TokenType {
     Comma,
     /// $
     Dollar,
+    At,
     Colon,
     SemiColon,
 
@@ -151,6 +152,8 @@ impl TokenType {
         matches!(
             *self,
             TokenType::Dollar
+                | TokenType::At
+                | TokenType::LeftBracket
                 | TokenType::Quote
                 | TokenType::AddAssign
                 | TokenType::SubAssign
@@ -268,6 +271,7 @@ impl Token {
             TokenType::Colon => Ok(":"),
             TokenType::Let => Ok("let"),
             TokenType::Export => Ok("export"),
+            TokenType::At => Ok("@"),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self)),
         }
     }

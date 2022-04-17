@@ -300,6 +300,7 @@ impl Parser {
             TokenType::Export => Ok(Compound::Statement(self.parse_declaration(true)?)),
             TokenType::Symbol(_) => Ok(Compound::Expr(self.parse_expr(None)?)),
             TokenType::Exec
+            | TokenType::At
             | TokenType::Dollar
             | TokenType::Int(_, _)
             | TokenType::Float(_, _)
@@ -444,7 +445,7 @@ impl Parser {
     }
 
     fn parse_map(&mut self) -> Result<Expr> {
-        self.eat()?.expect(TokenType::Dollar)?;
+        self.eat()?.expect(TokenType::At)?;
         self.eat()?.expect(TokenType::LeftBrace)?;
         let mut exprs: Vec<(Expr, Expr)> = Vec::new();
         let mut last_was_comma = true;
@@ -511,7 +512,7 @@ impl Parser {
                 Ok(self.parse_expr(Some(inner))?.wrap(unop))
             }
             TokenType::LeftBracket => Ok(self.parse_list()?.wrap(unop)),
-            TokenType::Dollar => Ok(self.parse_map()?.wrap(unop)),
+            TokenType::At => Ok(self.parse_map()?.wrap(unop)),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         }
     }
@@ -639,26 +640,39 @@ impl Parser {
     }
 
     fn parse_argument(&mut self) -> Result<Argument> {
-        let mut ids = Vec::new();
+        let mut parts = Vec::new();
 
-        let id = match self.peek()?.token_type {
-            TokenType::Quote => ArgumentPart::Expand(self.parse_expand()?),
-            TokenType::LeftParen => ArgumentPart::Expr(self.parse_sub_expr()?),
+        let (part, concat) = match self.peek()?.token_type {
+            TokenType::Quote => (ArgumentPart::Expand(self.parse_expand()?), true),
+            TokenType::LeftParen => (ArgumentPart::Expr(self.parse_sub_expr()?), true),
             // todo list should maybe be parsed below to allow for concatination
-            TokenType::LeftBracket => ArgumentPart::Expr(self.parse_list()?),
-            _ => self.eat()?.try_into_argpart()?,
+            TokenType::LeftBracket => (ArgumentPart::Expr(self.parse_list()?), false),
+            // todo same for map
+            TokenType::At => (ArgumentPart::Expr(self.parse_map()?), false),
+            _ => (self.eat()?.try_into_argpart()?, true),
         };
+        parts.push(part);
 
-        ids.push(id);
+        if !concat {
+            if let Ok(token) = self.peek() {
+                if !matches!(
+                    token.token_type,
+                    TokenType::Space | TokenType::NewLine | TokenType::SemiColon
+                ) {
+                    return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?));
+                }
+            }
+        }
+
         while let Ok(token) = self.peek() {
             if token.is_valid_argpart() {
                 match token.token_type {
                     TokenType::Quote => {
-                        ids.push(ArgumentPart::Expand(self.parse_expand()?));
+                        parts.push(ArgumentPart::Expand(self.parse_expand()?));
                         continue;
                     }
                     TokenType::LeftParen => {
-                        ids.push(ArgumentPart::Expr(self.parse_sub_expr()?));
+                        parts.push(ArgumentPart::Expr(self.parse_sub_expr()?));
                         continue;
                     }
                     _ => (),
@@ -666,28 +680,28 @@ impl Parser {
 
                 let token = self.eat()?;
                 match token.token_type {
-                    TokenType::String(string) => match ids.last_mut() {
+                    TokenType::String(string) => match parts.last_mut() {
                         Some(ArgumentPart::Quoted(text)) => {
                             text.push_str(&string);
                         }
-                        _ => ids.push(ArgumentPart::Quoted(string)),
+                        _ => parts.push(ArgumentPart::Quoted(string)),
                     },
-                    TokenType::Symbol(string) => match ids.last_mut() {
+                    TokenType::Symbol(string) => match parts.last_mut() {
                         Some(ArgumentPart::Bare(text)) => {
                             text.push_str(&string);
                         }
-                        _ => ids.push(ArgumentPart::Bare(string)),
+                        _ => parts.push(ArgumentPart::Bare(string)),
                     },
-                    TokenType::Variable(_) => ids.push(ArgumentPart::Variable(token.try_into()?)),
-                    TokenType::Int(number, _) => ids.push(ArgumentPart::Int(number.into())),
-                    TokenType::Float(number, _) => ids.push(ArgumentPart::Float(number)),
+                    TokenType::Variable(_) => parts.push(ArgumentPart::Variable(token.try_into()?)),
+                    TokenType::Int(number, _) => parts.push(ArgumentPart::Int(number.into())),
+                    TokenType::Float(number, _) => parts.push(ArgumentPart::Float(number)),
                     _ => {
                         let string = token.try_into_glob_str()?;
-                        match ids.last_mut() {
+                        match parts.last_mut() {
                             Some(ArgumentPart::Bare(text)) => {
                                 text.push_str(string);
                             }
-                            _ => ids.push(ArgumentPart::Bare(string.to_string())),
+                            _ => parts.push(ArgumentPart::Bare(string.to_string())),
                         }
                     }
                 }
@@ -700,41 +714,41 @@ impl Parser {
         // fix this fucking thing
         // it should make it a real expression and eval it with the correct operands
         // or it could just accept that it is a string
-        let last = ids.last().unwrap();
+        let last = parts.last().unwrap();
         if let ArgumentPart::Int(_) = last {
-            if let ArgumentPart::Bare(s) = ids.first().unwrap() {
+            if let ArgumentPart::Bare(s) = parts.first().unwrap() {
                 if s.bytes().all(|b| b == b'-') {
                     let neg = !s.len() % 2 == 0;
-                    let last = ids.pop().unwrap();
+                    let last = parts.pop().unwrap();
                     let mut number = match last {
                         ArgumentPart::Int(number) => number,
                         _ => unreachable!(),
                     };
-                    ids.clear();
+                    parts.clear();
                     if neg {
                         number = -number;
                     }
-                    ids.push(ArgumentPart::Int(number));
+                    parts.push(ArgumentPart::Int(number));
                 }
             }
         } else if let ArgumentPart::Float(_) = last {
-            if let ArgumentPart::Bare(s) = ids.first().unwrap() {
+            if let ArgumentPart::Bare(s) = parts.first().unwrap() {
                 if s.bytes().all(|b| b == b'-') {
                     let neg = !s.len() % 2 == 0;
-                    let last = ids.pop().unwrap();
+                    let last = parts.pop().unwrap();
                     let mut number = match last {
                         ArgumentPart::Float(number) => number,
                         _ => unreachable!(),
                     };
-                    ids.clear();
+                    parts.clear();
                     if neg {
                         number = -number;
                     }
-                    ids.push(ArgumentPart::Float(number));
+                    parts.push(ArgumentPart::Float(number));
                 }
             }
         }
 
-        Ok(Argument { parts: ids })
+        Ok(Argument { parts })
     }
 }
