@@ -1,9 +1,17 @@
-use std::fmt::{self, Display};
+use std::{
+    fmt::{self, Display},
+    iter,
+};
 
 use unicode_width::UnicodeWidthStr;
 use yansi::Paint;
 
 use super::Value;
+
+#[inline(always)]
+pub fn bar() -> Paint<char> {
+    Paint::rgb(171, 178, 191, '│')
+}
 
 pub fn format_columns<'a, T: Display, I: Iterator<Item = (T, &'a Value)>>(
     f: &mut fmt::Formatter<'_>,
@@ -27,9 +35,9 @@ pub fn format_columns<'a, T: Display, I: Iterator<Item = (T, &'a Value)>>(
         );
     }
 
-    fmt_top(f, &[longest_key + 2, longest_value + 2])?;
+    fmt_horizontal(f, &[longest_key + 2, longest_value + 2], ConfigChars::TOP)?;
 
-    let bar = Paint::rgb(171, 178, 191, "│");
+    let bar = bar();
     for (key, value) in keys.into_iter().zip(values) {
         let key_spacing = longest_key - console::strip_ansi_codes(&key).width_cjk();
         let value_spacing = longest_value - console::strip_ansi_codes(&value).width_cjk();
@@ -40,41 +48,80 @@ pub fn format_columns<'a, T: Display, I: Iterator<Item = (T, &'a Value)>>(
         )?;
     }
 
-    fmt_bot(f, &[longest_key + 2, longest_value + 2])?;
+    fmt_horizontal(f, &[longest_key + 2, longest_value + 2], ConfigChars::TOP)?;
 
     Ok(())
 }
 
-fn fmt_top(f: &mut fmt::Formatter<'_>, cols: &[usize]) -> fmt::Result {
+pub struct ConfigChars {
+    pub left: char,
+    pub middle: char,
+    pub right: char,
+}
+
+impl ConfigChars {
+    pub const fn new(left: char, middle: char, right: char) -> Self {
+        Self {
+            left,
+            middle,
+            right,
+        }
+    }
+
+    pub const TOP: Self = Self::new('╭', '┬', '╮');
+    pub const MID: Self = Self::new('├', '┼', '┤');
+    pub const BOT: Self = Self::new('╰', '┴', '╯');
+}
+
+pub fn fmt_horizontal(
+    f: &mut fmt::Formatter<'_>,
+    cols: &[usize],
+    ConfigChars {
+        left,
+        middle,
+        right,
+    }: ConfigChars,
+) -> fmt::Result {
     let mut line = String::new();
-    line.push('╭');
+    line.push(left);
     let mut peekable = cols.iter().peekable();
     while let Some(col) = peekable.next() {
         for _ in 0..*col {
             line.push('─');
         }
         if peekable.peek().is_some() {
-            line.push('┬');
+            line.push(middle);
         }
     }
-    line.push_str("╮\n");
+    line.push(right);
+    line.push('\n');
     write!(f, "{}", Paint::rgb(171, 178, 191, line))?;
     Ok(())
 }
 
-fn fmt_bot(f: &mut fmt::Formatter<'_>, cols: &[usize]) -> fmt::Result {
-    let mut line = String::new();
-    line.push('╰');
-    let mut peekable = cols.iter().peekable();
-    while let Some(col) = peekable.next() {
-        for _ in 0..*col {
-            line.push('─');
-        }
-        if peekable.peek().is_some() {
-            line.push('┴');
-        }
-    }
-    line.push_str("╯\n");
-    write!(f, "{}", Paint::rgb(171, 178, 191, line))?;
-    Ok(())
+pub fn center_pad(content: impl Display, width: usize) -> String {
+    let string = content.to_string();
+    let content_width = console::strip_ansi_codes(&string).width_cjk();
+    debug_assert!(width >= content_width);
+    let difference = width - content_width;
+    let left = difference / 2;
+    let right = difference - left;
+
+    let mut new = String::new();
+    new.extend(iter::repeat(' ').take(left));
+    new.push_str(&string);
+    new.extend(iter::repeat(' ').take(right));
+    new
 }
+
+pub fn left_pad(content: impl Display, width: usize) -> String {
+    let string = content.to_string();
+    let content_width = console::strip_ansi_codes(&string).width_cjk();
+    debug_assert!(width >= content_width);
+    let left = width - content_width;
+    let mut new = String::new();
+    new.extend(iter::repeat(' ').take(left));
+    new.push_str(&string);
+    new
+}
+

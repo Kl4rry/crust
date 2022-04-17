@@ -8,6 +8,8 @@ use super::stream::ValueStream;
 use crate::parser::{ast::expr::binop::BinOp, shell_error::ShellErrorKind, P};
 
 mod format;
+mod table;
+use table::Table;
 
 bitflags! {
     #[rustfmt::skip]
@@ -19,8 +21,9 @@ bitflags! {
         const STRING =      0b0000010000;
         const LIST =        0b0000100000;
         const MAP =         0b0001000000;
-        const RANGE =       0b0010000000;
-        const VALUESTREAM = 0b0100000000;
+        const TABLE =       0b0010000000;
+        const RANGE =       0b0100000000;
+        const VALUESTREAM = 0b1000000000;
     }
 }
 
@@ -73,6 +76,14 @@ impl fmt::Display for Type {
             write!(f, "'map'")?;
         }
 
+        if self.intersects(Self::TABLE) {
+            if is_first {
+                write!(f, " or ")?;
+            }
+            is_first = true;
+            write!(f, "'table'")?;
+        }
+
         if self.intersects(Self::RANGE) {
             if is_first {
                 write!(f, " or ")?;
@@ -102,6 +113,7 @@ pub enum Value {
     String(String),
     List(Vec<Value>),
     Map(P<IndexMap<String, Value>>),
+    Table(P<Table>),
     Range(P<Range<i128>>),
     ValueStream(P<ValueStream>),
 }
@@ -161,6 +173,7 @@ impl PartialEq for Value {
                 Value::String(string) => string.is_empty() != *boolean,
                 Value::List(list) => list.is_empty() != *boolean,
                 Value::Map(map) => map.is_empty() != *boolean,
+                Value::Table(table) => table.is_empty() != *boolean,
                 Value::Range(range) => (range.start == 0 && range.end == 0) != *boolean,
                 Value::Null => false,
                 Value::ValueStream(stream) => stream.is_empty() != *boolean,
@@ -178,6 +191,11 @@ impl PartialEq for Value {
             Value::Map(map) => match other {
                 Value::Map(rhs) => map == rhs,
                 Value::Bool(rhs) => map.is_empty() != *rhs,
+                _ => false,
+            },
+            Value::Table(table) => match other {
+                Value::Table(rhs) => table == rhs,
+                Value::Bool(rhs) => table.is_empty() != *rhs,
                 _ => false,
             },
             Value::Range(range) => match other {
@@ -202,7 +220,8 @@ impl Value {
             Self::Float(number) => Paint::yellow(number).to_string(),
             Self::String(string) => string.to_string(),
             Self::List(list) => format!("[list with {} items]", list.len()),
-            Self::Map(map) => format!("[map with {} items]", map.len()),
+            Self::Map(map) => format!("[map with {} entries]", map.len()),
+            Self::Table(table) => format!("[table with {} rows]", table.len()),
             Self::Range(range) => format!("[range from {} to {}]]", range.start, range.end),
             Self::Bool(boolean) => Paint::yellow(boolean).to_string(),
             Self::ValueStream(_) => String::from("[value stream]"),
@@ -575,6 +594,7 @@ impl Value {
             Self::String(_) => Type::STRING,
             Self::List(_) => Type::LIST,
             Self::Map(_) => Type::MAP,
+            Self::Table(_) => Type::TABLE,
             Self::Range(_) => Type::RANGE,
             Self::Null => Type::NULL,
             Self::ValueStream(_) => Type::VALUESTREAM,
@@ -608,6 +628,7 @@ impl Value {
             Self::Bool(boolean) => *boolean,
             Self::List(list) => !list.is_empty(),
             Self::Map(map) => !map.is_empty(),
+            Self::Table(table) => !table.is_empty(),
             Self::Range(range) => range.start != 0 && range.end != 0,
             Self::Null => false,
             Self::ValueStream(stream) => !stream.is_empty(),
