@@ -47,7 +47,9 @@ This readme contains notes to myself.
 | pwd        | ✅                           | Print working directory      |
 | import     | ✅ (Not locking / integrity) | Import code from file or URL |
 | read/input | ❌                           | Read user input from stdin   |
-| open       | ❌                           | Open file                    |
+| open       | ❌                           | Read data from file          |
+| save       | ❌                           | Save data to file            |
+
 
 (More functions to come)
 
