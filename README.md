@@ -67,6 +67,7 @@ Propagate errors better with streams.
 Todo remove the stream type and turn them into list or singular values.  
 Add copy on write to remove useless cloning when indexing.  
 Columns and indexing when passing arguments.  
+Todo allow column with number name.  
 
 ## Bugs
 A bunch of places convert values to string where it should throw an hard error instead.  
