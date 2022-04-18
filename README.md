@@ -33,7 +33,7 @@ This readme contains notes to myself.
 | Bracket globing char            | ✅       | ✅    |
 | Subexpressions                  | ✅       | ✅    |
 | Assign and modify += *= etc     | ✅       | ✅    |
-| run in background using &       | ❌       | ❌    |
+| Run command as background job   | ❌       | ❌    |
 | Escapes sequences               | ✅       | ✅    |
 | Lambda functions                | ❌       | ❌    |
 
