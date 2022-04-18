@@ -53,8 +53,8 @@ impl Expand {
         for item in self.content.iter() {
             match item {
                 ExpandKind::String(string) => value.push_str(string),
-                ExpandKind::Expr(expr) => value.push_str(&expr.eval(shell, output)?.to_string()),
-                ExpandKind::Variable(var) => value.push_str(&var.eval(shell)?.to_string()),
+                ExpandKind::Expr(expr) => value.push_str(&expr.eval(shell, output)?.try_into_string()?),
+                ExpandKind::Variable(var) => value.push_str(&var.eval(shell)?.try_into_string()?),
             }
         }
         Ok(value)
