@@ -8,7 +8,7 @@ use super::stream::ValueStream;
 use crate::parser::{ast::expr::binop::BinOp, shell_error::ShellErrorKind, P};
 
 mod format;
-mod table;
+pub mod table;
 use table::Table;
 
 bitflags! {
@@ -138,6 +138,7 @@ impl fmt::Display for Value {
 
                 format::format_columns(f, map.iter())
             }
+            Self::Table(table) => table.fmt(f),
             Self::Range(range) => {
                 for i in range.clone() {
                     i.fmt(f)?;
@@ -660,6 +661,16 @@ impl Value {
             Self::List(s) => s,
             _ => panic!(
                 "called `Value::unwrap_list()` on a `{}` value",
+                self.to_type()
+            ),
+        }
+    }
+
+    pub fn unwrap_map(self) -> IndexMap<String, Value> {
+        match self {
+            Self::Map(s) => *s,
+            _ => panic!(
+                "called `Value::unwrap_map()` on a `{}` value",
                 self.to_type()
             ),
         }

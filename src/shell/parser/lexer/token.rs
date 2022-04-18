@@ -46,6 +46,7 @@ pub enum TokenType {
     At,
     Colon,
     SemiColon,
+    Dot,
 
     // Binary operators
     /// The x..y operator (range)
@@ -152,6 +153,7 @@ impl TokenType {
         matches!(
             *self,
             TokenType::Dollar
+                | TokenType::Dot
                 | TokenType::At
                 | TokenType::LeftBracket
                 | TokenType::Quote
@@ -272,6 +274,7 @@ impl Token {
             TokenType::Let => Ok("let"),
             TokenType::Export => Ok("export"),
             TokenType::At => Ok("@"),
+            TokenType::Dot => Ok("."),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self)),
         }
     }

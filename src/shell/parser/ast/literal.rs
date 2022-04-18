@@ -11,7 +11,7 @@ use crate::{
         syntax_error::SyntaxErrorKind,
         Token, TokenType, P,
     },
-    shell::{stream::OutputStream, value::Value, Shell},
+    shell::{stream::OutputStream, value::{Value, table::Table}, Shell},
 };
 
 #[derive(Debug, Clone)]
@@ -36,10 +36,25 @@ impl Literal {
             Literal::Expand(expand) => Ok(Value::String(expand.eval(shell, output)?)),
             Literal::List(list) => {
                 let mut values: Vec<Value> = Vec::new();
+                let mut is_table = true;
                 for expr in list.iter() {
                     values.push(expr.eval(shell, output)?);
+                    unsafe {
+                        if !matches!(values.last().unwrap_unchecked(), Value::Map(_)) {
+                            is_table = false;
+                        }
+                    }
                 }
-                Ok(Value::List(values))
+
+                if is_table {
+                    let mut table = Table::new();
+                    for value in values {
+                        table.insert_map(value.unwrap_map());
+                    }
+                    Ok(Value::Table(Box::new(table)))
+                } else {
+                    Ok(Value::List(values))
+                }
             }
             Literal::Map(exprs) => {
                 let mut map = IndexMap::new();

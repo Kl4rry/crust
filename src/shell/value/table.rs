@@ -4,6 +4,7 @@ use std::{
 };
 
 use indexmap::IndexMap;
+use unicode_width::UnicodeWidthStr;
 use yansi::Paint;
 
 use super::{
@@ -100,7 +101,7 @@ impl fmt::Display for Table {
         for row in &rows {
             for (index, col) in row.iter().enumerate() {
                 let len = &mut column_widths[index + 1];
-                *len = std::cmp::max(*len, col.len() + 2);
+                *len = std::cmp::max(*len, console::strip_ansi_codes(col).width_cjk() + 2);
             }
         }
 

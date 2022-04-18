@@ -267,8 +267,12 @@ impl Iterator for Lexer {
                     }
                 }
 
-                b'.' if self.index + 1 < self.src.len() && self.peek(1) == b'.' => {
-                    self.advance_with(TokenType::Range, 2)
+                b'.' => {
+                    if self.index + 1 < self.src.len() && self.peek(1) == b'.' {
+                        self.advance_with(TokenType::Range, 2)
+                    } else {
+                        self.advance_with(TokenType::Dot, 1)
+                    }
                 }
                 b',' => self.advance_with(TokenType::Comma, 1),
                 b'|' => {
