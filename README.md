@@ -35,6 +35,7 @@ This readme contains notes to myself.
 | Assign and modify += *= etc     | ✅       | ✅    |
 | run in background using &       | ❌       | ❌    |
 | Escapes sequences               | ✅       | ✅    |
+| Lambda functions                | ❌       | ❌    |
 
 ### Standard functions
 | Name       | Completed                   | About                        |
