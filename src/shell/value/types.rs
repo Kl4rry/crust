@@ -14,7 +14,6 @@ bitflags! {
         const MAP =         0b0001000000;
         const TABLE =       0b0010000000;
         const RANGE =       0b0100000000;
-        const VALUESTREAM = 0b1000000000;
     }
 }
 
@@ -79,15 +78,7 @@ impl fmt::Display for Type {
             if is_first {
                 write!(f, " or ")?;
             }
-            is_first = true;
             write!(f, "'range'")?;
-        }
-
-        if self.intersects(Self::VALUESTREAM) {
-            if is_first {
-                write!(f, " or ")?;
-            }
-            write!(f, "'stream'")?;
         }
 
         Ok(())

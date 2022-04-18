@@ -386,7 +386,7 @@ impl Expr {
                 if matches!(**expr, Self::Call { .. } | Self::Pipe { .. }) {
                     let mut capture = OutputStream::new_capture();
                     expr.eval(shell, &mut capture)?;
-                    Ok(Value::ValueStream(P::new(capture.into_value_stream())))
+                    Ok(capture.into_value_stream().unpack())
                 } else {
                     expr.eval(shell, output)
                 }

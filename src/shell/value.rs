@@ -3,7 +3,6 @@ use std::{fmt, ops::Range};
 use indexmap::IndexMap;
 use yansi::Paint;
 
-use super::stream::ValueStream;
 use crate::{
     parser::{ast::expr::binop::BinOp, shell_error::ShellErrorKind},
     P,
@@ -27,7 +26,6 @@ pub enum Value {
     Map(P<IndexMap<String, Value>>),
     Table(P<Table>),
     Range(P<Range<i128>>),
-    ValueStream(P<ValueStream>),
 }
 
 impl fmt::Display for Value {
@@ -58,7 +56,6 @@ impl fmt::Display for Value {
                 Ok(())
             }
             Self::Bool(boolean) => boolean.fmt(f),
-            Self::ValueStream(output) => output.fmt(f),
             _ => Ok(()),
         }
     }
@@ -89,7 +86,6 @@ impl PartialEq for Value {
                 Value::Table(table) => table.is_empty() != *boolean,
                 Value::Range(range) => (range.start == 0 && range.end == 0) != *boolean,
                 Value::Null => false,
-                Value::ValueStream(stream) => stream.is_empty() != *boolean,
             },
             Value::String(string) => match other {
                 Value::String(rhs) => string == rhs,
@@ -117,7 +113,6 @@ impl PartialEq for Value {
                 _ => false,
             },
             Value::Null => matches!(other, Value::Null),
-            Value::ValueStream(_) => false,
         }
     }
 }
@@ -137,7 +132,6 @@ impl Value {
             Self::Table(table) => format!("[table with {} rows]", table.len()),
             Self::Range(range) => format!("[range from {} to {}]]", range.start, range.end),
             Self::Bool(boolean) => Paint::yellow(boolean).to_string(),
-            Self::ValueStream(_) => String::from("[value stream]"),
         }
     }
 
@@ -510,7 +504,6 @@ impl Value {
             Self::Table(_) => Type::TABLE,
             Self::Range(_) => Type::RANGE,
             Self::Null => Type::NULL,
-            Self::ValueStream(_) => Type::VALUESTREAM,
         }
     }
 
@@ -573,7 +566,6 @@ impl Value {
             Self::Table(table) => !table.is_empty(),
             Self::Range(range) => range.start != 0 && range.end != 0,
             Self::Null => false,
-            Self::ValueStream(stream) => !stream.is_empty(),
         }
     }
 

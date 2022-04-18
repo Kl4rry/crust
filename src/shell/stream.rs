@@ -31,6 +31,10 @@ impl ValueStream {
         }
     }
 
+    pub fn pop(&mut self) -> Option<Value> {
+        self.values.pop()
+    }
+
     pub fn iter(&self) -> slice::Iter<'_, Value> {
         self.values.iter()
     }
@@ -46,6 +50,16 @@ impl ValueStream {
 
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
+    }
+
+    pub fn unpack(mut self) -> Value {
+        if self.values.is_empty() {
+            Value::Null
+        } else if self.values.len() == 1 {
+            self.values.pop().unwrap()
+        } else {
+            Value::List(self.values)
+        }
     }
 }
 
@@ -90,7 +104,6 @@ impl OutputStream {
 
     pub fn push(&mut self, value: Value) {
         match value {
-            Value::ValueStream(stream) => self.push_value_stream(*stream),
             Value::Null => (),
             value => match &mut self.inner {
                 InnerStream::Capture(values) => values.push(value),
