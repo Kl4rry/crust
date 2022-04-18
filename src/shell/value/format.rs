@@ -124,4 +124,3 @@ pub fn left_pad(content: impl Display, width: usize) -> String {
     new.push_str(&string);
     new
 }
-

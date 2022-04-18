@@ -11,7 +11,11 @@ use crate::{
         syntax_error::SyntaxErrorKind,
         Token, TokenType, P,
     },
-    shell::{stream::OutputStream, value::{Value, table::Table}, Shell},
+    shell::{
+        stream::OutputStream,
+        value::{table::Table, Value},
+        Shell,
+    },
 };
 
 #[derive(Debug, Clone)]

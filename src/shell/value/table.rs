@@ -8,7 +8,7 @@ use unicode_width::UnicodeWidthStr;
 use yansi::Paint;
 
 use super::{
-    format::{bar, center_pad, fmt_horizontal, ConfigChars, left_pad},
+    format::{bar, center_pad, fmt_horizontal, left_pad, ConfigChars},
     Value,
 };
 use crate::parser::shell_error::ShellErrorKind;
