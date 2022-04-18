@@ -13,6 +13,7 @@ use super::ast::expr::{binop::BinOp, unop::UnOp};
 use crate::{
     argparse::ParseError,
     shell::value::{Type, Value},
+    P,
 };
 
 #[derive(Debug)]
@@ -62,14 +63,16 @@ pub enum ShellErrorKind {
     NoMatch(String),
     MaxRecursion(usize),
     IndexOutOfBounds {
-        length: usize,
-        index: usize,
+        len: i128,
+        index: i128,
     },
+    ColumnNotFound(String),
     InvalidConversion {
         from: Type,
         to: Type,
     },
-    InvalidConcatination(Type, Type),
+    NoColumns(Type),
+    NotIndexable(Type),
     VariableNotFound(String),
     InvalidBinaryOperand(BinOp, Type, Type),
     InvalidUnaryOperand(UnOp, Type),
@@ -125,8 +128,10 @@ impl fmt::Display for ShellErrorKind {
                 expected,
                 recived,
             } => {
-                write!(f, "{name} expected {expected} arguments, recived {recived}",)
+                write!(f, "{name} expected {expected} arguments, recived {recived}")
             }
+            Self::NoColumns(t) => write!(f, "{t} does not have columns"),
+            Self::NotIndexable(t) => write!(f, "Cannot index into {t}"),
             Self::InvalidBinaryOperand(binop, lhs, rhs) => {
                 write!(f, "'{binop}' not supported between {lhs} and {rhs}",)
             }
@@ -139,14 +144,12 @@ impl fmt::Display for ShellErrorKind {
             Self::InvalidConversion { from, to } => {
                 write!(f, "Cannot convert {from} to {to}")
             }
-            Self::InvalidConcatination(rhs, lhs) => {
-                write!(f, "Cannot concatenate {rhs} with {lhs}")
-            }
             Self::MaxRecursion(limit) => write!(f, "Max recursion limit of {limit} reached"),
-            Self::IndexOutOfBounds { length, index } => write!(
+            Self::IndexOutOfBounds { len, index } => write!(
                 f,
-                "Index is out of bounds, length is {length} but the index is {index}"
+                "Index is out of bounds, length is {len} but the index is {index}"
             ),
+            Self::ColumnNotFound(column) => write!(f, "Column '{column}' not found"),
             Self::Io(path, error) => match path {
                 Some(path) => write!(f, "{} {}", error, path.to_string_lossy()),
                 None => write!(f, "{}", error),
@@ -168,29 +171,32 @@ impl fmt::Display for ShellErrorKind {
 }
 
 impl Diagnostic for ShellError {
-    fn labels(&self) -> Option<Box<dyn Iterator<Item = LabeledSpan> + '_>> {
+    fn labels(&self) -> Option<P<dyn Iterator<Item = LabeledSpan> + '_>> {
         None
     }
 
-    fn code<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+    fn code<'a>(&'a self) -> Option<P<dyn fmt::Display + 'a>> {
         use ShellErrorKind::*;
         Some(match self.error {
-            Basic(n, _) => Box::new(n),
-            DivisionByZero => Box::new("Division by Zero Error"),
+            Basic(n, _) => P::new(n),
+            DivisionByZero => P::new("Division by Zero Error"),
             InvalidBinaryOperand(..)
             | InvalidUnaryOperand(..)
             | InvalidIterator(..)
             | InvalidEnvVar(..)
-            | InvalidPipelineInput { .. } => Box::new("Type Error"),
-            Glob(..) | Pattern(..) | NoMatch(..) => Box::new("Glob Error"),
-            InvalidConversion { .. } => Box::new("Coercion Error"),
-            Ureq(..) => Box::new("Http Error"),
-            Break | Return(..) | Continue => Box::new("Syntax Error"),
-            Interrupt => Box::new("Interrupt"),
-            MaxRecursion(..) => Box::new("Recursion Error"),
-            CommandNotFound(..) | CommandPermissionDenied(..) => Box::new("Command Error"),
-            FileNotFound(..) | FilePermissionDenied(..) => Box::new("File Error"),
-            _ => Box::new("Shell Error"),
+            | NoColumns(..)
+            | NotIndexable(..)
+            | InvalidPipelineInput { .. } => P::new("Type Error"),
+            IndexOutOfBounds { .. } | ColumnNotFound(..) => P::new("Indexing Error"),
+            Glob(..) | Pattern(..) | NoMatch(..) => P::new("Glob Error"),
+            InvalidConversion { .. } => P::new("Coercion Error"),
+            Ureq(..) => P::new("Http Error"),
+            Break | Return(..) | Continue => P::new("Syntax Error"),
+            Interrupt => P::new("Interrupt"),
+            MaxRecursion(..) => P::new("Recursion Error"),
+            CommandNotFound(..) | CommandPermissionDenied(..) => P::new("Command Error"),
+            FileNotFound(..) | FilePermissionDenied(..) => P::new("File Error"),
+            _ => P::new("Shell Error"),
         })
     }
 

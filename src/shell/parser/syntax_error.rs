@@ -3,6 +3,7 @@ use std::{error::Error, fmt};
 use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
 
 use super::lexer::token::{span::Span, Token};
+use crate::P;
 
 #[derive(Debug)]
 pub enum SyntaxErrorKind {
@@ -31,7 +32,7 @@ pub struct SyntaxError {
 impl Error for SyntaxError {}
 
 impl Diagnostic for SyntaxError {
-    fn labels(&self) -> Option<Box<dyn Iterator<Item = LabeledSpan> + '_>> {
+    fn labels(&self) -> Option<P<dyn Iterator<Item = LabeledSpan> + '_>> {
         let label = match self.error {
             SyntaxErrorKind::UnexpectedToken(ref token) => {
                 LabeledSpan::new_with_span(Some(String::from("Unexpected token")), token.span)
@@ -41,11 +42,11 @@ impl Diagnostic for SyntaxError {
                 Span::new(self.len - 1, self.len),
             ),
         };
-        Some(Box::new(vec![label].into_iter()))
+        Some(P::new(vec![label].into_iter()))
     }
 
-    fn code<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
-        Some(Box::new("Syntax Error"))
+    fn code<'a>(&'a self) -> Option<P<dyn fmt::Display + 'a>> {
+        Some(P::new("Syntax Error"))
     }
 
     fn severity(&self) -> Option<miette::Severity> {

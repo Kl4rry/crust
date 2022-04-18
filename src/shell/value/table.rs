@@ -61,8 +61,8 @@ impl Table {
             Some(row) => row,
             None => {
                 return Err(ShellErrorKind::IndexOutOfBounds {
-                    length: self.rows.len(),
-                    index: index,
+                    len: self.rows.len() as i128,
+                    index: index as i128,
                 })
             }
         };
@@ -73,13 +73,16 @@ impl Table {
         Ok(map)
     }
 
-    pub fn column(&self, name: String) -> Vec<Value> {
-        let index = self.headers.iter().position(|h| h == &name).unwrap();
+    pub fn column(&self, name: &str) -> Result<Vec<Value>, ShellErrorKind> {
+        let index = match self.headers.iter().position(|h| h == name) {
+            Some(index) => index,
+            None => return Err(ShellErrorKind::ColumnNotFound(name.to_string())),
+        };
         let mut values = Vec::new();
         for row in &self.rows {
             values.push(row[index].clone());
         }
-        values
+        Ok(values)
     }
 }
 

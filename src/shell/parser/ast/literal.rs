@@ -9,13 +9,14 @@ use crate::{
         ast::{expr::argument::Expand, Expr},
         shell_error::ShellErrorKind,
         syntax_error::SyntaxErrorKind,
-        Token, TokenType, P,
+        Token, TokenType,
     },
     shell::{
         stream::OutputStream,
         value::{table::Table, Value},
         Shell,
     },
+    P,
 };
 
 #[derive(Debug, Clone)]
@@ -55,7 +56,7 @@ impl Literal {
                     for value in values {
                         table.insert_map(value.unwrap_map());
                     }
-                    Ok(Value::Table(Box::new(table)))
+                    Ok(Value::Table(P::new(table)))
                 } else {
                     Ok(Value::List(values))
                 }

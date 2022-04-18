@@ -11,6 +11,8 @@ pub use shell::parser;
 use shell::{parser::shell_error::ShellErrorKind, stream::OutputStream, Shell};
 mod argparse;
 
+pub type P<T> = Box<T>;
+
 fn main() {
     let status = match start() {
         Ok(status) => status,

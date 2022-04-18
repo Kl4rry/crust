@@ -11,7 +11,6 @@ use crate::{
     parser::{
         ast::{Literal, Variable},
         shell_error::ShellErrorKind,
-        P,
     },
     shell::{
         builtins::{self, functions::BulitinFn},
@@ -19,6 +18,7 @@ use crate::{
         value::{Type, Value},
         Shell,
     },
+    P,
 };
 
 pub mod binop;
@@ -99,6 +99,8 @@ pub enum Expr {
     Unary(UnOp, P<Expr>),
     Literal(Literal),
     SubExpr(P<Expr>),
+    Column(P<Expr>, String),
+    Index { expr: P<Expr>, index: P<Expr> },
 }
 
 impl Expr {
@@ -118,6 +120,38 @@ impl Expr {
         match self {
             Self::Call(_, _) => {
                 unreachable!("calls must always be in a pipeline, bare calls are not allowed")
+            }
+            Self::Column(expr, col) => {
+                let value = expr.eval(shell, output)?;
+                match value {
+                    // todo this should borrow a map form a cow value and just clone the value
+                    // currently it clones the whole map to get one value
+                    Value::Map(mut map) => match map.remove(col) {
+                        Some(value) => Ok(value),
+                        None => Err(ShellErrorKind::ColumnNotFound(col.to_string())),
+                    },
+                    Value::Table(table) => Ok(Value::List(table.column(col)?)),
+                    _ => Err(ShellErrorKind::NoColumns(value.to_type())),
+                }
+            }
+            Self::Index { expr, index } => {
+                let value = expr.eval(shell, output)?;
+                let index = index.eval(shell, output)?;
+                // todo use cow here and just clone once
+                match value {
+                    Value::List(list) => {
+                        Ok(list.get(index.try_as_index(list.len())?).unwrap().clone())
+                    }
+                    Value::Table(table) => Ok(Value::Map(P::new(
+                        table.row(index.try_as_index(table.len())?)?,
+                    ))),
+                    Value::String(string) => {
+                        let chars: Vec<char> = string.chars().collect();
+                        let c = chars[index.try_as_index(chars.len())?];
+                        Ok(Value::String(String::from(c)))
+                    }
+                    _ => Err(ShellErrorKind::NotIndexable(value.to_type())),
+                }
             }
             Self::Literal(literal) => literal.eval(shell, output),
             Self::Variable(variable) => variable.eval(shell),

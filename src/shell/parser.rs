@@ -1,5 +1,7 @@
 use std::{convert::TryInto, rc::Rc};
 
+use crate::P;
+
 pub mod lexer;
 
 use lexer::{
@@ -31,7 +33,6 @@ use self::lexer::escape_char;
 pub mod shell_error;
 
 pub type Result<T> = std::result::Result<T, SyntaxErrorKind>;
-pub type P<T> = Box<T>;
 
 pub struct Parser {
     token: Option<Token>,
@@ -174,6 +175,18 @@ impl Parser {
             TokenType::LeftBrace => Ok(Compound::Statement(Statement::Block(self.parse_block()?))),
             TokenType::Variable(_) => {
                 let var: Variable = self.eat()?.try_into()?;
+                if let Ok(token) = self.peek() {
+                    match token.token_type {
+                        TokenType::Dot => {
+                            return Ok(Compound::Expr(self.parse_column(Expr::Variable(var))?))
+                        }
+                        TokenType::LeftBracket => {
+                            return Ok(Compound::Expr(self.parse_index(Expr::Variable(var))?))
+                        }
+                        _ => (),
+                    }
+                }
+
                 while let Ok(token) = self.peek() {
                     match token.token_type {
                         TokenType::Assignment => {
@@ -488,32 +501,81 @@ impl Parser {
     }
 
     fn parse_primary(&mut self, unop: Option<UnOp>) -> Result<Expr> {
-        match self.peek()?.token_type {
-            TokenType::True | TokenType::False => {
-                Ok(Expr::Literal(self.eat()?.try_into()?).wrap(unop))
+        let expr = match self.peek()?.token_type {
+            TokenType::True | TokenType::False => Expr::Literal(self.eat()?.try_into()?),
+            TokenType::Symbol(_) | TokenType::Exec => self.parse_pipe()?,
+            TokenType::LeftParen => self.parse_sub_expr()?.wrap(unop),
+            TokenType::Variable(_) => Expr::Variable(self.eat()?.try_into()?),
+            TokenType::String(_) | TokenType::Int(_, _) | TokenType::Float(_, _) => {
+                Expr::Literal(self.eat()?.try_into()?)
             }
-            TokenType::Symbol(_) | TokenType::Exec => Ok(self.parse_pipe()?.wrap(unop)),
-            TokenType::LeftParen => Ok(self.parse_sub_expr()?.wrap(unop)),
-            TokenType::Variable(_) => Ok(Expr::Variable(self.eat()?.try_into()?).wrap(unop)),
-            TokenType::String(_)
-            | TokenType::Int(_, _)
-            | TokenType::Float(_, _)
-            | TokenType::Quote => Ok(Expr::Literal(match self.peek()?.token_type {
-                TokenType::Quote => {
-                    let expand = self.parse_expand()?;
-                    Literal::Expand(expand)
-                }
-                _ => self.eat()?.try_into()?,
-            })
-            .wrap(unop)),
+            TokenType::Quote => Expr::Literal(Literal::Expand(self.parse_expand()?)),
             TokenType::Sub | TokenType::Not => {
                 let inner = self.eat()?.try_into()?;
                 self.skip_optional_space();
-                Ok(self.parse_expr(Some(inner))?.wrap(unop))
+                self.parse_expr(Some(inner))?
             }
-            TokenType::LeftBracket => Ok(self.parse_list()?.wrap(unop)),
-            TokenType::At => Ok(self.parse_map()?.wrap(unop)),
-            _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
+            TokenType::LeftBracket => self.parse_list()?,
+            TokenType::At => self.parse_map()?,
+            _ => return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
+        };
+
+        match self.peek() {
+            Ok(token) => {
+                let expr = match token.token_type {
+                    TokenType::Dot => self.parse_column(expr)?,
+                    TokenType::LeftBracket => self.parse_index(expr)?,
+                    _ => return Ok(expr.wrap(unop)),
+                };
+                Ok(expr.wrap(unop))
+            }
+            Err(_) => Ok(expr.wrap(unop)),
+        }
+    }
+
+    fn parse_column(&mut self, expr: Expr) -> Result<Expr> {
+        self.eat()?.expect(TokenType::Dot)?;
+        let token = self.eat()?;
+        let column = match token.token_type {
+            TokenType::Symbol(column) => column,
+            _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
+        };
+        let expr = Expr::Column(P::new(expr), column);
+
+        match self.peek() {
+            Ok(token) => {
+                let expr = match token.token_type {
+                    TokenType::Dot => self.parse_column(expr)?,
+                    TokenType::LeftBracket => self.parse_index(expr)?,
+                    _ => return Ok(expr),
+                };
+                Ok(expr)
+            }
+            Err(_) => Ok(expr),
+        }
+    }
+
+    fn parse_index(&mut self, expr: Expr) -> Result<Expr> {
+        self.eat()?.expect(TokenType::LeftBracket)?;
+        self.skip_whitespace();
+        let index = self.parse_expr(None)?;
+        self.skip_whitespace();
+        self.eat()?.expect(TokenType::RightBracket)?;
+        let expr = Expr::Index {
+            expr: P::new(expr),
+            index: P::new(index),
+        };
+
+        match self.peek() {
+            Ok(token) => {
+                let expr = match token.token_type {
+                    TokenType::Dot => self.parse_column(expr)?,
+                    TokenType::LeftBracket => self.parse_index(expr)?,
+                    _ => return Ok(expr),
+                };
+                Ok(expr)
+            }
+            Err(_) => Ok(expr),
         }
     }
 

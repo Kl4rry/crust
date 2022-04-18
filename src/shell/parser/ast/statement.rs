@@ -4,10 +4,9 @@ use crate::{
     parser::{
         ast::{expr::Expr, Block, Variable},
         shell_error::ShellErrorKind,
-        P,
     },
     shell::{builtins::variables::is_builtin, stream::OutputStream, value::Value},
-    Shell,
+    Shell, P,
 };
 
 pub mod assign_op;

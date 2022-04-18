@@ -4,7 +4,10 @@ use indexmap::IndexMap;
 use yansi::Paint;
 
 use super::stream::ValueStream;
-use crate::parser::{ast::expr::binop::BinOp, shell_error::ShellErrorKind, P};
+use crate::{
+    parser::{ast::expr::binop::BinOp, shell_error::ShellErrorKind},
+    P,
+};
 
 mod format;
 pub mod table;
@@ -516,6 +519,35 @@ impl Value {
             Self::Int(number) => Some(*number),
             Self::Bool(boolean) => Some(*boolean as i128),
             _ => None,
+        }
+    }
+
+    pub fn try_as_index(&self, len: usize) -> Result<usize, ShellErrorKind> {
+        let len = len as i128;
+        let index = match self {
+            Self::Int(number) => *number,
+            Self::Bool(boolean) => *boolean as i128,
+            _ => {
+                return Err(ShellErrorKind::InvalidConversion {
+                    from: self.to_type(),
+                    to: Type::INT,
+                })
+            }
+        };
+
+        if index < 0 {
+            let new_index = len + index;
+            if new_index >= 0 {
+                Ok(new_index as usize)
+            } else {
+                Err(ShellErrorKind::IndexOutOfBounds { len, index })
+            }
+        } else if index > usize::MAX as i128 {
+            Err(ShellErrorKind::IndexOutOfBounds { len, index })
+        } else if index < len {
+            Ok(index as usize)
+        } else {
+            Err(ShellErrorKind::IndexOutOfBounds { len, index })
         }
     }
 

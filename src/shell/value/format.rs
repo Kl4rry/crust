@@ -48,7 +48,7 @@ pub fn format_columns<'a, T: Display, I: Iterator<Item = (T, &'a Value)>>(
         )?;
     }
 
-    fmt_horizontal(f, &[longest_key + 2, longest_value + 2], ConfigChars::TOP)?;
+    fmt_horizontal(f, &[longest_key + 2, longest_value + 2], ConfigChars::BOT)?;
 
     Ok(())
 }
