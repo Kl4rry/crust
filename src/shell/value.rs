@@ -1,12 +1,9 @@
-use std::{fmt, ops::Range};
+use std::{fmt, ops::Range, rc::Rc};
 
 use indexmap::IndexMap;
 use yansi::Paint;
 
-use crate::{
-    parser::{ast::expr::binop::BinOp, shell_error::ShellErrorKind},
-    P,
-};
+use crate::parser::{ast::expr::binop::BinOp, shell_error::ShellErrorKind};
 
 mod format;
 pub mod table;
@@ -18,14 +15,14 @@ pub use types::Type;
 #[derive(Debug, Clone)]
 pub enum Value {
     Null,
-    Int(i128),
+    Int(i64),
     Float(f64),
     Bool(bool),
-    String(String),
-    List(Vec<Value>),
-    Map(P<IndexMap<String, Value>>),
-    Table(P<Table>),
-    Range(P<Range<i128>>),
+    String(Rc<String>),
+    List(Rc<Vec<Value>>),
+    Map(Rc<IndexMap<String, Value>>),
+    Table(Rc<Table>),
+    Range(Rc<Range<i64>>),
 }
 
 impl fmt::Display for Value {
@@ -39,7 +36,7 @@ impl fmt::Display for Value {
                     return Ok(());
                 }
 
-                format::format_columns(f, (0..list.len()).map(Paint::green).zip(list))
+                format::format_columns(f, (0..list.len()).map(Paint::green).zip(&**list))
             }
             Self::Map(map) => {
                 if map.is_empty() {
@@ -50,7 +47,7 @@ impl fmt::Display for Value {
             }
             Self::Table(table) => table.fmt(f),
             Self::Range(range) => {
-                for i in range.clone() {
+                for i in (**range).clone() {
                     i.fmt(f)?;
                 }
                 Ok(())
@@ -67,7 +64,7 @@ impl PartialEq for Value {
             Value::Int(number) => match other {
                 Value::Float(rhs) => *number as f64 == *rhs,
                 Value::Int(rhs) => number == rhs,
-                Value::Bool(rhs) => *number == *rhs as i128,
+                Value::Bool(rhs) => *number == *rhs as i64,
                 _ => false,
             },
             Value::Float(number) => match other {
@@ -78,7 +75,7 @@ impl PartialEq for Value {
             },
             Value::Bool(boolean) => match other {
                 Value::Float(rhs) => *boolean as u8 as f64 == *rhs,
-                Value::Int(rhs) => *boolean as i128 == *rhs,
+                Value::Int(rhs) => *boolean as i64 == *rhs,
                 Value::Bool(rhs) => boolean == rhs,
                 Value::String(string) => string.is_empty() != *boolean,
                 Value::List(list) => list.is_empty() != *boolean,
@@ -140,7 +137,7 @@ impl Value {
         match self {
             Self::Int(number) => Ok(number.to_string()),
             Self::Float(number) => Ok(number.to_string()),
-            Self::String(string) => Ok(string),
+            Self::String(string) => Ok(string.to_string()),
             _ => Err(ShellErrorKind::InvalidConversion {
                 from: self.to_type(),
                 to: Type::STRING,
@@ -151,9 +148,8 @@ impl Value {
     pub fn try_add(self, rhs: Value) -> Result<Value, ShellErrorKind> {
         match self {
             Value::Int(number) => match rhs {
-                Value::List(rhs) => {
-                    let mut list: Vec<Value> = vec![self];
-                    list.extend(rhs.into_iter());
+                Value::List(mut list) => {
+                    Rc::make_mut(&mut list).push(self);
                     Ok(Value::List(list))
                 }
                 Value::Float(rhs) => Ok(Value::Float(number as f64 + rhs)),
@@ -167,9 +163,8 @@ impl Value {
                 },
             },
             Value::Float(number) => match rhs {
-                Value::List(rhs) => {
-                    let mut list: Vec<Value> = vec![self];
-                    list.extend(rhs.into_iter());
+                Value::List(mut list) => {
+                    Rc::make_mut(&mut list).push(self);
                     Ok(Value::List(list))
                 }
                 _ => match rhs.try_as_float() {
@@ -182,14 +177,13 @@ impl Value {
                 },
             },
             Value::Bool(boolean) => match rhs {
-                Value::List(rhs) => {
-                    let mut list: Vec<Value> = vec![self];
-                    list.extend(rhs.into_iter());
+                Value::List(mut list) => {
+                    Rc::make_mut(&mut list).push(self);
                     Ok(Value::List(list))
                 }
                 Value::Float(rhs) => Ok(Value::Float(boolean as u8 as f64 + rhs)),
                 _ => match rhs.try_as_int() {
-                    Some(rhs) => Ok(Value::Int((boolean as i128).wrapping_add(rhs))),
+                    Some(rhs) => Ok(Value::Int((boolean as i64).wrapping_add(rhs))),
                     None => Err(ShellErrorKind::InvalidBinaryOperand(
                         BinOp::Add,
                         self.to_type(),
@@ -198,9 +192,8 @@ impl Value {
                 },
             },
             Value::String(_) => {
-                if let Value::List(rhs) = rhs {
-                    let mut list: Vec<Value> = vec![self];
-                    list.extend(rhs.into_iter());
+                if let Value::List(mut list) = rhs {
+                    Rc::make_mut(&mut list).push(self);
                     return Ok(Value::List(list));
                 }
 
@@ -216,12 +209,11 @@ impl Value {
                 };
 
                 let mut new = self.unwrap_string();
-                new.push_str(&rhs);
+                Rc::make_mut(&mut new).push_str(&rhs);
                 Ok(Value::String(new))
             }
-            Value::List(_) => {
-                let mut list = self.unwrap_list();
-                list.push(rhs);
+            Value::List(mut list) => {
+                Rc::make_mut(&mut list).push(rhs);
                 Ok(Value::List(list))
             }
             _ => Err(ShellErrorKind::InvalidBinaryOperand(
@@ -252,7 +244,7 @@ impl Value {
                 )),
             },
             Value::Bool(boolean) => match rhs {
-                Value::Int(rhs) => Ok(Value::Int((boolean as i128).wrapping_sub(rhs))),
+                Value::Int(rhs) => Ok(Value::Int((boolean as i64).wrapping_sub(rhs))),
                 Value::Float(rhs) => Ok(Value::Float(boolean as u8 as f64 - rhs)),
                 _ => Err(ShellErrorKind::InvalidBinaryOperand(
                     BinOp::Sub,
@@ -283,7 +275,7 @@ impl Value {
                     for _ in 0..number {
                         new.push_str(&string);
                     }
-                    Ok(Value::String(new))
+                    Ok(Value::String(Rc::new(new)))
                 }
                 Value::List(list) => {
                     if list.is_empty() {
@@ -294,7 +286,7 @@ impl Value {
                     for _ in 0..number {
                         new.extend_from_slice(&list);
                     }
-                    Ok(Value::List(new))
+                    Ok(Value::List(Rc::new(new)))
                 }
                 _ => Err(ShellErrorKind::InvalidBinaryOperand(
                     BinOp::Mul,
@@ -311,14 +303,14 @@ impl Value {
                 )),
             },
             Value::Bool(boolean) => match rhs {
-                Value::Int(rhs) => Ok(Value::Int((boolean as i128).wrapping_mul(rhs))),
+                Value::Int(rhs) => Ok(Value::Int((boolean as i64).wrapping_mul(rhs))),
                 Value::Float(rhs) => Ok(Value::Float(boolean as u8 as f64 * rhs)),
                 Value::String(string) => {
                     let mut new = String::new();
                     for _ in 0..boolean as u8 {
                         new.push_str(&string);
                     }
-                    Ok(Value::String(new))
+                    Ok(Value::String(Rc::new(new)))
                 }
                 _ => Err(ShellErrorKind::InvalidBinaryOperand(
                     BinOp::Mul,
@@ -345,7 +337,7 @@ impl Value {
                 for _ in 0..mul {
                     new.push_str(&string);
                 }
-                Ok(Value::String(new))
+                Ok(Value::String(Rc::new(new)))
             }
             Value::List(list) => {
                 if list.is_empty() {
@@ -364,14 +356,14 @@ impl Value {
                 };
 
                 if list.is_empty() {
-                    return Ok(Value::List(Vec::new()));
+                    return Ok(Value::List(Rc::new(Vec::new())));
                 }
 
                 let mut new = Vec::new();
                 for _ in 0..mul {
                     new.extend_from_slice(&list);
                 }
-                Ok(Value::List(new))
+                Ok(Value::List(Rc::new(new)))
             }
             _ => Err(ShellErrorKind::InvalidBinaryOperand(
                 BinOp::Mul,
@@ -477,7 +469,7 @@ impl Value {
                 )),
             },
             Value::Bool(boolean) => match rhs {
-                Value::Int(rhs) => Ok(Value::Int(boolean as i128 % rhs as i128)),
+                Value::Int(rhs) => Ok(Value::Int(boolean as i64 % rhs as i64)),
                 Value::Float(rhs) => Ok(Value::Float(boolean as u8 as f64 % rhs)),
                 _ => Err(ShellErrorKind::InvalidBinaryOperand(
                     BinOp::Mod,
@@ -507,10 +499,10 @@ impl Value {
         }
     }
 
-    pub fn try_as_int(&self) -> Option<i128> {
+    pub fn try_as_int(&self) -> Option<i64> {
         match self {
             Self::Int(number) => Some(*number),
-            Self::Bool(boolean) => Some(*boolean as i128),
+            Self::Bool(boolean) => Some(*boolean as i64),
             _ => None,
         }
     }
@@ -518,7 +510,7 @@ impl Value {
     pub fn try_as_index(&self, len: usize) -> Result<usize, ShellErrorKind> {
         let len = len as i128;
         let index = match self {
-            Self::Int(number) => *number,
+            Self::Int(number) => *number as i128,
             Self::Bool(boolean) => *boolean as i128,
             _ => {
                 return Err(ShellErrorKind::InvalidConversion {
@@ -569,7 +561,7 @@ impl Value {
         }
     }
 
-    pub fn unwrap_string(self) -> String {
+    pub fn unwrap_string(self) -> Rc<String> {
         match self {
             Self::String(s) => s,
             _ => panic!(
@@ -579,7 +571,7 @@ impl Value {
         }
     }
 
-    pub fn unwrap_int(&self) -> i128 {
+    pub fn unwrap_int(&self) -> i64 {
         match self {
             Self::Int(s) => *s,
             _ => panic!(
@@ -589,7 +581,7 @@ impl Value {
         }
     }
 
-    pub fn unwrap_list(self) -> Vec<Value> {
+    pub fn unwrap_list(self) -> Rc<Vec<Value>> {
         match self {
             Self::List(s) => s,
             _ => panic!(
@@ -599,9 +591,9 @@ impl Value {
         }
     }
 
-    pub fn unwrap_map(self) -> IndexMap<String, Value> {
+    pub fn unwrap_map(self) -> Rc<IndexMap<String, Value>> {
         match self {
-            Self::Map(s) => *s,
+            Self::Map(s) => s,
             _ => panic!(
                 "called `Value::unwrap_map()` on a `{}` value",
                 self.to_type()

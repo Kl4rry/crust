@@ -172,7 +172,7 @@ impl Statement {
                         }
 
                         let mut variables: HashMap<String, (bool, Value)> = HashMap::new();
-                        variables.insert(name.to_string(), (false, item.clone()));
+                        variables.insert(name.to_string(), (false, item.to_owned()));
                         match block.eval(shell, Some(variables), None, output) {
                             Ok(()) => (),
                             Err(ShellErrorKind::Break) => break,
@@ -184,10 +184,14 @@ impl Statement {
                 }
 
                 match value {
-                    Value::List(list) => for_loop(shell, list.into_iter(), &name, block, output),
+                    Value::List(list) => {
+                        for_loop(shell, list.iter().cloned(), &name, block, output)
+                    }
                     Value::String(string) => for_loop(
                         shell,
-                        string.chars().map(|c| Value::String(String::from(c))),
+                        string
+                            .chars()
+                            .map(|c| Value::String(Rc::new(String::from(c)))),
                         &name,
                         block,
                         output,
@@ -195,7 +199,13 @@ impl Statement {
                     Value::Range(range) =>
                     {
                         #[allow(clippy::redundant_closure)]
-                        for_loop(shell, range.map(|i| Value::Int(i)), &name, block, output)
+                        for_loop(
+                            shell,
+                            Rc::unwrap_or_clone(range).map(|i| Value::Int(i)),
+                            &name,
+                            block,
+                            output,
+                        )
                     }
                     _ => Err(ShellErrorKind::InvalidIterator(value.to_type())),
                 }

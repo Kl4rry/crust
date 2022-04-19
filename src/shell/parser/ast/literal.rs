@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::{convert::TryFrom, rc::Rc};
 
 use bigdecimal::{num_bigint::BigUint, BigDecimal};
 use indexmap::IndexMap;
@@ -16,7 +16,6 @@ use crate::{
         value::{table::Table, Value},
         Shell,
     },
-    P,
 };
 
 #[derive(Debug, Clone)]
@@ -37,8 +36,8 @@ impl Literal {
         output: &mut OutputStream,
     ) -> Result<Value, ShellErrorKind> {
         match self {
-            Literal::String(string) => Ok(Value::String(string.to_string())),
-            Literal::Expand(expand) => Ok(Value::String(expand.eval(shell, output)?)),
+            Literal::String(string) => Ok(Value::String(Rc::new(string.to_string()))),
+            Literal::Expand(expand) => Ok(Value::String(Rc::new(expand.eval(shell, output)?))),
             Literal::List(list) => {
                 let mut values: Vec<Value> = Vec::new();
                 let mut is_table = true;
@@ -54,11 +53,11 @@ impl Literal {
                 if is_table {
                     let mut table = Table::new();
                     for value in values {
-                        table.insert_map(value.unwrap_map());
+                        table.insert_map(Rc::unwrap_or_clone(value.unwrap_map()));
                     }
-                    Ok(Value::Table(P::new(table)))
+                    Ok(Value::Table(Rc::new(table)))
                 } else {
-                    Ok(Value::List(values))
+                    Ok(Value::List(Rc::new(values)))
                 }
             }
             Literal::Map(exprs) => {
@@ -68,10 +67,10 @@ impl Literal {
                     let value = value.eval(shell, output)?;
                     map.insert(key, value);
                 }
-                Ok(Value::Map(P::new(map)))
+                Ok(Value::Map(Rc::new(map)))
             }
             Literal::Float(number) => Ok(Value::Float(number.to_f64().unwrap())),
-            Literal::Int(number) => match number.to_i128() {
+            Literal::Int(number) => match number.to_i64() {
                 Some(number) => Ok(Value::Int(number)),
                 None => Err(ShellErrorKind::IntegerOverFlow),
             },

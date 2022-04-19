@@ -1,4 +1,4 @@
-use std::{lazy::SyncLazy, path::Path};
+use std::{lazy::SyncLazy, path::Path, rc::Rc};
 
 use crate::{
     argparse::{App, Arg, ParseErrorKind},
@@ -26,7 +26,7 @@ pub fn cd(
         Ok(m) => m,
         Err(e) => match e.error {
             ParseErrorKind::Help(m) => {
-                output.push(Value::String(m));
+                output.push(Value::String(Rc::new(m)));
                 return Ok(());
             }
             _ => return Err(e.into()),
@@ -35,10 +35,10 @@ pub fn cd(
 
     let dir = match matches.take_value(&String::from("directory")) {
         Some(value) => value.unwrap_string(),
-        None => shell.home_dir().to_string_lossy().to_string(),
+        None => Rc::new(shell.home_dir().to_string_lossy().to_string()),
     };
 
-    let new_dir = Path::new(&dir);
+    let new_dir = Path::new(&*dir);
     std::env::set_current_dir(&new_dir).map_err(|err| ShellErrorKind::Io(None, err))?;
     Ok(())
 }

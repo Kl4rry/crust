@@ -1,4 +1,4 @@
-use std::lazy::SyncLazy;
+use std::{lazy::SyncLazy, rc::Rc};
 
 use crate::{
     argparse::{App, Flag, ParseErrorKind},
@@ -28,7 +28,7 @@ pub fn env(
         Ok(m) => m,
         Err(e) => match e.error {
             ParseErrorKind::Help(m) => {
-                output.push(Value::String(m));
+                output.push(Value::String(Rc::new(m)));
                 return Ok(());
             }
             _ => return Err(e.into()),
@@ -36,7 +36,7 @@ pub fn env(
     };
 
     for (key, value) in shell.env() {
-        output.push(Value::String(format!("{}={}\n", key, value)));
+        output.push(Value::String(Rc::new(format!("{}={}\n", key, value))));
     }
 
     Ok(())

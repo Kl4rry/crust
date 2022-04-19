@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use phf::*;
 use rand::Rng;
 
@@ -35,17 +37,17 @@ pub fn is_builtin(name: &str) -> bool {
 }
 
 pub fn args(shell: &mut Shell) -> Value {
-    Value::List(
+    Value::List(Rc::new(
         shell
             .args
             .iter()
-            .map(|s| Value::String(s.to_string()))
+            .map(|s| Value::String(Rc::new(s.to_string())))
             .collect(),
-    )
+    ))
 }
 
 pub fn config(shell: &mut Shell) -> Value {
-    Value::String(shell.config_path().to_string_lossy().to_string())
+    Value::String(Rc::new(shell.config_path().to_string_lossy().to_string()))
 }
 
 pub fn null(_: &mut Shell) -> Value {
@@ -53,35 +55,35 @@ pub fn null(_: &mut Shell) -> Value {
 }
 
 pub fn user(_: &mut Shell) -> Value {
-    Value::String(whoami::username())
+    Value::String(Rc::new(whoami::username()))
 }
 
 pub fn pid(_: &mut Shell) -> Value {
-    Value::Int(std::process::id() as i128)
+    Value::Int(std::process::id() as i64)
 }
 
 pub fn hostname(_: &mut Shell) -> Value {
-    Value::String(whoami::devicename())
+    Value::String(Rc::new(whoami::devicename()))
 }
 
 pub fn home(shell: &mut Shell) -> Value {
-    Value::String(shell.home_dir().to_string_lossy().to_string())
+    Value::String(Rc::new(shell.home_dir().to_string_lossy().to_string()))
 }
 
 pub fn os(_: &mut Shell) -> Value {
-    Value::String(std::env::consts::OS.to_string())
+    Value::String(Rc::new(std::env::consts::OS.to_string()))
 }
 
 pub fn arch(_: &mut Shell) -> Value {
-    Value::String(std::env::consts::ARCH.to_string())
+    Value::String(Rc::new(std::env::consts::ARCH.to_string()))
 }
 
 pub fn distro(_: &mut Shell) -> Value {
-    Value::String(whoami::distro())
+    Value::String(Rc::new(whoami::distro()))
 }
 
 pub fn desktop(_: &mut Shell) -> Value {
-    Value::String(whoami::desktop_env().to_string())
+    Value::String(Rc::new(whoami::desktop_env().to_string()))
 }
 
 pub fn status(shell: &mut Shell) -> Value {
@@ -89,28 +91,28 @@ pub fn status(shell: &mut Shell) -> Value {
 }
 
 pub fn pwd(_: &mut Shell) -> Value {
-    Value::String(current_dir_str())
+    Value::String(Rc::new(current_dir_str()))
 }
 
 pub fn version(_: &mut Shell) -> Value {
-    Value::String(env!("CARGO_PKG_VERSION").to_string())
+    Value::String(Rc::new(env!("CARGO_PKG_VERSION").to_string()))
 }
 
 pub fn family(_: &mut Shell) -> Value {
-    Value::String(std::env::consts::FAMILY.to_string())
+    Value::String(Rc::new(std::env::consts::FAMILY.to_string()))
 }
 
 pub fn random(_: &mut Shell) -> Value {
     let mut rng = rand::thread_rng();
-    Value::Int(rng.gen_range(0..i128::MAX))
+    Value::Int(rng.gen_range(0..i64::MAX))
 }
 
 pub fn lines(_: &mut Shell) -> Value {
     let (_, h) = crossterm::terminal::size().unwrap();
-    Value::Int(h as i128)
+    Value::Int(h as i64)
 }
 
 pub fn columns(_: &mut Shell) -> Value {
     let (w, _) = crossterm::terminal::size().unwrap();
-    Value::Int(w as i128)
+    Value::Int(w as i64)
 }

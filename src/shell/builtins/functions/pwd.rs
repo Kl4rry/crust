@@ -1,4 +1,4 @@
-use std::lazy::SyncLazy;
+use std::{lazy::SyncLazy, rc::Rc};
 
 use crate::{
     argparse::{App, ParseErrorKind},
@@ -23,14 +23,14 @@ pub fn pwd(
         Ok(m) => m,
         Err(e) => match e.error {
             ParseErrorKind::Help(m) => {
-                output.push(Value::String(m));
+                output.push(Value::String(Rc::new(m)));
                 return Ok(());
             }
             _ => return Err(e.into()),
         },
     };
 
-    output.push(Value::String(current_dir_str()));
+    output.push(Value::String(Rc::new(current_dir_str())));
 
     Ok(())
 }

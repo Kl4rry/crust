@@ -1,4 +1,4 @@
-use std::{fmt, slice};
+use std::{fmt, rc::Rc, slice};
 
 use super::value::Value;
 
@@ -58,7 +58,7 @@ impl ValueStream {
         } else if self.values.len() == 1 {
             self.values.pop().unwrap()
         } else {
-            Value::List(self.values)
+            Value::List(Rc::new(self.values))
         }
     }
 }

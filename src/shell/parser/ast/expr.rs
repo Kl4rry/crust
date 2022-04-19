@@ -44,7 +44,7 @@ macro_rules! compare_impl {
                 Value::Int(number) => match &rhs {
                     Value::Int(rhs) => Ok(Value::Bool(number $op rhs)),
                     Value::Float(rhs) => Ok(Value::Bool((*number as f64) $op *rhs)),
-                    Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as i128)),
+                    Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as i64)),
                     _ => Err(ShellErrorKind::InvalidBinaryOperand(
                         binop,
                         lhs.to_type(),
@@ -62,7 +62,7 @@ macro_rules! compare_impl {
                     )),
                 },
                 Value::Bool(boolean) => match &rhs {
-                    Value::Int(rhs) => Ok(Value::Bool((*boolean as i128) $op *rhs)),
+                    Value::Int(rhs) => Ok(Value::Bool((*boolean as i64) $op *rhs)),
                     Value::Float(rhs) => Ok(Value::Bool((*boolean as u8 as f64) $op *rhs)),
                     Value::Bool(rhs) => Ok(Value::Bool(*boolean $op *rhs)),
                     _ => Err(ShellErrorKind::InvalidBinaryOperand(
@@ -124,13 +124,11 @@ impl Expr {
             Self::Column(expr, col) => {
                 let value = expr.eval(shell, output)?;
                 match value {
-                    // todo this should borrow a map form a cow value and just clone the value
-                    // currently it clones the whole map to get one value
-                    Value::Map(mut map) => match map.remove(col) {
-                        Some(value) => Ok(value),
+                    Value::Map(map) => match map.get(col) {
+                        Some(value) => Ok(value.clone()),
                         None => Err(ShellErrorKind::ColumnNotFound(col.to_string())),
                     },
-                    Value::Table(table) => Ok(Value::List(table.column(col)?)),
+                    Value::Table(table) => Ok(Value::List(Rc::new(table.column(col)?))),
                     _ => Err(ShellErrorKind::NoColumns(value.to_type())),
                 }
             }
@@ -142,13 +140,13 @@ impl Expr {
                     Value::List(list) => {
                         Ok(list.get(index.try_as_index(list.len())?).unwrap().clone())
                     }
-                    Value::Table(table) => Ok(Value::Map(P::new(
+                    Value::Table(table) => Ok(Value::Map(Rc::new(
                         table.row(index.try_as_index(table.len())?)?,
                     ))),
                     Value::String(string) => {
                         let chars: Vec<char> = string.chars().collect();
                         let c = chars[index.try_as_index(chars.len())?];
-                        Ok(Value::String(String::from(c)))
+                        Ok(Value::String(Rc::new(String::from(c))))
                     }
                     _ => Err(ShellErrorKind::NotIndexable(value.to_type())),
                 }
@@ -161,7 +159,7 @@ impl Expr {
                     UnOp::Neg => match &value {
                         Value::Int(int) => Ok(Value::Int(-*int)),
                         Value::Float(float) => Ok(Value::Float(-*float)),
-                        Value::Bool(boolean) => Ok(Value::Int(-(*boolean as i128))),
+                        Value::Bool(boolean) => Ok(Value::Int(-(*boolean as i64))),
                         _ => Err(ShellErrorKind::InvalidUnaryOperand(*unop, value.to_type())),
                     },
                     UnOp::Not => Ok(Value::Bool(!value.truthy())),
@@ -188,7 +186,7 @@ impl Expr {
                     unsafe {
                         let lhs = lhs.unwrap_unchecked();
                         let rhs = rhs.unwrap_unchecked();
-                        Ok(Value::Range(P::new(lhs..rhs)))
+                        Ok(Value::Range(Rc::new(lhs..rhs)))
                     }
                 }
                 BinOp::Add => {
@@ -295,7 +293,7 @@ impl Expr {
                                 mem::swap(&mut capture_output, &mut stream);
                                 stream.into_value_stream()
                             } else {
-                                let value = Value::String(
+                                let value = Value::String(Rc::new(
                                     run_pipeline(
                                         shell,
                                         execs,
@@ -304,7 +302,7 @@ impl Expr {
                                     )?
                                     .unwrap()
                                     .to_string(),
-                                );
+                                ));
                                 capture_output = OutputStream::new_capture();
                                 execs = Vec::new();
                                 ValueStream::from_value(value)
@@ -324,7 +322,7 @@ impl Expr {
                                 mem::swap(&mut capture_output, &mut stream);
                                 stream.into_value_stream()
                             } else {
-                                let value = Value::String(
+                                let value = Value::String(Rc::new(
                                     run_pipeline(
                                         shell,
                                         execs,
@@ -333,7 +331,7 @@ impl Expr {
                                     )?
                                     .unwrap()
                                     .to_string(),
-                                );
+                                ));
                                 capture_output = OutputStream::new_capture();
                                 execs = Vec::new();
                                 ValueStream::from_value(value)
@@ -370,10 +368,10 @@ impl Expr {
 
                 if !execs.is_empty() {
                     if output.is_capture() {
-                        let value = Value::String(
+                        let value = Value::String(Rc::new(
                             run_pipeline(shell, execs, true, capture_output.into_value_stream())?
                                 .unwrap(),
-                        );
+                        ));
                         output.push(value);
                     } else {
                         run_pipeline(shell, execs, false, capture_output.into_value_stream())?;
@@ -524,7 +522,9 @@ fn expand_call(
     if let Some(alias) = shell.aliases.get(&command) {
         let mut split = alias.split_whitespace();
         command = split.next().unwrap().to_string();
-        let mut args: Vec<_> = split.map(|s| Value::String(s.to_string())).collect();
+        let mut args: Vec<_> = split
+            .map(|s| Value::String(Rc::new(s.to_string())))
+            .collect();
         args.extend(expanded_args.into_iter());
         expanded_args = args;
     }

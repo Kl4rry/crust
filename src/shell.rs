@@ -3,6 +3,7 @@ use std::{
     fs::{self, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
+    rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex, MutexGuard,
@@ -32,7 +33,7 @@ mod helper;
 
 pub struct Shell {
     running: bool,
-    exit_status: i128,
+    exit_status: i64,
     user_dirs: UserDirs,
     project_dirs: ProjectDirs,
     child_id: Arc<Mutex<Option<u32>>>,
@@ -104,7 +105,7 @@ impl Shell {
         for (key, value) in std::env::vars() {
             self.stack[0]
                 .variables
-                .insert(key, (true, Value::String(value)));
+                .insert(key, (true, Value::String(Rc::new(value))));
         }
     }
 
@@ -152,7 +153,7 @@ impl Shell {
         };
     }
 
-    pub fn run(mut self) -> Result<i128, ShellErrorKind> {
+    pub fn run(mut self) -> Result<i64, ShellErrorKind> {
         let mut output = OutputStream::new_output();
 
         let term = Term::stdout();
@@ -282,14 +283,14 @@ impl Shell {
 
     pub fn set_status(&mut self, status: ExitStatus) {
         self.exit_status = match status {
-            ExitStatus::Exited(status) => status as i128,
-            ExitStatus::Signaled(status) => status as i128,
-            ExitStatus::Other(status) => status as i128,
+            ExitStatus::Exited(status) => status as i64,
+            ExitStatus::Signaled(status) => status as i64,
+            ExitStatus::Other(status) => status as i64,
             ExitStatus::Undetermined => 0,
         };
     }
 
-    pub fn status(&self) -> i128 {
+    pub fn status(&self) -> i64 {
         self.exit_status
     }
 

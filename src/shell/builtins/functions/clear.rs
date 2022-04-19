@@ -1,6 +1,7 @@
 use std::{
     io::{stdout, Write},
     lazy::SyncLazy,
+    rc::Rc,
 };
 
 use crate::{
@@ -31,7 +32,7 @@ pub fn clear(
         Ok(m) => m,
         Err(e) => match e.error {
             ParseErrorKind::Help(m) => {
-                output.push(Value::String(m));
+                output.push(Value::String(Rc::new(m)));
                 return Ok(());
             }
             _ => return Err(e.into()),

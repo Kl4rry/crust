@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use bigdecimal::{num_bigint::BigInt, BigDecimal, ToPrimitive};
 
 use crate::{
@@ -25,12 +27,12 @@ impl ArgumentPart {
     ) -> Result<Value, ShellErrorKind> {
         match self {
             ArgumentPart::Variable(var) => Ok(var.eval(shell)?),
-            ArgumentPart::Expand(expand) => Ok(Value::String(expand.eval(shell, output)?)),
-            ArgumentPart::Bare(value) => Ok(Value::String(value.to_string())),
-            ArgumentPart::Quoted(string) => Ok(Value::String(string.clone())),
+            ArgumentPart::Expand(expand) => Ok(Value::String(Rc::new(expand.eval(shell, output)?))),
+            ArgumentPart::Bare(value) => Ok(Value::String(Rc::new(value.to_string()))),
+            ArgumentPart::Quoted(string) => Ok(Value::String(Rc::new(string.clone()))),
             ArgumentPart::Expr(expr) => Ok(expr.eval(shell, output)?),
             ArgumentPart::Float(number) => Ok(Value::Float(number.to_f64().unwrap())),
-            ArgumentPart::Int(number) => match number.to_i128() {
+            ArgumentPart::Int(number) => match number.to_i64() {
                 Some(number) => Ok(Value::Int(number)),
                 None => Err(ShellErrorKind::IntegerOverFlow),
             },
@@ -100,7 +102,7 @@ impl Argument {
                             string.replace('~', &shell.home_dir().to_string_lossy())
                         }
                     }
-                    (Value::String(string), false)
+                    (Value::String(Rc::new(string)), false)
                 }
                 _ => (part.eval(shell, output)?, true),
             };
@@ -119,11 +121,11 @@ impl Argument {
 
             let mut entries = Vec::new();
             for entry in glob::glob(&pattern)? {
-                entries.push(Value::String(entry?.to_string_lossy().to_string()));
+                entries.push(Value::String(Rc::new(entry?.to_string_lossy().to_string())));
             }
 
             if !entries.is_empty() {
-                Ok(Value::List(entries))
+                Ok(Value::List(Rc::new(entries)))
             } else {
                 Err(ShellErrorKind::NoMatch(pattern))
             }
@@ -133,7 +135,7 @@ impl Argument {
                 for (_, value) in parts {
                     string.push_str(&value.try_into_string()?);
                 }
-                Value::String(string)
+                Value::String(Rc::new(string))
             } else {
                 parts.pop().unwrap().1
             })

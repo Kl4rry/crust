@@ -139,21 +139,3 @@ impl fmt::Display for Table {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn it_works() {
-        let mut table = Table::new();
-        for _ in 0..15 {
-            let mut map = IndexMap::new();
-            for i in 0..15 {
-                map.insert(format!("{}oof", i), Value::String("cum".to_string()));
-            }
-            table.insert_map(map);
-        }
-
-        assert!(table.len() == 15);
-    }
-}
