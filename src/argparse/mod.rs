@@ -7,6 +7,7 @@ use std::{
     fmt,
     fmt::Write,
     iter::Peekable,
+    rc::Rc,
 };
 
 use unicode_width::UnicodeWidthStr;
@@ -290,7 +291,7 @@ impl App {
 
 #[derive(Debug)]
 pub enum ParseErrorKind {
-    Help(String),
+    Help(Value),
     MissingArgs(Vec<String>),
     InvalidInContext(String),
     TakesValue(String),
@@ -405,7 +406,9 @@ where
                                     bytes.extend(arg_iter);
                                     let long = unsafe { String::from_utf8_unchecked(bytes) };
                                     if long == "help" {
-                                        return Err(ParseErrorKind::Help(self.app.help()));
+                                        return Err(ParseErrorKind::Help(Value::String(Rc::new(
+                                            self.app.help(),
+                                        ))));
                                     } else if let Some(opt) = self
                                         .app
                                         .options
@@ -507,7 +510,9 @@ where
             }
 
             if c == 'h' {
-                return Err(ParseErrorKind::Help(self.app.help()));
+                return Err(ParseErrorKind::Help(Value::String(Rc::new(
+                    self.app.help(),
+                ))));
             } else if let Some(option) = self.app.options.iter().find(|o| o.short == Some(c)) {
                 let rest: String = chars.collect();
 

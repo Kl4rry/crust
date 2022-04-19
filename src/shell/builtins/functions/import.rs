@@ -30,7 +30,7 @@ pub fn import(
         Ok(m) => m,
         Err(e) => match e.error {
             ParseErrorKind::Help(m) => {
-                output.push(Value::String(Rc::new(m)));
+                output.push(m);
                 return Ok(());
             }
             _ => return Err(e.into()),
