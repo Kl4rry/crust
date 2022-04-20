@@ -152,6 +152,14 @@ impl Parser {
             };
             self.skip_optional_space();
 
+            if block {
+                if let Ok(token) = self.peek() {
+                    if token.token_type == TokenType::RightBrace {
+                        return Ok(sequence);
+                    }
+                }
+            }
+            
             if let Ok(token) = self.eat() {
                 match token.token_type {
                     TokenType::SemiColon | TokenType::NewLine => continue,

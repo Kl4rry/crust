@@ -156,6 +156,7 @@ impl TokenType {
                 | TokenType::Dot
                 | TokenType::At
                 | TokenType::LeftBracket
+                | TokenType::LeftParen
                 | TokenType::Quote
                 | TokenType::AddAssign
                 | TokenType::SubAssign
