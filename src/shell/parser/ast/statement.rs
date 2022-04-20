@@ -72,8 +72,7 @@ impl Statement {
             }
             Self::AssignOp(var, op, expr) => {
                 if is_builtin(&var.name) {
-                    // this should be a hard error
-                    return Ok(());
+                    return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string()));
                 }
 
                 let current = var.eval(shell)?;
@@ -96,8 +95,7 @@ impl Statement {
             }
             Self::Export(var, expr) => {
                 if is_builtin(&var.name) {
-                    // this should be a hard error
-                    return Ok(());
+                    return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string()));
                 }
 
                 let value = expr.eval(shell, output)?;

@@ -78,6 +78,7 @@ pub enum ShellErrorKind {
     InvalidUnaryOperand(UnOp, Type),
     InvalidIterator(Type),
     InvalidEnvVar(Type),
+    ReadOnlyVar(String),
     CommandNotFound(String),
     CommandPermissionDenied(String),
     FileNotFound(String),
@@ -105,67 +106,69 @@ pub enum ShellErrorKind {
 
 impl fmt::Display for ShellErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use ShellErrorKind::*;
         match self {
-            Self::Basic(_, e) => write!(f, "{e}"),
-            Self::DivisionByZero => write!(f, "Division by zero."),
-            Self::ArgParse(e) => write!(f, "{e}"),
-            Self::FileNotFound(path) => write!(f, "Cannot open '{path}' file not found"),
-            Self::FilePermissionDenied(path) => write!(f, "Cannot open '{path}' permission denied"),
-            Self::CommandNotFound(name) => write!(f, "Command '{name}' not found"),
-            Self::CommandPermissionDenied(name) => {
+            Basic(_, e) => write!(f, "{e}"),
+            DivisionByZero => write!(f, "Division by zero."),
+            ArgParse(e) => write!(f, "{e}"),
+            FileNotFound(path) => write!(f, "Cannot open '{path}' file not found"),
+            FilePermissionDenied(path) => write!(f, "Cannot open '{path}' permission denied"),
+            CommandNotFound(name) => write!(f, "Command '{name}' not found"),
+            CommandPermissionDenied(name) => {
                 write!(f, "Cannot run '{name}' permission denied")
             }
-            Self::NoMatch(pattern) => write!(f, "No match found for pattern '{pattern}'"),
-            Self::VariableNotFound(name) => write!(f, "Variable with name '{name}' not found"),
-            Self::IntegerOverFlow => write!(f, "Integer literal too large"),
-            Self::Interrupt => write!(f, "^C"),
-            Self::InvalidPipelineInput { expected, recived } => {
+            NoMatch(pattern) => write!(f, "No match found for pattern '{pattern}'"),
+            VariableNotFound(name) => write!(f, "Variable with name '{name}' not found"),
+            IntegerOverFlow => write!(f, "Integer literal too large"),
+            Interrupt => write!(f, "^C"),
+            InvalidPipelineInput { expected, recived } => {
                 write!(f, "Pipeline expected {expected} recived {recived}")
             }
-            Self::InvalidEnvVar(t) => write!(f, "cannot assign type {t} to environment variable"),
-            Self::ToFewArguments {
+            InvalidEnvVar(t) => write!(f, "Cannot assign type {t} to environment variable"),
+            ReadOnlyVar(name) => write!(f, "Cannot write to read only variable '{name}'"),
+            ToFewArguments {
                 name,
                 expected,
                 recived,
             } => {
                 write!(f, "{name} expected {expected} arguments, recived {recived}")
             }
-            Self::NoColumns(t) => write!(f, "{t} does not have columns"),
-            Self::NotIndexable(t) => write!(f, "Cannot index into {t}"),
-            Self::InvalidBinaryOperand(binop, lhs, rhs) => {
+            NoColumns(t) => write!(f, "{t} does not have columns"),
+            NotIndexable(t) => write!(f, "Cannot index into {t}"),
+            InvalidBinaryOperand(binop, lhs, rhs) => {
                 write!(f, "'{binop}' not supported between {lhs} and {rhs}",)
             }
-            Self::InvalidUnaryOperand(unop, value) => {
+            InvalidUnaryOperand(unop, value) => {
                 write!(f, "'{unop}' not supported for {value}")
             }
-            Self::InvalidIterator(value) => {
+            InvalidIterator(value) => {
                 write!(f, "Cannot iterate over type {value}")
             }
-            Self::InvalidConversion { from, to } => {
+            InvalidConversion { from, to } => {
                 write!(f, "Cannot convert {from} to {to}")
             }
-            Self::MaxRecursion(limit) => write!(f, "Max recursion limit of {limit} reached"),
-            Self::IndexOutOfBounds { len, index } => write!(
+            MaxRecursion(limit) => write!(f, "Max recursion limit of {limit} reached"),
+            IndexOutOfBounds { len, index } => write!(
                 f,
                 "Index is out of bounds, length is {len} but the index is {index}"
             ),
-            Self::ColumnNotFound(column) => write!(f, "Column '{column}' not found"),
-            Self::Io(path, error) => match path {
+            ColumnNotFound(column) => write!(f, "Column '{column}' not found"),
+            Io(path, error) => match path {
                 Some(path) => write!(f, "{} {}", error, path.to_string_lossy()),
                 None => write!(f, "{}", error),
             },
-            Self::Glob(error) => error.fmt(f),
-            Self::Pattern(error) => error.fmt(f),
-            Self::ParseInt(error) => error.fmt(f),
-            Self::ParseFloat(error) => error.fmt(f),
-            Self::Communicate(error) => error.fmt(f),
-            Self::Popen(error) => error.fmt(f),
-            Self::Ureq(error) => error.fmt(f),
-            Self::Break => write!(f, "break must be used in loop"),
-            Self::Return(_) => write!(f, "return must be used in function"),
-            Self::Continue => write!(f, "continue must be used in loop"),
+            Glob(error) => error.fmt(f),
+            Pattern(error) => error.fmt(f),
+            ParseInt(error) => error.fmt(f),
+            ParseFloat(error) => error.fmt(f),
+            Communicate(error) => error.fmt(f),
+            Popen(error) => error.fmt(f),
+            Ureq(error) => error.fmt(f),
+            Break => write!(f, "break must be used in loop"),
+            Return(_) => write!(f, "return must be used in function"),
+            Continue => write!(f, "continue must be used in loop"),
             // exit should always be handled and should therefore never be displayed
-            Self::Exit => unreachable!("exit should never be printed as an error"),
+            Exit => unreachable!("exit should never be printed as an error"),
         }
     }
 }
