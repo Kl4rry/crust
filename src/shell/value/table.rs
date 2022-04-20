@@ -84,6 +84,16 @@ impl Table {
         }
         Ok(values)
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = IndexMap<String, Value>> + '_ {
+        self.rows.iter().map(|row| {
+            self.headers
+                .iter()
+                .cloned()
+                .zip(row.iter().cloned())
+                .collect::<IndexMap<String, Value>>()
+        })
+    }
 }
 
 impl fmt::Display for Table {

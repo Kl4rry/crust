@@ -34,7 +34,7 @@ impl Statement {
         match self {
             Self::Assign(var, expr) => {
                 if is_builtin(&var.name) {
-                    return Ok(());
+                    return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string()));
                 }
 
                 let value = expr.eval(shell, output)?;
@@ -56,8 +56,7 @@ impl Statement {
             }
             Self::Declaration(var, expr) => {
                 if is_builtin(&var.name) {
-                    // this should be a hard error
-                    return Ok(());
+                    return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string()));
                 }
 
                 let value = expr.eval(shell, output)?;
@@ -205,6 +204,25 @@ impl Statement {
                             output,
                         )
                     }
+                    Value::Map(map) => for_loop(
+                        shell,
+                        map.iter().map(|(k, v)| {
+                            Value::List(Rc::new(vec![
+                                Value::String(Rc::new(k.to_string())),
+                                v.clone(),
+                            ]))
+                        }),
+                        &name,
+                        block,
+                        output,
+                    ),
+                    Value::Table(table) => for_loop(
+                        shell,
+                        table.iter().map(|m| Value::Map(Rc::new(m))),
+                        &name,
+                        block,
+                        output,
+                    ),
                     _ => Err(ShellErrorKind::InvalidIterator(value.to_type())),
                 }
             }
