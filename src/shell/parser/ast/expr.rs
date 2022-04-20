@@ -267,6 +267,12 @@ impl Expr {
                 )),
             },
             Self::Pipe(calls) => {
+                let mut calls = calls.iter().peekable();
+                let mut capture_output = OutputStream::new_capture();
+                if !matches!(calls.peek().unwrap(), Expr::Call(..)) {
+                    capture_output.push(calls.next().unwrap().eval(shell, output)?);
+                }
+
                 let mut expanded_calls = VecDeque::new();
                 for callable in calls {
                     match callable {
@@ -279,8 +285,6 @@ impl Expr {
                 }
 
                 let mut execs: Vec<(Exec, String)> = Vec::new();
-
-                let mut capture_output = OutputStream::new_capture();
 
                 while let Some(call_type) = expanded_calls.pop_front() {
                     match call_type {

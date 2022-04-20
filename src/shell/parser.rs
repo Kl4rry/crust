@@ -159,7 +159,7 @@ impl Parser {
                     }
                 }
             }
-            
+
             if let Ok(token) = self.eat() {
                 match token.token_type {
                     TokenType::SemiColon | TokenType::NewLine => continue,
@@ -511,7 +511,7 @@ impl Parser {
     fn parse_primary(&mut self, unop: Option<UnOp>) -> Result<Expr> {
         let expr = match self.peek()?.token_type {
             TokenType::True | TokenType::False => Expr::Literal(self.eat()?.try_into()?),
-            TokenType::Symbol(_) | TokenType::Exec => self.parse_pipe()?,
+            TokenType::Symbol(_) | TokenType::Exec => self.parse_pipe(None)?,
             TokenType::LeftParen => self.parse_sub_expr()?.wrap(unop),
             TokenType::Variable(_) => Expr::Variable(self.eat()?.try_into()?),
             TokenType::String(_) | TokenType::Int(_, _) | TokenType::Float(_, _) => {
@@ -590,7 +590,10 @@ impl Parser {
     fn parse_expr(&mut self, unop: Option<UnOp>) -> Result<Expr> {
         let primary = self.parse_primary(unop)?;
         self.skip_optional_space();
-        self.parse_expr_part(Some(primary), 0)
+        match self.peek() {
+            Ok(token) if token.token_type == TokenType::Pipe => self.parse_pipe(Some(primary)),
+            _ => self.parse_expr_part(Some(primary), 0),
+        }
     }
 
     fn parse_expr_part(&mut self, lhs: Option<Expr>, min_precedence: u8) -> Result<Expr> {
@@ -646,8 +649,11 @@ impl Parser {
         Ok(lhs)
     }
 
-    fn parse_pipe(&mut self) -> Result<Expr> {
-        let mut calls = vec![self.parse_call()?];
+    fn parse_pipe(&mut self, expr: Option<Expr>) -> Result<Expr> {
+        let mut calls = match expr {
+            Some(expr) => vec![expr],
+            None => vec![self.parse_call()?],
+        };
 
         self.skip_optional_space();
         while let Ok(token) = self.peek() {
