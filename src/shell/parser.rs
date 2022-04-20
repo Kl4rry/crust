@@ -590,10 +590,7 @@ impl Parser {
     fn parse_expr(&mut self, unop: Option<UnOp>) -> Result<Expr> {
         let primary = self.parse_primary(unop)?;
         self.skip_optional_space();
-        match self.peek() {
-            Ok(token) if token.token_type == TokenType::Pipe => self.parse_pipe(Some(primary)),
-            _ => self.parse_expr_part(Some(primary), 0),
-        }
+        self.parse_expr_part(Some(primary), 0)
     }
 
     fn parse_expr_part(&mut self, lhs: Option<Expr>, min_precedence: u8) -> Result<Expr> {
@@ -631,9 +628,14 @@ impl Parser {
             self.skip_whitespace();
             let rhs = self.parse_expr_part(None, next_min)?;
             self.skip_optional_space();
+            lhs = Expr::Binary(op, P::new(lhs), P::new(rhs));
 
             lookahead = match self.peek() {
                 Ok(token) => {
+                    if token.token_type == TokenType::Pipe {
+                        return self.parse_pipe(Some(lhs));
+                    }
+
                     if token.is_binop() {
                         Some(token.to_binop())
                     } else {
@@ -642,8 +644,6 @@ impl Parser {
                 }
                 Err(_) => None,
             };
-
-            lhs = Expr::Binary(op, P::new(lhs), P::new(rhs));
         }
         self.skip_optional_space();
         Ok(lhs)
