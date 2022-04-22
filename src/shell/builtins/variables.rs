@@ -26,6 +26,7 @@ static BUILTIN_VARS: phf::Map<&'static str, BulitinVar> = phf_map! {
     "null" => null,
     "config" => config,
     "args" => args,
+    "pi" => pi,
 };
 
 pub fn get_var(shell: &mut Shell, name: &str) -> Option<Value> {
@@ -115,4 +116,8 @@ pub fn lines(_: &mut Shell) -> Value {
 pub fn columns(_: &mut Shell) -> Value {
     let (w, _) = crossterm::terminal::size().unwrap();
     Value::Int(w as i64)
+}
+
+pub fn pi(_: &mut Shell) -> Value {
+    Value::Float(std::f64::consts::PI)
 }
