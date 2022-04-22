@@ -39,17 +39,18 @@ This readme contains notes to myself.
 | Lambda functions                | ❌       | ❌    |
 
 ### Standard functions
-| Name       | Completed                   | About                        |
-| ---------- | --------------------------- | ---------------------------- |
-| clear      | ✅                           | Clear screen                 |
-| cd         | ✅                           | Change working directory     |
-| exit       | ✅                           | Exit shell                   |
-| echo       | ✅                           | Echo value back              |
-| pwd        | ✅                           | Print working directory      |
-| import     | ✅ (Not locking / integrity) | Import code from file or URL |
-| read/input | ❌                           | Read user input from stdin   |
-| open       | ❌                           | Read data from file          |
-| save       | ❌                           | Save data to file            |
+| Name       | Completed                   | About                         |
+| ---------- | --------------------------- | ----------------------------- |
+| clear      | ✅                           | Clear screen                  |
+| cd         | ✅                           | Change working directory      |
+| exit       | ✅                           | Exit shell                    |
+| echo       | ✅                           | Echo value back               |
+| pwd        | ✅                           | Print working directory       |
+| import     | ✅ (Not locking / integrity) | Import code from file or URL  |
+| open       | ✅                           | Open url with default program |
+| read/input | ❌                           | Read user input from stdin    |
+| load       | ❌                           | Read data from file           |
+| save       | ❌                           | Save data to file             |
 
 
 (More functions to come)

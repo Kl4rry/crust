@@ -16,6 +16,7 @@ mod echo;
 mod env;
 mod exit;
 mod import;
+mod open;
 mod pwd;
 mod unalias;
 
@@ -32,6 +33,7 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "alias" => alias::alias,
     "unalias" => unalias::unalias,
     "env" => env::env,
+    "open" => open::open,
 };
 
 pub fn get_builtin(command: &str) -> Option<BulitinFn> {

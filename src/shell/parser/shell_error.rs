@@ -1,5 +1,4 @@
 use std::{
-    error::Error,
     fmt, io,
     num::{ParseFloatError, ParseIntError},
     path::PathBuf,
@@ -8,6 +7,7 @@ use std::{
 use glob::{GlobError, PatternError};
 use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
 use subprocess::{CommunicateError, PopenError};
+use thiserror::Error;
 
 use super::ast::expr::{binop::BinOp, unop::UnOp};
 use crate::{
@@ -16,7 +16,7 @@ use crate::{
     P,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub struct ShellError {
     pub error: ShellErrorKind,
     pub src: NamedSource,
@@ -37,15 +37,13 @@ impl ShellError {
     }
 }
 
-impl Error for ShellError {}
-
 impl fmt::Display for ShellError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         self.error.fmt(f)
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ShellErrorKind {
     // exit, break, continue, and return are not real errors and are only used to interrupt execution
     // this is a not so nice hack but it works
@@ -93,15 +91,16 @@ pub enum ShellErrorKind {
         expected: Type,
         recived: Type,
     },
-    ArgParse(ParseError),
+    ArgParse(#[from] ParseError),
     Io(Option<PathBuf>, io::Error),
-    Glob(GlobError),
-    Pattern(PatternError),
-    ParseInt(ParseIntError),
-    ParseFloat(ParseFloatError),
-    Popen(PopenError),
-    Communicate(CommunicateError),
-    Ureq(ureq::Error),
+    Glob(#[from] GlobError),
+    Pattern(#[from] PatternError),
+    ParseInt(#[from] ParseIntError),
+    ParseFloat(#[from] ParseFloatError),
+    Popen(#[from] PopenError),
+    Communicate(#[from] CommunicateError),
+    Open(#[from] opener::OpenError),
+    Ureq(#[from] ureq::Error),
 }
 
 impl fmt::Display for ShellErrorKind {
@@ -164,6 +163,7 @@ impl fmt::Display for ShellErrorKind {
             Communicate(error) => error.fmt(f),
             Popen(error) => error.fmt(f),
             Ureq(error) => error.fmt(f),
+            Open(error) => error.fmt(f),
             Break => write!(f, "break must be used in loop"),
             Return(_) => write!(f, "return must be used in function"),
             Continue => write!(f, "continue must be used in loop"),
@@ -211,53 +211,3 @@ impl Diagnostic for ShellError {
         Some(&self.src as &dyn SourceCode)
     }
 }
-
-impl From<ureq::Error> for ShellErrorKind {
-    fn from(error: ureq::Error) -> Self {
-        ShellErrorKind::Ureq(error)
-    }
-}
-
-impl From<ParseError> for ShellErrorKind {
-    fn from(error: ParseError) -> Self {
-        ShellErrorKind::ArgParse(error)
-    }
-}
-
-impl From<PatternError> for ShellErrorKind {
-    fn from(error: PatternError) -> Self {
-        ShellErrorKind::Pattern(error)
-    }
-}
-
-impl From<GlobError> for ShellErrorKind {
-    fn from(error: GlobError) -> Self {
-        ShellErrorKind::Glob(error)
-    }
-}
-
-impl From<ParseIntError> for ShellErrorKind {
-    fn from(error: ParseIntError) -> Self {
-        ShellErrorKind::ParseInt(error)
-    }
-}
-
-impl From<ParseFloatError> for ShellErrorKind {
-    fn from(error: ParseFloatError) -> Self {
-        ShellErrorKind::ParseFloat(error)
-    }
-}
-
-impl From<PopenError> for ShellErrorKind {
-    fn from(error: PopenError) -> Self {
-        ShellErrorKind::Popen(error)
-    }
-}
-
-impl From<CommunicateError> for ShellErrorKind {
-    fn from(error: CommunicateError) -> Self {
-        ShellErrorKind::Communicate(error)
-    }
-}
-
-impl Error for ShellErrorKind {}

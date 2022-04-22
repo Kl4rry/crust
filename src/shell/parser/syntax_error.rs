@@ -1,11 +1,12 @@
-use std::{error::Error, fmt};
+use std::fmt;
 
 use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
+use thiserror::Error;
 
 use super::lexer::token::{span::Span, Token};
 use crate::P;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum SyntaxErrorKind {
     UnexpectedToken(Token),
     ExpectedToken,
@@ -20,16 +21,12 @@ impl fmt::Display for SyntaxErrorKind {
     }
 }
 
-impl Error for SyntaxErrorKind {}
-
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub struct SyntaxError {
     pub error: SyntaxErrorKind,
     pub src: NamedSource,
     pub len: usize,
 }
-
-impl Error for SyntaxError {}
 
 impl Diagnostic for SyntaxError {
     fn labels(&self) -> Option<P<dyn Iterator<Item = LabeledSpan> + '_>> {
