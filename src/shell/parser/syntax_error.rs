@@ -10,6 +10,7 @@ use crate::P;
 pub enum SyntaxErrorKind {
     UnexpectedToken(Token),
     ExpectedToken,
+    Regex(regex::Error, Span),
 }
 
 impl fmt::Display for SyntaxErrorKind {
@@ -17,6 +18,7 @@ impl fmt::Display for SyntaxErrorKind {
         match self {
             Self::UnexpectedToken(ref token) => write!(f, "unexpected token: {:?}", token),
             Self::ExpectedToken => write!(f, "expected token"),
+            Self::Regex(e, _) => e.fmt(f),
         }
     }
 }
@@ -30,9 +32,12 @@ pub struct SyntaxError {
 
 impl Diagnostic for SyntaxError {
     fn labels(&self) -> Option<P<dyn Iterator<Item = LabeledSpan> + '_>> {
-        let label = match self.error {
-            SyntaxErrorKind::UnexpectedToken(ref token) => {
+        let label = match &self.error {
+            SyntaxErrorKind::UnexpectedToken(token) => {
                 LabeledSpan::new_with_span(Some(String::from("Unexpected token")), token.span)
+            }
+            SyntaxErrorKind::Regex(e, span) => {
+                LabeledSpan::new_with_span(Some(e.to_string()), *span)
             }
             SyntaxErrorKind::ExpectedToken => LabeledSpan::new_with_span(
                 Some(String::from("Expected token after here")),
@@ -70,6 +75,7 @@ impl fmt::Display for SyntaxError {
         match self.error {
             SyntaxErrorKind::UnexpectedToken(_) => f.write_str("Unexpected token"),
             SyntaxErrorKind::ExpectedToken => f.write_str("Expected token"),
+            SyntaxErrorKind::Regex(_, _) => write!(f, "Regex error"),
         }
     }
 }

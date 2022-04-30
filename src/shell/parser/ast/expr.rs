@@ -166,6 +166,16 @@ impl Expr {
                 }
             }
             Self::Binary(binop, lhs, rhs) => match binop {
+                BinOp::Match => {
+                    let lhs = lhs.eval(shell, output)?;
+                    let rhs = rhs.eval(shell, output)?;
+                    Ok(Value::Bool(lhs.try_match(rhs)?))
+                }
+                BinOp::NotMatch => {
+                    let lhs = lhs.eval(shell, output)?;
+                    let rhs = rhs.eval(shell, output)?;
+                    Ok(Value::Bool(!lhs.try_match(rhs)?))
+                }
                 BinOp::Range => {
                     let lhs_value = lhs.eval(shell, output)?;
                     let rhs_value = rhs.eval(shell, output)?;

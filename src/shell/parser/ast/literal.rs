@@ -3,6 +3,7 @@ use std::{convert::TryFrom, rc::Rc};
 use bigdecimal::{num_bigint::BigUint, BigDecimal};
 use indexmap::IndexMap;
 use num_traits::cast::ToPrimitive;
+use regex::Regex;
 
 use crate::{
     parser::{
@@ -20,13 +21,14 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub enum Literal {
-    String(String),
+    String(Rc<String>),
     Expand(Expand),
     List(Vec<Expr>),
     Map(Vec<(Expr, Expr)>),
     Float(BigDecimal),
     Int(BigUint),
     Bool(bool),
+    Regex(Rc<(Regex, String)>),
 }
 
 impl Literal {
@@ -75,6 +77,7 @@ impl Literal {
                 None => Err(ShellErrorKind::IntegerOverFlow),
             },
             Literal::Bool(boolean) => Ok(Value::Bool(*boolean)),
+            Literal::Regex(regex) => Ok(Value::Regex(regex.clone())),
         }
     }
 }
@@ -83,7 +86,7 @@ impl TryFrom<Token> for Literal {
     type Error = SyntaxErrorKind;
     fn try_from(token: Token) -> Result<Self, SyntaxErrorKind> {
         match token.token_type {
-            TokenType::String(text) => Ok(Literal::String(text)),
+            TokenType::String(text) => Ok(Literal::String(Rc::new(text))),
             TokenType::Float(number, _) => Ok(Literal::Float(number)),
             TokenType::Int(number, _) => Ok(Literal::Int(number)),
             TokenType::True => Ok(Literal::Bool(true)),

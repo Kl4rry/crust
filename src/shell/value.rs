@@ -1,6 +1,7 @@
 use std::{fmt, ops::Range, rc::Rc};
 
 use indexmap::IndexMap;
+use regex::Regex;
 use yansi::Paint;
 
 use crate::parser::{ast::expr::binop::BinOp, shell_error::ShellErrorKind};
@@ -23,6 +24,7 @@ pub enum Value {
     Map(Rc<IndexMap<String, Value>>),
     Table(Rc<Table>),
     Range(Rc<Range<i64>>),
+    Regex(Rc<(Regex, String)>),
 }
 
 impl fmt::Display for Value {
@@ -53,6 +55,7 @@ impl fmt::Display for Value {
                 Ok(())
             }
             Self::Bool(boolean) => boolean.fmt(f),
+            Self::Regex(regex) => Paint::blue(format!("/{}/", &regex.1)).fmt(f),
             _ => Ok(()),
         }
     }
@@ -83,6 +86,7 @@ impl PartialEq for Value {
                 Value::Table(table) => table.is_empty() != *boolean,
                 Value::Range(range) => (range.start == 0 && range.end == 0) != *boolean,
                 Value::Null => false,
+                Value::Regex(_) => false,
             },
             Value::String(string) => match other {
                 Value::String(rhs) => string == rhs,
@@ -110,6 +114,10 @@ impl PartialEq for Value {
                 _ => false,
             },
             Value::Null => matches!(other, Value::Null),
+            Value::Regex(regex) => match other {
+                Value::Regex(other) => *regex.1 == *other.1,
+                _ => false,
+            },
         }
     }
 }
@@ -129,6 +137,7 @@ impl Value {
             Self::Table(table) => format!("[table with {} rows]", table.len()),
             Self::Range(range) => format!("[range from {} to {}]]", range.start, range.end),
             Self::Bool(boolean) => Paint::yellow(boolean).to_string(),
+            Self::Regex(regex) => Paint::blue(&regex.1).to_string(),
         }
     }
 
@@ -485,6 +494,42 @@ impl Value {
         }
     }
 
+    pub fn try_match(self, rhs: Value) -> Result<bool, ShellErrorKind> {
+        match &self {
+            Value::String(string) => match rhs {
+                Value::String(sub) => Ok(string.contains(&*sub)),
+                Value::Regex(regex) => Ok(regex.0.is_match(string)),
+                _ => Err(ShellErrorKind::InvalidBinaryOperand(
+                    BinOp::Add,
+                    self.to_type(),
+                    rhs.to_type(),
+                )),
+            },
+            Value::List(list) => Ok(list.contains(&rhs)),
+            Value::Map(map) => match &rhs {
+                Value::String(key) => Ok(map.contains_key(&**key)),
+                _ => Err(ShellErrorKind::InvalidBinaryOperand(
+                    BinOp::Add,
+                    self.to_type(),
+                    rhs.to_type(),
+                )),
+            },
+            Value::Table(table) => match &rhs {
+                Value::String(key) => Ok(table.has_column(&**key)),
+                _ => Err(ShellErrorKind::InvalidBinaryOperand(
+                    BinOp::Add,
+                    self.to_type(),
+                    rhs.to_type(),
+                )),
+            },
+            _ => Err(ShellErrorKind::InvalidBinaryOperand(
+                BinOp::Add,
+                self.to_type(),
+                rhs.to_type(),
+            )),
+        }
+    }
+
     pub fn to_type(&self) -> Type {
         match self {
             Self::Int(_) => Type::INT,
@@ -496,6 +541,7 @@ impl Value {
             Self::Table(_) => Type::TABLE,
             Self::Range(_) => Type::RANGE,
             Self::Null => Type::NULL,
+            Self::Regex(..) => Type::REGEX,
         }
     }
 
@@ -558,6 +604,7 @@ impl Value {
             Self::Table(table) => !table.is_empty(),
             Self::Range(range) => range.start != 0 && range.end != 0,
             Self::Null => false,
+            Self::Regex(..) => false,
         }
     }
 

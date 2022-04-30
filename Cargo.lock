@@ -269,6 +269,7 @@ dependencies = [
  "opener",
  "phf",
  "rand",
+ "regex",
  "rustyline",
  "subprocess",
  "thiserror",

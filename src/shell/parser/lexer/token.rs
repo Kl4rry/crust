@@ -69,6 +69,10 @@ pub enum TokenType {
     Ge,
     /// The > operator (greater than)
     Gt,
+    /// The =~ operator
+    Match,
+    /// The !~ operator
+    NotMatch,
     And,
     Or,
     // Unary operators
@@ -133,6 +137,8 @@ impl TokenType {
                 | Self::And
                 | Self::Or
                 | Self::Range
+                | Self::Match
+                | Self::NotMatch
         )
     }
 
@@ -150,61 +156,54 @@ impl TokenType {
 
     // check if token can be passed as a string arg to a call
     pub fn is_valid_argpart(&self) -> bool {
+        use TokenType::*;
         matches!(
             *self,
-            TokenType::Dollar
-                | TokenType::Dot
-                | TokenType::At
-                | TokenType::LeftBracket
-                | TokenType::LeftParen
-                | TokenType::Quote
-                | TokenType::AddAssign
-                | TokenType::SubAssign
-                | TokenType::MulAssign
-                | TokenType::DivAssign
-                | TokenType::ExpoAssign
-                | TokenType::ModAssign
-                | TokenType::Assignment
-                | TokenType::Colon
-                | TokenType::Range
-                | TokenType::Add
-                | TokenType::Sub
-                | TokenType::Mul
-                | TokenType::Div
-                | TokenType::Expo
-                | TokenType::Mod
-                | TokenType::Eq
-                | TokenType::Le
-                | TokenType::Ne
-                | TokenType::Ge
-                | TokenType::Not
-                | TokenType::Symbol(_)
-                | TokenType::Variable(_)
-                | TokenType::String(_)
-                | TokenType::Float(_, _)
-                | TokenType::Int(_, _)
-                | TokenType::True
-                | TokenType::False
-                | TokenType::Let
-                | TokenType::Export
+            Dollar
+                | Dot
+                | At
+                | LeftBracket
+                | LeftParen
+                | Quote
+                | AddAssign
+                | SubAssign
+                | MulAssign
+                | DivAssign
+                | ExpoAssign
+                | ModAssign
+                | Assignment
+                | Colon
+                | Range
+                | Add
+                | Sub
+                | Mul
+                | Div
+                | Expo
+                | Mod
+                | Eq
+                | Le
+                | Ne
+                | Ge
+                | Not
+                | Match
+                | NotMatch
+                | Symbol(_)
+                | Variable(_)
+                | String(_)
+                | Float(_, _)
+                | Int(_, _)
+                | True
+                | False
+                | Let
+                | Export
         )
     }
 
     pub fn is_keyword(&self) -> bool {
+        use TokenType::*;
         matches!(
             *self,
-            TokenType::If
-                | TokenType::Else
-                | TokenType::While
-                | TokenType::Loop
-                | TokenType::For
-                | TokenType::In
-                | TokenType::Break
-                | TokenType::Return
-                | TokenType::Continue
-                | TokenType::Fn
-                | TokenType::Let
-                | TokenType::Export
+            If | Else | While | Loop | For | In | Break | Return | Continue | Fn | Let | Export
         )
     }
 }
@@ -235,69 +234,76 @@ impl Token {
     }
 
     pub fn try_into_argpart(self) -> Result<ArgumentPart> {
+        use TokenType::*;
         match self.token_type {
-            TokenType::String(text) => Ok(ArgumentPart::Quoted(text)),
-            TokenType::Symbol(text) => Ok(ArgumentPart::Bare(text)),
-            TokenType::Variable(_) => Ok(ArgumentPart::Variable(self.try_into()?)),
-            TokenType::Int(number, _) => Ok(ArgumentPart::Int(number.into())),
-            TokenType::Float(number, _) => Ok(ArgumentPart::Float(number)),
-            TokenType::True => Ok(ArgumentPart::Expr(Expr::Literal(Literal::Bool(true)))),
+            String(text) => Ok(ArgumentPart::Quoted(text)),
+            Symbol(text) => Ok(ArgumentPart::Bare(text)),
+            Variable(_) => Ok(ArgumentPart::Variable(self.try_into()?)),
+            Int(number, _) => Ok(ArgumentPart::Int(number.into())),
+            Float(number, _) => Ok(ArgumentPart::Float(number)),
+            True => Ok(ArgumentPart::Expr(Expr::Literal(Literal::Bool(true)))),
             _ => return Ok(ArgumentPart::Bare(self.try_into_glob_str()?.to_string())),
         }
     }
 
     pub fn try_into_glob_str(self) -> Result<&'static str> {
+        use TokenType::*;
         match self.token_type {
-            TokenType::AddAssign => Ok("+="),
-            TokenType::SubAssign => Ok("-="),
-            TokenType::MulAssign => Ok("*="),
-            TokenType::DivAssign => Ok("/="),
-            TokenType::ExpoAssign => Ok("**="),
-            TokenType::ModAssign => Ok("%="),
-            TokenType::Assignment => Ok("="),
-            TokenType::RightBracket => Ok("]"),
-            TokenType::LeftBracket => Ok("["),
-            TokenType::Add => Ok("+"),
-            TokenType::Sub => Ok("-"),
-            TokenType::Div => Ok("/"),
-            TokenType::Expo => Ok("**"),
-            TokenType::Mod => Ok("%"),
-            TokenType::Eq => Ok("=="),
-            TokenType::Le => Ok("<="),
-            TokenType::Ne => Ok("-"),
-            TokenType::Ge => Ok(">="),
-            TokenType::Not => Ok("!"),
-            TokenType::Range => Ok(".."),
-            TokenType::True => Ok("true"),
-            TokenType::False => Ok("false"),
-            TokenType::Mul => Ok("*"),
-            TokenType::Colon => Ok(":"),
-            TokenType::Let => Ok("let"),
-            TokenType::Export => Ok("export"),
-            TokenType::At => Ok("@"),
-            TokenType::Dot => Ok("."),
+            AddAssign => Ok("+="),
+            SubAssign => Ok("-="),
+            MulAssign => Ok("*="),
+            DivAssign => Ok("/="),
+            ExpoAssign => Ok("**="),
+            ModAssign => Ok("%="),
+            Match => Ok("=~"),
+            NotMatch => Ok("!~"),
+            Assignment => Ok("="),
+            RightBracket => Ok("]"),
+            LeftBracket => Ok("["),
+            Add => Ok("+"),
+            Sub => Ok("-"),
+            Div => Ok("/"),
+            Expo => Ok("**"),
+            Mod => Ok("%"),
+            Eq => Ok("=="),
+            Le => Ok("<="),
+            Ne => Ok("-"),
+            Ge => Ok(">="),
+            Not => Ok("!"),
+            Range => Ok(".."),
+            True => Ok("true"),
+            False => Ok("false"),
+            Mul => Ok("*"),
+            Colon => Ok(":"),
+            Let => Ok("let"),
+            Export => Ok("export"),
+            At => Ok("@"),
+            Dot => Ok("."),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self)),
         }
     }
 
     /// Get binop from token. Will panic if token is not valid binop.
     pub fn to_binop(&self) -> BinOp {
+        use TokenType::*;
         match self.token_type {
-            TokenType::Add => BinOp::Add,
-            TokenType::Sub => BinOp::Sub,
-            TokenType::Mul => BinOp::Mul,
-            TokenType::Div => BinOp::Div,
-            TokenType::Expo => BinOp::Expo,
-            TokenType::Mod => BinOp::Mod,
-            TokenType::Eq => BinOp::Eq,
-            TokenType::Lt => BinOp::Lt,
-            TokenType::Le => BinOp::Le,
-            TokenType::Ne => BinOp::Ne,
-            TokenType::Ge => BinOp::Ge,
-            TokenType::Gt => BinOp::Gt,
-            TokenType::And => BinOp::And,
-            TokenType::Or => BinOp::Or,
-            TokenType::Range => BinOp::Range,
+            Add => BinOp::Add,
+            Sub => BinOp::Sub,
+            Mul => BinOp::Mul,
+            Div => BinOp::Div,
+            Expo => BinOp::Expo,
+            Mod => BinOp::Mod,
+            Eq => BinOp::Eq,
+            Lt => BinOp::Lt,
+            Le => BinOp::Le,
+            Ne => BinOp::Ne,
+            Ge => BinOp::Ge,
+            Gt => BinOp::Gt,
+            And => BinOp::And,
+            Or => BinOp::Or,
+            Range => BinOp::Range,
+            Match => BinOp::Match,
+            NotMatch => BinOp::NotMatch,
             _ => panic!("could not convert token {:?} to binop", self),
         }
     }

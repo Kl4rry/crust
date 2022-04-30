@@ -26,6 +26,7 @@ use ast::{
 };
 
 pub mod syntax_error;
+use regex::Regex;
 use syntax_error::{SyntaxError, SyntaxErrorKind};
 
 use self::lexer::escape_char;
@@ -465,8 +466,16 @@ impl Parser {
         Ok(Expr::Literal(Literal::List(list)))
     }
 
-    fn parse_map(&mut self) -> Result<Expr> {
+    fn parse_regex_or_map(&mut self) -> Result<Expr> {
         self.eat()?.expect(TokenType::At)?;
+        match self.peek()?.token_type {
+            TokenType::LeftBrace => self.parse_map(),
+            TokenType::String(_) => self.parse_regex(),
+            _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
+        }
+    }
+
+    fn parse_map(&mut self) -> Result<Expr> {
         self.eat()?.expect(TokenType::LeftBrace)?;
         let mut exprs: Vec<(Expr, Expr)> = Vec::new();
         let mut last_was_comma = true;
@@ -499,6 +508,21 @@ impl Parser {
         Ok(Expr::Literal(Literal::Map(exprs)))
     }
 
+    fn parse_regex(&mut self) -> Result<Expr> {
+        let token = self.eat()?;
+        let string = match token.token_type {
+            TokenType::String(string) => string,
+            _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
+        };
+
+        let regex = match Regex::new(&string) {
+            Ok(regex) => regex,
+            Err(e) => return Err(SyntaxErrorKind::Regex(e, token.span)),
+        };
+
+        Ok(Expr::Literal(Literal::Regex(Rc::new((regex, string)))))
+    }
+
     fn parse_sub_expr(&mut self) -> Result<Expr> {
         self.eat()?.expect(TokenType::LeftParen)?;
         self.skip_whitespace();
@@ -524,7 +548,7 @@ impl Parser {
                 self.parse_expr(Some(inner))?
             }
             TokenType::LeftBracket => self.parse_list()?,
-            TokenType::At => self.parse_map()?,
+            TokenType::At => self.parse_regex_or_map()?,
             _ => return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         };
 
@@ -724,7 +748,7 @@ impl Parser {
             // todo list should maybe be parsed below to allow for concatination
             TokenType::LeftBracket => (ArgumentPart::Expr(self.parse_list()?), false),
             // todo same for map
-            TokenType::At => (ArgumentPart::Expr(self.parse_map()?), false),
+            TokenType::At => (ArgumentPart::Expr(self.parse_regex_or_map()?), false),
             _ => (self.eat()?.try_into_argpart()?, true),
         };
         parts.push(part);

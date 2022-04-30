@@ -302,11 +302,14 @@ impl Iterator for Lexer {
                 b';' => self.advance_with(TokenType::SemiColon, 1),
                 // binary operators
                 b'=' => {
-                    if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
-                        self.advance_with(TokenType::Eq, 2)
-                    } else {
-                        self.advance_with(TokenType::Assignment, 1)
+                    if self.index + 1 < self.src.len() {
+                        match self.peek(1) {
+                            b'=' => return Some(self.advance_with(TokenType::Eq, 2)),
+                            b'~' => return Some(self.advance_with(TokenType::Match, 2)),
+                            _ => (),
+                        }
                     }
+                    self.advance_with(TokenType::Assignment, 1)
                 }
                 b'+' => {
                     if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
@@ -365,11 +368,14 @@ impl Iterator for Lexer {
                     }
                 }
                 b'!' => {
-                    if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
-                        self.advance_with(TokenType::Ne, 2)
-                    } else {
-                        self.advance_with(TokenType::Not, 1)
+                    if self.index + 1 < self.src.len() {
+                        match self.peek(1) {
+                            b'=' => return Some(self.advance_with(TokenType::Ne, 2)),
+                            b'~' => return Some(self.advance_with(TokenType::NotMatch, 2)),
+                            _ => (),
+                        }
                     }
+                    self.advance_with(TokenType::Not, 1)
                 }
                 _ => self.parse_arg(),
             };

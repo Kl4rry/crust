@@ -29,6 +29,10 @@ pub enum BinOp {
     And,
     Or,
     Range,
+    /// The =~ operator
+    Match,
+    /// The !~ operator
+    NotMatch,
 }
 
 impl AsRef<str> for BinOp {
@@ -49,6 +53,8 @@ impl AsRef<str> for BinOp {
             Self::And => "&&",
             Self::Or => "||",
             Self::Range => "..",
+            Self::Match => "=~",
+            Self::NotMatch => "!~",
         }
     }
 }
@@ -95,7 +101,11 @@ impl TryFrom<Token> for BinOp {
 impl Precedence for BinOp {
     fn precedence(&self) -> (u8, Direction) {
         match self {
-            Self::Expo => (9, Direction::Right),
+            Self::Expo => (10, Direction::Right),
+
+            Self::Match => (9, Direction::Left),
+            Self::NotMatch => (9, Direction::Left),
+
             Self::Mul => (8, Direction::Left),
             Self::Div => (8, Direction::Left),
             Self::Mod => (8, Direction::Left),

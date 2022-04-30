@@ -85,6 +85,10 @@ impl Table {
         Ok(values)
     }
 
+    pub fn has_column(&self, name: &str) -> bool {
+        self.headers.iter().any(|h| h == name)
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = IndexMap<String, Value>> + '_ {
         self.rows.iter().map(|row| {
             self.headers
