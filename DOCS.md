@@ -9,7 +9,7 @@ Crust is dynamically typed meaning a variable can be any data type but it is als
 Integers are whoel number 1, 5, 10 etc. They are currently represented as a 64-bit signed intger that wraps when it is overflowed.
 
 ## Floats
-A float can represent decimal numbers like 1.3, 3.0 and 100.2. The are currently represented as a 64 bit float internaly.
+A float can represent decimal numbers like 1.3, 3.0 and 100.2. The are currently represented as a 64 bit float internally.
 
 ## Booleans
 Booleans represent true or false
