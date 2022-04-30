@@ -5,8 +5,6 @@ Crust is a imperative shell scripting language with a strong a dynamic type syst
 Crust is dynamically typed meaning a variable can be any data type but it is also strongly typed which means variables are rarly coerced into a different type. All types are immutable and Crust therefore mixes in a lot of functional patterns.
 
 # Datatypes
-Unlike a posix shell Crust has real datatypes everything is not just a string.
-
 ## Integers
 Integers are whoel number 1, 5, 10 etc. They are currently represented as a 64-bit signed intger that wraps when it is overflowed.
 
