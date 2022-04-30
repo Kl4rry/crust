@@ -77,7 +77,7 @@ $x[-1]
 ```
 
 ## Maps
-A map is an associative array that holds a sequence of key value pairs. The key is always a string.
+A map is an associative array that holds a sequence of key value pairs where the key is always a string.
 ```bash
 @{"abc": 123, "foo": "bar", 5: 10}
 ╭─────┬─────╮
