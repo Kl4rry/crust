@@ -2,11 +2,11 @@
 Crust is a imperative shell scripting language with a strong a dynamic type system. Crust is designed to be a glue language like bash, perl or python while also providing a user friendly shell REPL experience. 
 
 ## Type system
-Crust is dynamically typed meaning a variable can be any data type but it is also strongly typed which means variables are rarly coerced into a different type. All types are immutable and Crust therefore mixes in a lot of functional patterns.
+Crust is dynamically typed meaning a variable can be any data type but it is also strongly typed which means variables are rarely coerced into a different type. All types are immutable and Crust therefore mixes in a lot of functional patterns.
 
-# Datatypes
+# Data types
 ## Integers
-Integers are whoel number 1, 5, 10 etc. They are currently represented as a 64-bit signed intger that wraps when it is overflowed.
+Integers are whole number 1, 5, 10 etc. They are currently represented as a 64-bit signed integer that wraps when it is overflowed.
 
 ## Floats
 A float can represent decimal numbers like 1.3, 3.0 and 100.2. The are currently represented as a 64 bit float internally.
@@ -25,7 +25,7 @@ Strings can also be created using double quotes.
 ```bash
 "a string"
 ```
-Double quoted strings have support for esacpe sequences like `\n`.
+Double quoted strings have support for escape sequences like `\n`.
 ```bash
 # The \n is converted to a newline.
 "a line\n"
@@ -86,7 +86,7 @@ A map is an associative array that holds a sequence of key value pairs where the
 │   5 │  10 │
 ╰─────┴─────╯
 ```
-Values can be retrived from a map like this:
+Values can be retrieved from a map like this:
 ```bash
 $x = @{"abc": 123, "foo": "bar", 5: 10}
 
@@ -95,7 +95,7 @@ $x.abc
 ```
 
 ## Tables
-Tables is a more convinient way to represent a list of maps. They can be both indexed into like a list and you can get a whole column from it just like map. When a list literal contains only maps it is automatically converted to a table.
+Tables is a more convenient way to represent a list of maps. They can be both indexed into like a list and you can get a whole column from it just like map. When a list literal contains only maps it is automatically converted to a table.
 
 ```bash
 $x = [
@@ -129,7 +129,7 @@ $x[0]
 ```
 
 # Control flow
-Crust as control flow primitives that should feel familiary to anyone who has used an imperative scripting language before.
+Crust has control flow primitives that should feel familiar to anyone who has used an imperative scripting language before.
 ## Conditional
 ```bash
 $x = 10
