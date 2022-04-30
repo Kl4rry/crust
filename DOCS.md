@@ -12,7 +12,7 @@ Integers are whoel number 1, 5, 10 etc. They are currently represented as a 64-b
 A float can represent decimal numbers like 1.3, 3.0 and 100.2. The are currently represented as a 64 bit float internally.
 
 ## Booleans
-Booleans represent true or false
+Booleans represent `true` or `false`.
 
 ## Strings
 Strings are sequences of characters. All strings in Crust are guaranteed to be valid utf-8. Strings can be created a number of ways. The simplest is with single quotes.
