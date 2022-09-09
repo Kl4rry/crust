@@ -1,7 +1,6 @@
-use std::{
-    io::{stdout, Write},
-    lazy::SyncLazy,
-};
+use std::io::{stdout, Write};
+
+use once_cell::sync::Lazy;
 
 use crate::{
     argparse::{App, Flag, ParseErrorKind},
@@ -13,7 +12,7 @@ use crate::{
     },
 };
 
-static APP: SyncLazy<App> = SyncLazy::new(|| {
+static APP: Lazy<App> = Lazy::new(|| {
     App::new("clear").about("Clears the terminal").flag(
         Flag::new("SCROLLBACK")
             .short('x')

@@ -114,7 +114,7 @@ pub trait Precedence {
     fn precedence(&self) -> (u8, Direction);
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Direction {
     Left,
     Right,

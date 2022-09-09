@@ -1,6 +1,5 @@
 #![feature(type_alias_impl_trait)]
 #![feature(arc_unwrap_or_clone)]
-#![feature(once_cell)]
 use std::{
     fs,
     path::{Path, PathBuf},

@@ -1,4 +1,6 @@
-use std::{lazy::SyncLazy, rc::Rc};
+use std::rc::Rc;
+
+use once_cell::sync::Lazy;
 
 use crate::{
     argparse::{App, ParseErrorKind},
@@ -10,8 +12,7 @@ use crate::{
     },
 };
 
-static APP: SyncLazy<App> =
-    SyncLazy::new(|| App::new("pwd").about("Print current working directory"));
+static APP: Lazy<App> = Lazy::new(|| App::new("pwd").about("Print current working directory"));
 
 pub fn pwd(
     _: &mut Shell,

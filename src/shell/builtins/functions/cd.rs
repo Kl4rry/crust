@@ -1,4 +1,6 @@
-use std::{lazy::SyncLazy, path::Path, rc::Rc};
+use std::{path::Path, rc::Rc};
+
+use once_cell::sync::Lazy;
 
 use crate::{
     argparse::{App, Arg, ParseErrorKind},
@@ -10,7 +12,7 @@ use crate::{
     },
 };
 
-static APP: SyncLazy<App> = SyncLazy::new(|| {
+static APP: Lazy<App> = Lazy::new(|| {
     App::new("cd")
         .about("Change working directory")
         .arg(Arg::new("directory", Type::STRING).help("The new working directory"))

@@ -515,7 +515,7 @@ impl Value {
                 )),
             },
             Value::Table(table) => match &rhs {
-                Value::String(key) => Ok(table.has_column(&**key)),
+                Value::String(key) => Ok(table.has_column(key)),
                 _ => Err(ShellErrorKind::InvalidBinaryOperand(
                     BinOp::Add,
                     self.to_type(),

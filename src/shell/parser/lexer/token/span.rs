@@ -2,7 +2,7 @@ use std::cmp;
 
 use miette::SourceSpan;
 
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct Span {
     start: usize,
     len: usize,

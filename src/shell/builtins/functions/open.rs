@@ -1,4 +1,4 @@
-use std::lazy::SyncLazy;
+use once_cell::sync::Lazy;
 
 use crate::{
     argparse::{App, Arg, ParseErrorKind},
@@ -10,7 +10,7 @@ use crate::{
     },
 };
 
-static APP: SyncLazy<App> = SyncLazy::new(|| {
+static APP: Lazy<App> = Lazy::new(|| {
     App::new("open")
         .about("Open a file or url with the default program")
         .arg(

@@ -1,4 +1,6 @@
-use std::{fs, io, lazy::SyncLazy, rc::Rc};
+use std::{fs, io, rc::Rc};
+
+use once_cell::sync::Lazy;
 
 use crate::{
     argparse::{App, Arg, ParseErrorKind},
@@ -10,7 +12,7 @@ use crate::{
     },
 };
 
-static APP: SyncLazy<App> = SyncLazy::new(|| {
+static APP: Lazy<App> = Lazy::new(|| {
     App::new("import")
         .about("Import file for http url or filepath")
         .arg(

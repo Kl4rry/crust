@@ -1,4 +1,6 @@
-use std::{lazy::SyncLazy, rc::Rc};
+use std::rc::Rc;
+
+use once_cell::sync::Lazy;
 
 use crate::{
     argparse::{App, Arg, ParseErrorKind},
@@ -10,7 +12,7 @@ use crate::{
     },
 };
 
-static APP: SyncLazy<App> = SyncLazy::new(|| {
+static APP: Lazy<App> = Lazy::new(|| {
     App::new("alias")
         .about("Set alias")
         .arg(

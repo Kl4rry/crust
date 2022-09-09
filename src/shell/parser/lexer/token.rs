@@ -15,13 +15,13 @@ use crate::parser::{
     Result,
 };
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Token {
     pub token_type: TokenType,
     pub span: Span,
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum TokenType {
     Symbol(String),
     Variable(String),
@@ -242,7 +242,7 @@ impl Token {
             Int(number, _) => Ok(ArgumentPart::Int(number.into())),
             Float(number, _) => Ok(ArgumentPart::Float(number)),
             True => Ok(ArgumentPart::Expr(Expr::Literal(Literal::Bool(true)))),
-            _ => return Ok(ArgumentPart::Bare(self.try_into_glob_str()?.to_string())),
+            _ => Ok(ArgumentPart::Bare(self.try_into_glob_str()?.to_string())),
         }
     }
 
