@@ -41,6 +41,6 @@ pub fn cd(
     };
 
     let new_dir = Path::new(&*dir);
-    std::env::set_current_dir(&new_dir).map_err(|err| ShellErrorKind::Io(None, err))?;
+    std::env::set_current_dir(new_dir).map_err(|err| ShellErrorKind::Io(None, err))?;
     Ok(())
 }

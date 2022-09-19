@@ -38,6 +38,10 @@ This readme contains notes to myself.
 | Escapes sequences               | ✅       | ✅    |
 | Lambda functions                | ❌       | ❌    |
 
+## TODO
+* Add span info to ast.
+* Add serde support to value.
+
 ### Standard functions
 | Name       | Completed                   | About                         |
 | ---------- | --------------------------- | ----------------------------- |

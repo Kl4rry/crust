@@ -124,6 +124,9 @@ impl<'a> Highlighter<'a> {
             }
             self.index = token.span.end();
         }
+        let end = &self.lexer.src()[self.index..];
+        self.output.push_str(&Paint::new(end).dimmed().to_string());
+
         self.output
     }
 }
