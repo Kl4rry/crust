@@ -73,6 +73,7 @@ import https://raw.githubusercontent.com/Kl4rry/crust/main/libs/starship.crust
 ## Todo
 Columns and indexing when passing arguments.  
 Todo allow column with number name.  
+Switch to logical scopes from lexical.
 
 ## Bugs
 A bunch of places convert values to string where it should throw an hard error instead.  
