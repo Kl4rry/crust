@@ -72,8 +72,21 @@ import https://raw.githubusercontent.com/Kl4rry/crust/main/libs/starship.crust
 
 ## Todo
 Columns and indexing when passing arguments.  
-Todo allow column with number name.  
-Switch to logical scopes from lexical.
+Allow column with number name.  
+Switch to lexical from dynamic scopes.  
+Allow comments in strings.  
+Update string literal be like format string.  
+Add span info to ast.  
+Use native path separator.  
+Implement serde for value.  
+Improve completion and remove \\ as escape for tokens to allow native windows paths.  
+Add builtins and functions to help when calling unknown command.  
+Rework defing functions to use cli parser.  
+Add custom ls command.
+
+## Low prio todo.
+Make command pipelines lazy.
+Create a better line writer then rustyline.
 
 ## Bugs
 A bunch of places convert values to string where it should throw an hard error instead.  
