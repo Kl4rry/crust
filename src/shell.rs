@@ -75,12 +75,12 @@ impl Shell {
         let user_dirs = UserDirs::new().unwrap();
 
         let config = rustyline::Config::builder()
-            .max_history_size(500)
+            .max_history_size(5000)
             .color_mode(rustyline::ColorMode::Forced)
             .bell_style(BellStyle::None)
             .build();
 
-        let mut editor = Editor::with_config(config);
+        let mut editor = Editor::with_config(config).unwrap();
         editor.set_helper(Some(helper::EditorHelper::new()));
         let _ = editor.load_history(&history_path(&project_dirs));
 
