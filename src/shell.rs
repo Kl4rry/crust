@@ -41,7 +41,7 @@ pub struct Shell {
     aliases: HashMap<String, String>,
     recursion_limit: usize,
     interrupt: Arc<AtomicBool>,
-    executables: Vec<Executable>,
+    executables: Rc<Vec<Executable>>,
     args: Vec<String>,
     prompt: Option<Block>,
     editor: Editor<EditorHelper>,
@@ -94,7 +94,7 @@ impl Shell {
             aliases: HashMap::new(),
             recursion_limit: 1000,
             interrupt,
-            executables: executables().unwrap(),
+            executables: Rc::new(executables().unwrap()),
             args,
             prompt: None,
             editor,
@@ -245,7 +245,7 @@ impl Shell {
     // does this functoin really need to do a linear search?
     // it could probably use a hashset instead.
     pub fn find_exe(&self, name: &str) -> Option<String> {
-        for exe in &self.executables {
+        for exe in self.executables.iter() {
             if name.contains('.') || !exe.name.contains('.') {
                 if name == exe.name {
                     return Some(name.to_string());

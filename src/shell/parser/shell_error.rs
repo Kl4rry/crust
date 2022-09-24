@@ -2,10 +2,13 @@ use std::{
     fmt, io,
     num::{ParseFloatError, ParseIntError},
     path::PathBuf,
+    rc::Rc,
 };
 
+use executable_finder::Executable;
 use glob::{GlobError, PatternError};
 use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
+use rayon::prelude::*;
 use subprocess::{CommunicateError, PopenError};
 use thiserror::Error;
 
@@ -21,14 +24,21 @@ pub struct ShellError {
     pub error: ShellErrorKind,
     pub src: NamedSource,
     pub len: usize,
+    pub executables: Rc<Vec<Executable>>,
 }
 
 impl ShellError {
-    pub fn new(error: ShellErrorKind, src: String, name: String) -> Self {
+    pub fn new(
+        error: ShellErrorKind,
+        src: String,
+        name: String,
+        executables: Rc<Vec<Executable>>,
+    ) -> Self {
         ShellError {
             error,
             len: src.len(),
             src: NamedSource::new(name, src),
+            executables,
         }
     }
 
@@ -209,5 +219,28 @@ impl Diagnostic for ShellError {
 
     fn source_code(&self) -> Option<&dyn miette::SourceCode> {
         Some(&self.src as &dyn SourceCode)
+    }
+
+    fn help<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+        match self.error {
+            ShellErrorKind::CommandNotFound(ref cmd) => {
+                let mut options: Vec<_> = self
+                    .executables
+                    .par_iter()
+                    .filter_map(|exec| {
+                        let distance = levenshtein::levenshtein(&exec.name, &cmd);
+                        if distance < 10 {
+                            Some((exec, distance))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                options.sort_by_key(|(_, d)| *d);
+                let closest = options.first()?;
+                Some(P::new(format!("Did you mean {}?", closest.0.name)))
+            }
+            _ => None,
+        }
     }
 }

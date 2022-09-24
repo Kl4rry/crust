@@ -41,8 +41,15 @@ impl Ast {
     }
 
     pub fn eval(&self, shell: &mut Shell, output: &mut OutputStream) -> Result<(), ShellError> {
-        let x = self.eval_errorkind(shell, output);
-        x.map_err(|err| ShellError::new(err, self.src.clone(), self.name.clone()))
+        let res = self.eval_errorkind(shell, output);
+        res.map_err(|err| {
+            ShellError::new(
+                err,
+                self.src.clone(),
+                self.name.clone(),
+                shell.executables.clone(),
+            )
+        })
     }
 
     pub fn eval_errorkind(
