@@ -53,8 +53,8 @@ This readme contains notes to myself.
 | import     | ✅ (Not locking / integrity) | Import code from file or URL  |
 | open       | ✅                           | Open url with default program |
 | read/input | ❌                           | Read user input from stdin    |
-| load       | ❌                           | Read data from file           |
-| save       | ❌                           | Save data to file             |
+| load       | ✅                           | Read data from file           |
+| save       | ✅                           | Save data to file             |
 
 
 (More functions to come)
@@ -78,11 +78,13 @@ Allow comments in strings.
 Update string literal be like format string.  
 Add span info to ast.  
 Use native path separator.  
-Implement serde for value.  
 Improve completion and remove \\ as escape for tokens to allow native windows paths.  
 Add builtins and functions to help when calling unknown command.  
 Rework defing functions to use cli parser.  
-Add custom ls command.
+Add sub commands to cli parser.  
+Add custom ls command.  
+Convert statements into expressions.  
+Allow expressions to be start of pipeline.
 
 ## Low prio todo.
 Make command pipelines lazy.

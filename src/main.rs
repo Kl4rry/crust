@@ -19,8 +19,8 @@ fn main() {
         Err(err) => {
             eprintln!("{}", err);
             match err {
-                ShellErrorKind::Io(_, err) => err.raw_os_error().unwrap_or(-1),
-                _ => -1,
+                ShellErrorKind::Io(_, err) => err.raw_os_error().unwrap_or(1),
+                _ => 1,
             }
         }
     };

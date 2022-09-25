@@ -1,7 +1,8 @@
-use std::{fs, io, rc::Rc};
+use std::rc::Rc;
 
 use once_cell::sync::Lazy;
 
+use super::read_file;
 use crate::{
     argparse::{App, Arg, ParseErrorKind},
     parser::shell_error::ShellErrorKind,
@@ -47,7 +48,7 @@ pub fn import(
     let src = if path.starts_with("https://") || path.starts_with("http://") {
         get_from_url(&path)?
     } else {
-        get_from_file(&path)?
+        read_file(&*path)?
     };
 
     shell.run_src(src, Rc::unwrap_or_clone(path), output);
@@ -57,16 +58,4 @@ pub fn import(
 fn get_from_url(path: &str) -> Result<String, ShellErrorKind> {
     let res = ureq::builder().redirects(10).build().get(path).call()?;
     res.into_string().map_err(|e| ShellErrorKind::Io(None, e))
-}
-
-fn get_from_file(path: &str) -> Result<String, ShellErrorKind> {
-    fs::read_to_string(path).map_err(|e| file_err_to_shell_err(e, path.to_string()))
-}
-
-fn file_err_to_shell_err(error: io::Error, name: String) -> ShellErrorKind {
-    match error.kind() {
-        io::ErrorKind::NotFound => ShellErrorKind::FileNotFound(name),
-        io::ErrorKind::PermissionDenied => ShellErrorKind::FilePermissionDenied(name),
-        _ => ShellErrorKind::Io(None, error),
-    }
 }

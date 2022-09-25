@@ -33,6 +33,7 @@ serde_json = "1.0.85"
 subprocess = "0.2.8"
 thiserror = "1.0.30"
 timing = "0.2.3"
+toml = "0.5.9"
 unicode-width = "0.1.9"
 ureq = { version = "2.4.0", features = ["brotli", "native-certs", "charset"] }
 whoami = "1.1.1"

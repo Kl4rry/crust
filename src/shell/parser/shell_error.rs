@@ -101,6 +101,7 @@ pub enum ShellErrorKind {
         expected: Type,
         recived: Type,
     },
+    UnknownFileType(String),
     ArgParse(#[from] ParseError),
     Io(Option<PathBuf>, io::Error),
     Glob(#[from] GlobError),
@@ -111,6 +112,9 @@ pub enum ShellErrorKind {
     Communicate(#[from] CommunicateError),
     Open(#[from] opener::OpenError),
     Ureq(#[from] ureq::Error),
+    Json(#[from] serde_json::Error),
+    TomlDe(#[from] toml::de::Error),
+    TomlSer(#[from] toml::ser::Error),
 }
 
 impl fmt::Display for ShellErrorKind {
@@ -162,6 +166,7 @@ impl fmt::Display for ShellErrorKind {
                 "Index is out of bounds, length is {len} but the index is {index}"
             ),
             ColumnNotFound(column) => write!(f, "Column '{column}' not found"),
+            UnknownFileType(ext) => write!(f, "Unkown file type `.{ext}`"),
             Io(path, error) => match path {
                 Some(path) => write!(f, "{} {}", error, path.to_string_lossy()),
                 None => write!(f, "{}", error),
@@ -173,6 +178,9 @@ impl fmt::Display for ShellErrorKind {
             Communicate(error) => error.fmt(f),
             Popen(error) => error.fmt(f),
             Ureq(error) => error.fmt(f),
+            Json(error) => error.fmt(f),
+            TomlDe(error) => error.fmt(f),
+            TomlSer(error) => error.fmt(f),
             Open(error) => error.fmt(f),
             Break => write!(f, "break must be used in loop"),
             Return(_) => write!(f, "return must be used in function"),
@@ -209,6 +217,8 @@ impl Diagnostic for ShellError {
             MaxRecursion(..) => P::new("Recursion Error"),
             CommandNotFound(..) | CommandPermissionDenied(..) => P::new("Command Error"),
             FileNotFound(..) | FilePermissionDenied(..) => P::new("File Error"),
+            UnknownFileType(..) | TomlDe(..) | Json(..) => P::new("Deserialization Error"),
+            TomlSer(..) => P::new("Serialization Error"),
             _ => P::new("Shell Error"),
         })
     }
