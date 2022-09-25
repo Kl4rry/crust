@@ -228,7 +228,7 @@ impl Diagnostic for ShellError {
                     .executables
                     .par_iter()
                     .filter_map(|exec| {
-                        let distance = levenshtein::levenshtein(&exec.name, &cmd);
+                        let distance = levenshtein::levenshtein(&exec.name, cmd);
                         if distance < 10 {
                             Some((exec, distance))
                         } else {

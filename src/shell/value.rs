@@ -12,6 +12,9 @@ use table::Table;
 mod types;
 pub use types::Type;
 
+mod de;
+mod ser;
+
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum Value {
