@@ -1,5 +1,7 @@
 use std::{convert::TryInto, rc::Rc};
 
+use memchr::memchr;
+
 use crate::P;
 
 pub mod lexer;
@@ -29,11 +31,17 @@ pub mod syntax_error;
 use regex::Regex;
 use syntax_error::{SyntaxError, SyntaxErrorKind};
 
-use self::lexer::escape_char;
-
 pub mod shell_error;
 
 pub type Result<T> = std::result::Result<T, SyntaxErrorKind>;
+
+pub const ESCAPES: &[u8] = b"nt0rs\\";
+pub const REPLACEMENTS: &[u8] = b"\n\t\0\r \\";
+
+#[inline(always)]
+pub fn escape_char(c: u8) -> u8 {
+    memchr(c, ESCAPES).map(|i| REPLACEMENTS[i]).unwrap_or(c)
+}
 
 pub struct Parser {
     token: Option<Token>,
@@ -48,6 +56,7 @@ impl Parser {
         Self { lexer, token, name }
     }
 
+    #[inline(always)]
     fn src(&self) -> &str {
         self.lexer.src()
     }

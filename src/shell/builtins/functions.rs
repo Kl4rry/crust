@@ -50,6 +50,10 @@ pub fn get_builtin(command: &str) -> Option<BulitinFn> {
     BUILTIN_FUNCTIONS.get(command).copied()
 }
 
+pub fn get_builtins() -> Vec<&'static str> {
+    BUILTIN_FUNCTIONS.keys().copied().collect()
+}
+
 pub fn read_file(path: impl AsRef<Path>) -> Result<String, ShellErrorKind> {
     let path = path.as_ref();
     fs::read_to_string(path)
@@ -60,6 +64,7 @@ pub fn save_file(path: impl AsRef<Path>, data: &[u8], append: bool) -> Result<()
     let path = path.as_ref();
     let mut file = fs::OpenOptions::new()
         .write(true)
+        .create(true)
         .append(append)
         .open(path)
         .map_err(|e| file_err_to_shell_err(e, path.to_string_lossy().to_string()))?;

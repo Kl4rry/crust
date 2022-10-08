@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 
 use crate::{
-    argparse::{App, Arg, ParseErrorKind},
+    argparse::{App, Arg, ParseResult},
     parser::shell_error::ShellErrorKind,
     shell::{
         stream::{OutputStream, ValueStream},
@@ -12,7 +12,7 @@ use crate::{
 
 static APP: Lazy<App> = Lazy::new(|| {
     App::new("unalias").about("Remove alias").arg(
-        Arg::new("name", Type::STRING)
+        Arg::new("NAME", Type::STRING)
             .help("Name of the alias")
             .required(true),
     )
@@ -25,20 +25,15 @@ pub fn unalias(
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
     let mut matches = match APP.parse(args.into_iter()) {
-        Ok(m) => m,
-        Err(e) => match e.error {
-            ParseErrorKind::Help(m) => {
-                output.push(m);
-                return Ok(());
-            }
-            _ => return Err(e.into()),
-        },
+        Ok(ParseResult::Matches(m)) => m,
+        Ok(ParseResult::Info(info)) => {
+            output.push(info);
+            return Ok(());
+        }
+        Err(e) => return Err(e.into()),
     };
 
-    let name = matches
-        .take_value(&String::from("name"))
-        .unwrap()
-        .unwrap_string();
+    let name = matches.take_value("NAME").unwrap().unwrap_string();
 
     let r = shell.aliases.remove(&*name);
     if r.is_none() {

@@ -1,4 +1,4 @@
-use std::{fmt, rc::Rc};
+use std::fmt;
 
 use indexmap::IndexMap;
 use serde::{
@@ -105,7 +105,7 @@ impl<'de> Deserialize<'de> for Value {
 
             #[inline]
             fn visit_char<E>(self, value: char) -> Result<Self::Value, E> {
-                Ok(Value::String(Rc::new(value.to_string())))
+                Ok(Value::from(value.to_string()))
             }
 
             #[inline]
@@ -118,7 +118,7 @@ impl<'de> Deserialize<'de> for Value {
 
             #[inline]
             fn visit_string<E>(self, value: String) -> Result<Value, E> {
-                Ok(Value::String(Rc::new(value)))
+                Ok(Value::from(value))
             }
 
             #[inline]
@@ -149,7 +149,7 @@ impl<'de> Deserialize<'de> for Value {
                     vec.push(elem);
                 }
 
-                Ok(Value::List(Rc::new(vec)))
+                Ok(Value::from(vec))
             }
 
             #[inline]
@@ -162,7 +162,7 @@ impl<'de> Deserialize<'de> for Value {
                     values.insert(key, value);
                 }
 
-                Ok(Value::Map(Rc::new(values)))
+                Ok(Value::from(values))
             }
         }
 

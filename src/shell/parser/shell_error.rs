@@ -15,7 +15,10 @@ use thiserror::Error;
 use super::ast::expr::{binop::BinOp, unop::UnOp};
 use crate::{
     argparse::ParseError,
-    shell::value::{Type, Value},
+    shell::{
+        levenshtein::levenshtein_stripped,
+        value::{Type, Value},
+    },
     P,
 };
 
@@ -238,7 +241,7 @@ impl Diagnostic for ShellError {
                     .executables
                     .par_iter()
                     .filter_map(|exec| {
-                        let distance = levenshtein::levenshtein(&exec.name, cmd);
+                        let distance = levenshtein_stripped(&exec.name, cmd);
                         if distance < 10 {
                             Some((exec, distance))
                         } else {

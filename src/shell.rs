@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     fs::{self, OpenOptions},
-    io::Write,
+    io::{stdout, Write},
     path::{Path, PathBuf},
     rc::Rc,
     sync::{
@@ -30,6 +30,7 @@ use frame::Frame;
 use self::{helper::EditorHelper, parser::ast::Block, stream::OutputStream};
 
 mod helper;
+mod levenshtein;
 
 pub struct Shell {
     running: bool,
@@ -71,6 +72,8 @@ impl Shell {
         })
         .unwrap();
 
+        let executables = Rc::new(executables().unwrap());
+
         let project_dirs = ProjectDirs::from("", "", "crust").unwrap();
         let user_dirs = UserDirs::new().unwrap();
 
@@ -94,7 +97,7 @@ impl Shell {
             aliases: HashMap::new(),
             recursion_limit: 1000,
             interrupt,
-            executables: Rc::new(executables().unwrap()),
+            executables,
             args,
             prompt: None,
             editor,
@@ -105,7 +108,7 @@ impl Shell {
         for (key, value) in std::env::vars() {
             self.stack[0]
                 .variables
-                .insert(key, (true, Value::String(Rc::new(value))));
+                .insert(key, (true, Value::from(value)));
         }
     }
 
@@ -125,7 +128,7 @@ impl Shell {
                 .truncate(true)
                 .open(&config_path)
                 .map_err(|e| ShellErrorKind::Io(Some(config_path.to_path_buf()), e))?;
-            f.write_all(b"# This is the crust config file")
+            f.write_all(include_bytes!("../config/default.crust"))
                 .map_err(|e| ShellErrorKind::Io(Some(config_path.to_path_buf()), e))?;
         }
 
@@ -154,7 +157,8 @@ impl Shell {
     }
 
     pub fn run(mut self) -> Result<i64, ShellErrorKind> {
-        let mut output = OutputStream::new_output();
+        let _ = write!(stdout(), "{}", ansi_escapes::ClearScreen);
+        let _ = stdout().flush();
 
         let term = Term::stdout();
         while self.running {
@@ -166,7 +170,7 @@ impl Shell {
             let info =
                 current_dir_str().replace(&self.home_dir().to_string_lossy().to_string(), "~");
 
-            term.set_title(format!("Crust: {info}",));
+            term.set_title(format!("Crust: {info}"));
 
             self.editor.helper_mut().unwrap().prompt =
                 self.prompt().unwrap_or_else(|_| self.default_prompt());
@@ -182,7 +186,7 @@ impl Shell {
 
                     self.editor.add_history_entry(&line);
                     self.save_history();
-                    self.run_src(line, String::from("shell"), &mut output);
+                    self.run_src(line, String::from("shell"), &mut OutputStream::new_output());
                 }
                 Err(ReadlineError::Interrupted) => {
                     println!("{}", Paint::red("^C"));
@@ -196,7 +200,6 @@ impl Shell {
                     break;
                 }
             }
-            output.end();
             if let Ok((x, _)) = crossterm::cursor::position() {
                 if x != 0 {
                     println!();
@@ -231,15 +234,13 @@ impl Shell {
     }
 
     pub fn config_path(&self) -> PathBuf {
-        normalize_slashes_path(
-            [self.project_dirs.config_dir(), Path::new("config.crust")]
-                .iter()
-                .collect::<PathBuf>(),
-        )
+        [self.project_dirs.config_dir(), Path::new("config.crust")]
+            .iter()
+            .collect::<PathBuf>()
     }
 
     pub fn home_dir(&self) -> PathBuf {
-        normalize_slashes_path(self.user_dirs.home_dir())
+        self.user_dirs.home_dir().to_path_buf()
     }
 
     // does this functoin really need to do a linear search?
@@ -306,26 +307,17 @@ impl Default for Shell {
 }
 
 pub fn current_dir_path() -> PathBuf {
-    normalize_slashes_path(std::env::current_dir().unwrap())
+    std::env::current_dir().unwrap()
 }
 
 pub fn current_dir_str() -> String {
     current_dir_path().to_string_lossy().to_string()
 }
 
-pub fn normalize_slashes_path(path: impl AsRef<Path>) -> PathBuf {
-    #[cfg(target_os = "windows")]
-    return PathBuf::from(path.as_ref().to_string_lossy().replace('\\', "/"));
-    #[cfg(not(target_os = "windows"))]
-    return PathBuf::from(path.as_ref());
-}
-
 pub fn history_path(project_dirs: &ProjectDirs) -> PathBuf {
-    normalize_slashes_path(
-        [project_dirs.data_dir(), Path::new(".crust_history")]
-            .iter()
-            .collect::<PathBuf>(),
-    )
+    [project_dirs.data_dir(), Path::new(".crust_history")]
+        .iter()
+        .collect::<PathBuf>()
 }
 
 pub fn report_error(error: impl Diagnostic) {

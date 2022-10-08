@@ -84,11 +84,14 @@ Rework defing functions to use cli parser.
 Add sub commands to cli parser.  
 Add custom ls command.  
 Convert statements into expressions.  
-Allow expressions to be start of pipeline.
+Allow expressions to be start of pipeline.  
+Test scoped cd.  
+Table limit width.  
 
-## Low prio todo.
-Make command pipelines lazy.
-Create a better line writer then rustyline.
+## Low prio todo
+Make command pipelines lazy.  
+Create a better line writer then rustyline.  
+Fish-like selector for completer.  
 
 ## Bugs
 A bunch of places convert values to string where it should throw an hard error instead.  

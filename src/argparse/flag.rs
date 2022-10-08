@@ -5,6 +5,7 @@ pub struct Flag {
     pub(super) long: Option<String>,
     pub(super) short: Option<char>,
     pub(super) multiple: bool,
+    pub(super) conflicts: Vec<String>,
 }
 
 impl Flag {
@@ -15,6 +16,7 @@ impl Flag {
             long: None,
             short: None,
             multiple: false,
+            conflicts: Vec::new(),
         }
     }
 
@@ -42,6 +44,11 @@ impl Flag {
 
     pub fn short(mut self, c: char) -> Self {
         self.short = Some(c);
+        self
+    }
+
+    pub fn conflicts_with(mut self, conflict: String) -> Self {
+        self.conflicts.push(conflict);
         self
     }
 }

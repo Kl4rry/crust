@@ -38,17 +38,17 @@ pub fn is_builtin(name: &str) -> bool {
 }
 
 pub fn args(shell: &mut Shell) -> Value {
-    Value::List(Rc::new(
+    Value::from(
         shell
             .args
             .iter()
             .map(|s| Value::String(Rc::new(s.to_string())))
-            .collect(),
-    ))
+            .collect::<Vec<_>>(),
+    )
 }
 
 pub fn config(shell: &mut Shell) -> Value {
-    Value::String(Rc::new(shell.config_path().to_string_lossy().to_string()))
+    Value::from(shell.config_path().to_string_lossy().to_string())
 }
 
 pub fn null(_: &mut Shell) -> Value {
@@ -56,7 +56,7 @@ pub fn null(_: &mut Shell) -> Value {
 }
 
 pub fn user(_: &mut Shell) -> Value {
-    Value::String(Rc::new(whoami::username()))
+    Value::from(whoami::username())
 }
 
 pub fn pid(_: &mut Shell) -> Value {
@@ -64,27 +64,27 @@ pub fn pid(_: &mut Shell) -> Value {
 }
 
 pub fn hostname(_: &mut Shell) -> Value {
-    Value::String(Rc::new(whoami::devicename()))
+    Value::from(whoami::devicename())
 }
 
 pub fn home(shell: &mut Shell) -> Value {
-    Value::String(Rc::new(shell.home_dir().to_string_lossy().to_string()))
+    Value::from(shell.home_dir().to_string_lossy().to_string())
 }
 
 pub fn os(_: &mut Shell) -> Value {
-    Value::String(Rc::new(std::env::consts::OS.to_string()))
+    Value::from(std::env::consts::OS.to_string())
 }
 
 pub fn arch(_: &mut Shell) -> Value {
-    Value::String(Rc::new(std::env::consts::ARCH.to_string()))
+    Value::from(std::env::consts::ARCH.to_string())
 }
 
 pub fn distro(_: &mut Shell) -> Value {
-    Value::String(Rc::new(whoami::distro()))
+    Value::from(whoami::distro())
 }
 
 pub fn desktop(_: &mut Shell) -> Value {
-    Value::String(Rc::new(whoami::desktop_env().to_string()))
+    Value::from(whoami::desktop_env().to_string())
 }
 
 pub fn status(shell: &mut Shell) -> Value {
@@ -92,15 +92,15 @@ pub fn status(shell: &mut Shell) -> Value {
 }
 
 pub fn pwd(_: &mut Shell) -> Value {
-    Value::String(Rc::new(current_dir_str()))
+    Value::from(current_dir_str())
 }
 
 pub fn version(_: &mut Shell) -> Value {
-    Value::String(Rc::new(env!("CARGO_PKG_VERSION").to_string()))
+    Value::from(env!("CARGO_PKG_VERSION").to_string())
 }
 
 pub fn family(_: &mut Shell) -> Value {
-    Value::String(Rc::new(std::env::consts::FAMILY.to_string()))
+    Value::from(std::env::consts::FAMILY.to_string())
 }
 
 pub fn random(_: &mut Shell) -> Value {

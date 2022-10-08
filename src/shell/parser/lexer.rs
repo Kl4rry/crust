@@ -1,15 +1,6 @@
 pub mod token;
 
-use memchr::memchr;
 use token::{span::Span, Token, TokenType};
-
-pub const ESCAPES: &[u8] = b"nt0rs\\";
-pub const REPLACEMENTS: &[u8] = b"\n\t\0\r \\";
-
-#[inline(always)]
-pub fn escape_char(c: u8) -> u8 {
-    memchr(c, ESCAPES).map(|i| REPLACEMENTS[i]).unwrap_or(c)
-}
 
 pub struct Lexer {
     src: String,
@@ -118,15 +109,8 @@ impl Lexer {
             && !self.current.is_ascii_whitespace()
             && !self.eof
         {
-            if self.current == b'\\' {
-                self.advance();
-                let escape = escape_char(self.current);
-                unsafe { value.as_mut_vec().push(escape) };
-                self.advance();
-            } else {
-                unsafe { value.as_mut_vec().push(self.current) };
-                self.advance();
-            }
+            unsafe { value.as_mut_vec().push(self.current) };
+            self.advance();
         }
         let end = self.index;
         let span = Span::new(start, end);

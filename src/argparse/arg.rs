@@ -9,6 +9,7 @@ pub struct Arg {
     pub(super) value: Type,
     pub(super) required: bool,
     pub(super) multiple: bool,
+    pub(super) conflicts: Vec<String>,
 }
 
 impl Arg {
@@ -19,6 +20,7 @@ impl Arg {
             value,
             required: false,
             multiple: false,
+            conflicts: Vec::new(),
         }
     }
 
@@ -41,6 +43,11 @@ impl Arg {
 
     pub fn multiple(mut self, multiple: bool) -> Self {
         self.multiple = multiple;
+        self
+    }
+
+    pub fn conflicts_with(mut self, conflict: String) -> Self {
+        self.conflicts.push(conflict);
         self
     }
 }

@@ -13,16 +13,19 @@ pub fn bar() -> Paint<char> {
     Paint::rgb(171, 178, 191, '│')
 }
 
-pub fn format_columns<'a, T: Display, I: Iterator<Item = (T, &'a Value)>>(
+pub fn format_columns<T: Display, Item, I: Iterator<Item = (T, Item)>>(
     f: &mut fmt::Formatter<'_>,
     list: I,
-) -> fmt::Result {
+) -> fmt::Result
+where
+    Item: AsRef<Value>,
+{
     let mut longest_value = 0;
     let mut longest_key = 0;
     let mut values = Vec::new();
     let mut keys = Vec::new();
     for (key, value) in list {
-        values.push(value.to_compact_string());
+        values.push(value.as_ref().to_compact_string());
         longest_value = std::cmp::max(
             longest_value,
             console::strip_ansi_codes(unsafe { values.last().unwrap_unchecked() }).width_cjk(),

@@ -186,9 +186,7 @@ impl Statement {
                     }
                     Value::String(string) => for_loop(
                         shell,
-                        string
-                            .chars()
-                            .map(|c| Value::String(Rc::new(String::from(c)))),
+                        string.chars().map(|c| Value::from(String::from(c))),
                         &name,
                         block,
                         output,
@@ -206,19 +204,15 @@ impl Statement {
                     }
                     Value::Map(map) => for_loop(
                         shell,
-                        map.iter().map(|(k, v)| {
-                            Value::List(Rc::new(vec![
-                                Value::String(Rc::new(k.to_string())),
-                                v.clone(),
-                            ]))
-                        }),
+                        map.iter()
+                            .map(|(k, v)| Value::from(vec![Value::from(k.to_string()), v.clone()])),
                         &name,
                         block,
                         output,
                     ),
                     Value::Table(table) => for_loop(
                         shell,
-                        table.iter().map(|m| Value::Map(Rc::new(m))),
+                        table.iter().map(|m| Value::from(m)),
                         &name,
                         block,
                         output,

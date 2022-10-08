@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 
 use crate::{
-    argparse::{App, Arg, ParseErrorKind},
+    argparse::{App, Arg, ParseResult},
     parser::shell_error::ShellErrorKind,
     shell::{
         stream::{OutputStream, ValueStream},
@@ -13,7 +13,7 @@ use crate::{
 static APP: Lazy<App> = Lazy::new(|| {
     App::new("exit")
         .about("Exit the shell")
-        .arg(Arg::new("status", Type::INT).help("The exit status of the shell"))
+        .arg(Arg::new("STATUS", Type::INT).help("The exit status of the shell"))
 });
 
 pub fn exit(
@@ -23,19 +23,15 @@ pub fn exit(
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
     let matches = match APP.parse(args.into_iter()) {
-        Ok(m) => m,
-        Err(e) => match e.error {
-            ParseErrorKind::Help(m) => {
-                output.push(m);
-                return Ok(());
-            }
-            _ => return Err(e.into()),
-        },
+        Ok(ParseResult::Matches(m)) => m,
+        Ok(ParseResult::Info(info)) => {
+            output.push(info);
+            return Ok(());
+        }
+        Err(e) => return Err(e.into()),
     };
 
-    let status = matches
-        .value(&String::from("status"))
-        .unwrap_or(&Value::Int(0));
+    let status = matches.value("STATUS").unwrap_or(&Value::Int(0));
     shell.exit_status = status.unwrap_int();
 
     shell.running = false;

@@ -38,8 +38,8 @@ impl Literal {
         output: &mut OutputStream,
     ) -> Result<Value, ShellErrorKind> {
         match self {
-            Literal::String(string) => Ok(Value::String(Rc::new(string.to_string()))),
-            Literal::Expand(expand) => Ok(Value::String(Rc::new(expand.eval(shell, output)?))),
+            Literal::String(string) => Ok(Value::from(string.to_string())),
+            Literal::Expand(expand) => Ok(Value::from(expand.eval(shell, output)?)),
             Literal::List(list) => {
                 let mut values: Vec<Value> = Vec::new();
                 let mut is_table = true;
@@ -57,9 +57,9 @@ impl Literal {
                     for value in values {
                         table.insert_map(Rc::unwrap_or_clone(value.unwrap_map()));
                     }
-                    Ok(Value::Table(Rc::new(table)))
+                    Ok(Value::from(table))
                 } else {
-                    Ok(Value::List(Rc::new(values)))
+                    Ok(Value::from(values))
                 }
             }
             Literal::Map(exprs) => {

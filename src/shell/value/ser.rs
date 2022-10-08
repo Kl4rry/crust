@@ -37,17 +37,15 @@ impl Serialize for Value {
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
-
     use super::*;
 
     #[test]
     fn json_test() {
         assert_eq!(&serde_json::to_string(&Value::Int(69)).unwrap(), "69");
-        assert!(serde_json::to_string(&Value::List(Rc::new(vec![
+        assert!(serde_json::to_string(&Value::from(vec![
             Value::Int(1),
-            Value::String(Rc::new(String::from("oofers")))
-        ])))
+            Value::from(String::from("oofers"))
+        ]))
         .is_ok());
     }
 }

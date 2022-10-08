@@ -10,6 +10,7 @@ use std::{
     rc::Rc,
 };
 
+use crossterm::style::Stylize;
 use unicode_width::UnicodeWidthStr;
 use yansi::Paint;
 
@@ -31,6 +32,8 @@ pub struct App {
     args: Vec<Arg>,
     options: Vec<Opt>,
     flags: Vec<Flag>,
+    author: Option<String>,
+    version: Option<String>,
 }
 
 impl App {
@@ -43,6 +46,8 @@ impl App {
             args: Vec::new(),
             options: Vec::new(),
             flags: Vec::new(),
+            author: None,
+            version: None,
         }
     }
 
@@ -94,6 +99,16 @@ impl App {
         self
     }
 
+    pub fn author(mut self, author: &str) -> Self {
+        self.author = Some(author.to_string());
+        self
+    }
+
+    pub fn version(mut self, version: &str) -> Self {
+        self.version = Some(version.to_string());
+        self
+    }
+
     fn validate_naming(&self, name: &str, long: Option<&str>, short: Option<char>) -> bool {
         if long.is_none() && short.is_none() {
             return true;
@@ -119,7 +134,11 @@ impl App {
             return true;
         }
 
-        if short == Some('h') || short == Some('-') || long == Some("help") {
+        if short == Some('h')
+            || short == Some('-')
+            || long == Some("help")
+            || long == Some("version")
+        {
             return true;
         }
 
@@ -171,6 +190,15 @@ impl App {
         let mut output = String::new();
 
         {
+            write!(output, "{}", self.name.clone().green()).unwrap();
+            if let Some(ref version) = self.version {
+                write!(output, " {}", version).unwrap();
+            }
+            writeln!(output).unwrap();
+            if let Some(ref author) = self.author {
+                writeln!(output, "{}", author).unwrap();
+            }
+
             writeln!(output, "{}\n", self.about).unwrap();
             write!(output, "{}", self.usage()).unwrap();
             writeln!(output).unwrap();
@@ -204,6 +232,11 @@ impl App {
 
             strs.push(String::from("-h, --help"));
             helps.push("Display this help message");
+            if self.version.is_some() {
+                strs.push(String::from("-v, --version"));
+                helps.push("Print version info");
+            }
+
             // safe because we just pushed something to strs
             width = cmp::max(width, unsafe { strs.last().unwrap_unchecked() }.width());
 
@@ -283,18 +316,23 @@ impl App {
         output
     }
 
-    pub fn parse(&self, args: impl Iterator<Item = Value>) -> Result<Matches, ParseError> {
+    pub fn parse(&self, args: impl Iterator<Item = Value>) -> Result<ParseResult, ParseError> {
         let parser = Parser::new(self, args);
         parser.parse().map_err(|e| ParseError::new(self, e))
     }
 }
 
+pub enum ParseResult {
+    Info(Value),
+    Matches(Matches),
+}
+
 #[derive(Debug)]
 pub enum ParseErrorKind {
-    Help(Value),
     MissingArgs(Vec<String>),
     InvalidInContext(String),
     TakesValue(String),
+    Conflicting(String, String),
     WrongType {
         name: String,
         expected: Type,
@@ -305,7 +343,10 @@ pub enum ParseErrorKind {
 impl fmt::Display for ParseErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Help(s) => write!(f, "{}", s),
+            Self::Conflicting(arg1, arg2) => write!(
+                f,
+                "The argument '{arg1}' cannot be used with the argument '{arg2}'"
+            ),
             Self::MissingArgs(s) => write!(
                 f,
                 "The following required arguments were not provided:\n    {}",
@@ -348,11 +389,7 @@ impl ParseError {
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{}\n", self.error)?;
-        if !matches!(self.error, ParseErrorKind::Help(_)) {
-            writeln!(f, "{}\n", self.usage)?;
-        }
-        Ok(())
+        self.error.fmt(f)
     }
 }
 
@@ -379,7 +416,7 @@ where
         }
     }
 
-    fn parse(mut self) -> Result<Matches, ParseErrorKind> {
+    fn parse(mut self) -> Result<ParseResult, ParseErrorKind> {
         while let Some(arg) = self.args.peek() {
             if let Value::String(arg) = arg {
                 if arg.is_empty() {
@@ -406,9 +443,11 @@ where
                                     bytes.extend(arg_iter);
                                     let long = unsafe { String::from_utf8_unchecked(bytes) };
                                     if long == "help" {
-                                        return Err(ParseErrorKind::Help(Value::String(Rc::new(
-                                            self.app.help(),
-                                        ))));
+                                        return Ok(ParseResult::Info(Value::from(self.app.help())));
+                                    } else if long == "version" && self.app.version.is_some() {
+                                        return Ok(ParseResult::Info(Value::from(
+                                            self.app.version.clone().unwrap(),
+                                        )));
                                     } else if let Some(opt) = self
                                         .app
                                         .options
@@ -437,7 +476,9 @@ where
                             }
                         },
                         Some(_) => {
-                            self.parse_short()?;
+                            if let Some(value) = self.parse_short()? {
+                                return Ok(ParseResult::Info(value));
+                            }
                             continue;
                         }
                         None => {
@@ -465,6 +506,45 @@ where
 
         if !missing_args.is_empty() {
             return Err(ParseErrorKind::MissingArgs(missing_args));
+        }
+
+        for arg in &self.app.args {
+            if !arg.conflicts.is_empty() && self.matches.conatins(&arg.name) {
+                for conflict in &arg.conflicts {
+                    if self.matches.conatins(conflict) {
+                        return Err(ParseErrorKind::Conflicting(
+                            arg.name.clone(),
+                            conflict.clone(),
+                        ));
+                    }
+                }
+            }
+        }
+
+        for option in &self.app.options {
+            if !option.conflicts.is_empty() && self.matches.conatins(&option.name) {
+                for conflict in &option.conflicts {
+                    if self.matches.conatins(conflict) {
+                        return Err(ParseErrorKind::Conflicting(
+                            option.name.clone(),
+                            conflict.clone(),
+                        ));
+                    }
+                }
+            }
+        }
+
+        for flag in &self.app.flags {
+            if !flag.conflicts.is_empty() && self.matches.conatins(&flag.name) {
+                for conflict in &flag.conflicts {
+                    if self.matches.conatins(conflict) {
+                        return Err(ParseErrorKind::Conflicting(
+                            flag.name.clone(),
+                            conflict.clone(),
+                        ));
+                    }
+                }
+            }
         }
 
         // This typecheck impl is quite lazy
@@ -498,10 +578,10 @@ where
         }
 
         let Parser { matches, .. } = self;
-        Ok(matches)
+        Ok(ParseResult::Matches(matches))
     }
 
-    fn parse_short(&mut self) -> Result<(), ParseErrorKind> {
+    fn parse_short(&mut self) -> Result<Option<Value>, ParseErrorKind> {
         let slice = &self.args.next().unwrap().unwrap_string()[1..];
         let mut chars = slice.chars();
         while let Some(c) = chars.next() {
@@ -510,9 +590,10 @@ where
             }
 
             if c == 'h' {
-                return Err(ParseErrorKind::Help(Value::String(Rc::new(
-                    self.app.help(),
-                ))));
+                return Ok(Some(Value::from(self.app.help())));
+            }
+            if c == 'v' && self.app.version.is_some() {
+                return Ok(Some(Value::from(self.app.version.clone().unwrap())));
             } else if let Some(option) = self.app.options.iter().find(|o| o.short == Some(c)) {
                 let rest: String = chars.collect();
 
@@ -543,7 +624,7 @@ where
                 return Err(ParseErrorKind::InvalidInContext(String::from(c)));
             }
         }
-        Ok(())
+        Ok(None)
     }
 
     fn parse_option(&mut self, option: &Opt) -> Result<(), ParseErrorKind> {
@@ -644,29 +725,42 @@ pub struct ArgMatch {
     occurs: usize,
 }
 
+impl ArgMatch {
+    pub fn iter(&self) -> impl Iterator<Item = &Value> {
+        self.values.iter()
+    }
+}
+
 #[derive(Default, Debug)]
 pub struct Matches {
     args: HashMap<String, ArgMatch>,
 }
 
 impl Matches {
-    pub fn get(&self, key: &String) -> Option<&ArgMatch> {
+    pub fn get(&self, key: &str) -> Option<&ArgMatch> {
         self.args.get(key)
     }
 
-    pub fn conatins(&self, key: &String) -> bool {
+    pub fn get_str(&self, key: &str) -> Option<&str> {
+        match self.value(key)? {
+            Value::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn conatins(&self, key: &str) -> bool {
         self.get(key).is_some()
     }
 
-    pub fn value(&self, key: &String) -> Option<&Value> {
+    pub fn value(&self, key: &str) -> Option<&Value> {
         self.args.get(key).map(|a| &a.values[0])
     }
 
-    pub fn occurences(&self, key: &String) -> usize {
+    pub fn occurences(&self, key: &str) -> usize {
         self.args.get(key).map(|a| a.occurs).unwrap_or_default()
     }
 
-    pub fn take_value(&mut self, key: &String) -> Option<Value> {
+    pub fn take_value(&mut self, key: &str) -> Option<Value> {
         match self.args.get_mut(key) {
             Some(arg) => arg.values.pop_front(),
             None => None,

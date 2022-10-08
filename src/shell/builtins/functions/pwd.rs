@@ -1,9 +1,7 @@
-use std::rc::Rc;
-
 use once_cell::sync::Lazy;
 
 use crate::{
-    argparse::{App, ParseErrorKind},
+    argparse::{App, ParseResult},
     parser::shell_error::ShellErrorKind,
     shell::{
         current_dir_str,
@@ -21,17 +19,15 @@ pub fn pwd(
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
     let _ = match APP.parse(args.into_iter()) {
-        Ok(m) => m,
-        Err(e) => match e.error {
-            ParseErrorKind::Help(m) => {
-                output.push(m);
-                return Ok(());
-            }
-            _ => return Err(e.into()),
-        },
+        Ok(ParseResult::Matches(m)) => m,
+        Ok(ParseResult::Info(info)) => {
+            output.push(info);
+            return Ok(());
+        }
+        Err(e) => return Err(e.into()),
     };
 
-    output.push(Value::String(Rc::new(current_dir_str())));
+    output.push(Value::from(current_dir_str()));
 
     Ok(())
 }

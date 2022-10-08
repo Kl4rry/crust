@@ -3,7 +3,7 @@ use std::rc::Rc;
 use once_cell::sync::Lazy;
 
 use crate::{
-    argparse::{App, Arg, ParseErrorKind},
+    argparse::{App, Arg, ParseResult},
     parser::shell_error::ShellErrorKind,
     shell::{
         stream::{OutputStream, ValueStream},
@@ -16,12 +16,12 @@ static APP: Lazy<App> = Lazy::new(|| {
     App::new("alias")
         .about("Set alias")
         .arg(
-            Arg::new("name", Type::STRING)
+            Arg::new("NAME", Type::STRING)
                 .help("Name of the alias")
                 .required(true),
         )
         .arg(
-            Arg::new("command", Type::STRING)
+            Arg::new("COMMAND", Type::STRING)
                 .help("The command that will be run")
                 .required(true),
         )
@@ -34,30 +34,22 @@ pub fn alias(
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
     let mut matches = match APP.parse(args.into_iter()) {
-        Ok(m) => m,
-        Err(e) => match e.error {
-            ParseErrorKind::Help(m) => {
-                output.push(m);
-                return Ok(());
-            }
-            _ => return Err(e.into()),
-        },
+        Ok(ParseResult::Matches(m)) => m,
+        Ok(ParseResult::Info(info)) => {
+            output.push(info);
+            return Ok(());
+        }
+        Err(e) => return Err(e.into()),
     };
 
-    let name = matches
-        .take_value(&String::from("name"))
-        .unwrap()
-        .unwrap_string();
-    let command = matches
-        .take_value(&String::from("command"))
-        .unwrap()
-        .unwrap_string();
+    let name = matches.take_value("NAME").unwrap().unwrap_string();
+    let command = matches.take_value("COMMAND").unwrap().unwrap_string();
 
     if name.is_empty() {
         return Err(ShellErrorKind::Basic(
             "Alias Error",
             format!(
-                "alias [name] must be atleast one character long\n\n{}",
+                "alias [NAME] must be atleast one character long\n\n{}",
                 APP.usage()
             ),
         ));
@@ -67,16 +59,17 @@ pub fn alias(
         return Err(ShellErrorKind::Basic(
             "Alias Error",
             format!(
-                "alias [command] must be atleast one character long\n\n{}",
+                "alias [COMMAND] must be atleast one character long\n\n{}",
                 APP.usage()
             ),
         ));
     }
 
+    // TODO this should reject anything with a word break char in
     if name.chars().any(|c| c.is_whitespace()) {
         return Err(ShellErrorKind::Basic(
             "Alias Error",
-            format!("alias [name] cannot contain whitespace\n\n{}", APP.usage()),
+            format!("alias [NAME] cannot contain whitespace\n\n{}", APP.usage()),
         ));
     }
 

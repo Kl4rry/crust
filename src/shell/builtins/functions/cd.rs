@@ -3,7 +3,7 @@ use std::{path::Path, rc::Rc};
 use once_cell::sync::Lazy;
 
 use crate::{
-    argparse::{App, Arg, ParseErrorKind},
+    argparse::{App, Arg, ParseResult},
     parser::shell_error::ShellErrorKind,
     shell::{
         stream::{OutputStream, ValueStream},
@@ -15,7 +15,7 @@ use crate::{
 static APP: Lazy<App> = Lazy::new(|| {
     App::new("cd")
         .about("Change working directory")
-        .arg(Arg::new("directory", Type::STRING).help("The new working directory"))
+        .arg(Arg::new("DIRECTORY", Type::STRING).help("The new working directory"))
 });
 
 pub fn cd(
@@ -25,17 +25,15 @@ pub fn cd(
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
     let mut matches = match APP.parse(args.into_iter()) {
-        Ok(m) => m,
-        Err(e) => match e.error {
-            ParseErrorKind::Help(m) => {
-                output.push(m);
-                return Ok(());
-            }
-            _ => return Err(e.into()),
-        },
+        Ok(ParseResult::Matches(m)) => m,
+        Ok(ParseResult::Info(info)) => {
+            output.push(info);
+            return Ok(());
+        }
+        Err(e) => return Err(e.into()),
     };
 
-    let dir = match matches.take_value(&String::from("directory")) {
+    let dir = match matches.take_value("DIRECTORY") {
         Some(value) => value.unwrap_string(),
         None => Rc::new(shell.home_dir().to_string_lossy().to_string()),
     };

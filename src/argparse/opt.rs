@@ -11,6 +11,7 @@ pub struct Opt {
     pub(super) value: Type,
     pub(super) required: bool,
     pub(super) multiple: bool,
+    pub(super) conflicts: Vec<String>,
 }
 
 impl Opt {
@@ -23,6 +24,7 @@ impl Opt {
             value,
             required: false,
             multiple: false,
+            conflicts: Vec::new(),
         }
     }
 
@@ -55,6 +57,11 @@ impl Opt {
 
     pub fn short(mut self, c: char) -> Self {
         self.short = Some(c);
+        self
+    }
+
+    pub fn conflicts_with(mut self, conflict: String) -> Self {
+        self.conflicts.push(conflict);
         self
     }
 }

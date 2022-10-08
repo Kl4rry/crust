@@ -51,16 +51,23 @@ impl fmt::Display for Value {
                 format::format_columns(f, map.iter())
             }
             Self::Table(table) => table.fmt(f),
-            Self::Range(range) => {
-                for i in (**range).clone() {
-                    i.fmt(f)?;
-                }
-                Ok(())
-            }
+            Self::Range(range) => format::format_columns(
+                f,
+                (**range)
+                    .clone()
+                    .map(Paint::green)
+                    .zip((**range).clone().map(Value::from)),
+            ),
             Self::Bool(boolean) => boolean.fmt(f),
             Self::Regex(regex) => Paint::blue(format!("/{}/", &regex.1)).fmt(f),
             _ => Ok(()),
         }
+    }
+}
+
+impl AsRef<Value> for Value {
+    fn as_ref(&self) -> &Value {
+        self
     }
 }
 
@@ -138,7 +145,7 @@ impl Value {
             Self::List(list) => format!("[list with {} items]", list.len()),
             Self::Map(map) => format!("[map with {} entries]", map.len()),
             Self::Table(table) => format!("[table with {} rows]", table.len()),
-            Self::Range(range) => format!("[range from {} to {}]]", range.start, range.end),
+            Self::Range(range) => format!("[range from {} to {}]", range.start, range.end),
             Self::Bool(boolean) => Paint::yellow(boolean).to_string(),
             Self::Regex(regex) => Paint::blue(&regex.1).to_string(),
         }
@@ -287,7 +294,7 @@ impl Value {
                     for _ in 0..number {
                         new.push_str(&string);
                     }
-                    Ok(Value::String(Rc::new(new)))
+                    Ok(Value::from(new))
                 }
                 Value::List(list) => {
                     if list.is_empty() {
@@ -298,7 +305,7 @@ impl Value {
                     for _ in 0..number {
                         new.extend_from_slice(&list);
                     }
-                    Ok(Value::List(Rc::new(new)))
+                    Ok(Value::from(new))
                 }
                 _ => Err(ShellErrorKind::InvalidBinaryOperand(
                     BinOp::Mul,
@@ -322,7 +329,7 @@ impl Value {
                     for _ in 0..boolean as u8 {
                         new.push_str(&string);
                     }
-                    Ok(Value::String(Rc::new(new)))
+                    Ok(Value::from(new))
                 }
                 _ => Err(ShellErrorKind::InvalidBinaryOperand(
                     BinOp::Mul,
@@ -349,7 +356,7 @@ impl Value {
                 for _ in 0..mul {
                     new.push_str(&string);
                 }
-                Ok(Value::String(Rc::new(new)))
+                Ok(Value::from(new))
             }
             Value::List(list) => {
                 if list.is_empty() {
@@ -368,14 +375,14 @@ impl Value {
                 };
 
                 if list.is_empty() {
-                    return Ok(Value::List(Rc::new(Vec::new())));
+                    return Ok(Value::from(Vec::new()));
                 }
 
                 let mut new = Vec::new();
                 for _ in 0..mul {
                     new.extend_from_slice(&list);
                 }
-                Ok(Value::List(Rc::new(new)))
+                Ok(Value::from(new))
             }
             _ => Err(ShellErrorKind::InvalidBinaryOperand(
                 BinOp::Mul,
@@ -621,6 +628,16 @@ impl Value {
         }
     }
 
+    pub fn unwrap_as_str(&self) -> &str {
+        match self {
+            Self::String(s) => s,
+            _ => panic!(
+                "called `Value::unwrap_as_str()` on a `{}` value",
+                self.to_type()
+            ),
+        }
+    }
+
     pub fn unwrap_int(&self) -> i64 {
         match self {
             Self::Int(s) => *s,
@@ -667,5 +684,53 @@ impl Value {
             Value::Float(number) if *number == 0.0 => true,
             _ => false,
         }
+    }
+}
+
+impl From<String> for Value {
+    fn from(value: String) -> Self {
+        Value::String(Rc::new(value))
+    }
+}
+
+impl From<IndexMap<String, Value>> for Value {
+    fn from(value: IndexMap<String, Value>) -> Self {
+        Value::Map(Rc::new(value))
+    }
+}
+
+impl From<Vec<Value>> for Value {
+    fn from(value: Vec<Value>) -> Self {
+        Value::List(Rc::new(value))
+    }
+}
+
+impl From<Table> for Value {
+    fn from(value: Table) -> Self {
+        Value::Table(Rc::new(value))
+    }
+}
+
+impl From<Range<i64>> for Value {
+    fn from(value: Range<i64>) -> Self {
+        Value::Range(Rc::new(value))
+    }
+}
+
+impl From<i64> for Value {
+    fn from(value: i64) -> Self {
+        Value::Int(value)
+    }
+}
+
+impl From<f64> for Value {
+    fn from(value: f64) -> Self {
+        Value::Float(value)
+    }
+}
+
+impl From<bool> for Value {
+    fn from(value: bool) -> Self {
+        Value::Bool(value)
     }
 }

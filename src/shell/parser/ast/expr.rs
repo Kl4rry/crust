@@ -128,7 +128,7 @@ impl Expr {
                         Some(value) => Ok(value.clone()),
                         None => Err(ShellErrorKind::ColumnNotFound(col.to_string())),
                     },
-                    Value::Table(table) => Ok(Value::List(Rc::new(table.column(col)?))),
+                    Value::Table(table) => Ok(Value::from(table.column(col)?)),
                     _ => Err(ShellErrorKind::NoColumns(value.to_type())),
                 }
             }
@@ -140,13 +140,13 @@ impl Expr {
                     Value::List(list) => {
                         Ok(list.get(index.try_as_index(list.len())?).unwrap().clone())
                     }
-                    Value::Table(table) => Ok(Value::Map(Rc::new(
-                        table.row(index.try_as_index(table.len())?)?,
-                    ))),
+                    Value::Table(table) => {
+                        Ok(Value::from(table.row(index.try_as_index(table.len())?)?))
+                    }
                     Value::String(string) => {
                         let chars: Vec<char> = string.chars().collect();
                         let c = chars[index.try_as_index(chars.len())?];
-                        Ok(Value::String(Rc::new(String::from(c))))
+                        Ok(Value::from(String::from(c)))
                     }
                     _ => Err(ShellErrorKind::NotIndexable(value.to_type())),
                 }
@@ -196,7 +196,7 @@ impl Expr {
                     unsafe {
                         let lhs = lhs.unwrap_unchecked();
                         let rhs = rhs.unwrap_unchecked();
-                        Ok(Value::Range(Rc::new(lhs..rhs)))
+                        Ok(Value::from(lhs..rhs))
                     }
                 }
                 BinOp::Add => {
@@ -307,7 +307,7 @@ impl Expr {
                                 mem::swap(&mut capture_output, &mut stream);
                                 stream.into_value_stream()
                             } else {
-                                let value = Value::String(Rc::new(
+                                let value = Value::from(
                                     run_pipeline(
                                         shell,
                                         execs,
@@ -316,7 +316,7 @@ impl Expr {
                                     )?
                                     .unwrap()
                                     .to_string(),
-                                ));
+                                );
                                 capture_output = OutputStream::new_capture();
                                 execs = Vec::new();
                                 ValueStream::from_value(value)
@@ -336,7 +336,7 @@ impl Expr {
                                 mem::swap(&mut capture_output, &mut stream);
                                 stream.into_value_stream()
                             } else {
-                                let value = Value::String(Rc::new(
+                                let value = Value::from(
                                     run_pipeline(
                                         shell,
                                         execs,
@@ -345,7 +345,7 @@ impl Expr {
                                     )?
                                     .unwrap()
                                     .to_string(),
-                                ));
+                                );
                                 capture_output = OutputStream::new_capture();
                                 execs = Vec::new();
                                 ValueStream::from_value(value)
@@ -536,9 +536,7 @@ fn expand_call(
     if let Some(alias) = shell.aliases.get(&command) {
         let mut split = alias.split_whitespace();
         command = split.next().unwrap().to_string();
-        let mut args: Vec<_> = split
-            .map(|s| Value::String(Rc::new(s.to_string())))
-            .collect();
+        let mut args: Vec<_> = split.map(|s| Value::from(s.to_string())).collect();
         args.extend(expanded_args.into_iter());
         expanded_args = args;
     }
