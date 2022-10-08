@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     fs::{self, OpenOptions},
-    io::{stdout, Write},
+    io::Write,
     path::{Path, PathBuf},
     rc::Rc,
     sync::{
@@ -139,6 +139,8 @@ impl Shell {
             config_path.to_string_lossy().to_string(),
             &mut OutputStream::new_output(),
         );
+        // This makes sure that the output from the config script is flushed.
+        println!();
         Ok(())
     }
 
@@ -157,9 +159,6 @@ impl Shell {
     }
 
     pub fn run(mut self) -> Result<i64, ShellErrorKind> {
-        let _ = write!(stdout(), "{}", ansi_escapes::ClearScreen);
-        let _ = stdout().flush();
-
         let term = Term::stdout();
         while self.running {
             self.interrupt.store(false, Ordering::SeqCst);

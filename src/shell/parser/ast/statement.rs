@@ -210,13 +210,9 @@ impl Statement {
                         block,
                         output,
                     ),
-                    Value::Table(table) => for_loop(
-                        shell,
-                        table.iter().map(|m| Value::from(m)),
-                        &name,
-                        block,
-                        output,
-                    ),
+                    Value::Table(table) => {
+                        for_loop(shell, table.iter().map(Value::from), &name, block, output)
+                    }
                     _ => Err(ShellErrorKind::InvalidIterator(value.to_type())),
                 }
             }
