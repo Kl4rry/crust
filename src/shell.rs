@@ -134,13 +134,13 @@ impl Shell {
 
         let config = std::fs::read_to_string(&config_path)
             .map_err(|e| ShellErrorKind::Io(Some(config_path.to_path_buf()), e))?;
+        let mut output = OutputStream::new_output();
         self.run_src(
             config,
             config_path.to_string_lossy().to_string(),
-            &mut OutputStream::new_output(),
+            &mut output,
         );
-        // This makes sure that the output from the config script is flushed.
-        println!();
+        output.end();
         Ok(())
     }
 
@@ -176,6 +176,8 @@ impl Shell {
             let stripped =
                 console::strip_ansi_codes(&self.editor.helper_mut().unwrap().prompt).to_string();
 
+            let mut output = OutputStream::new_output();
+
             let readline = self.editor.readline(&stripped);
             match readline {
                 Ok(line) => {
@@ -185,7 +187,7 @@ impl Shell {
 
                     self.editor.add_history_entry(&line);
                     self.save_history();
-                    self.run_src(line, String::from("shell"), &mut OutputStream::new_output());
+                    self.run_src(line, String::from("shell"), &mut output);
                 }
                 Err(ReadlineError::Interrupted) => {
                     println!("{}", Paint::red("^C"));
@@ -199,6 +201,7 @@ impl Shell {
                     break;
                 }
             }
+            output.end();
             if let Ok((x, _)) = crossterm::cursor::position() {
                 if x != 0 {
                     println!();

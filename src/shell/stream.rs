@@ -1,4 +1,9 @@
-use std::{fmt, io::Write, slice};
+use std::{
+    fmt,
+    io::{stdout, Write},
+    rc::Rc,
+    slice,
+};
 
 use super::value::Value;
 
@@ -58,7 +63,7 @@ impl ValueStream {
         } else if self.values.len() == 1 {
             self.values.pop().unwrap()
         } else {
-            Value::from(self.values)
+            Value::List(Rc::new(self.values))
         }
     }
 }
@@ -98,7 +103,7 @@ impl OutputStream {
 
     pub fn new_output() -> Self {
         Self {
-            inner: InnerStream::Output,
+            inner: InnerStream::Output(false),
         }
     }
 
@@ -107,9 +112,10 @@ impl OutputStream {
             Value::Null => (),
             value => match &mut self.inner {
                 InnerStream::Capture(values) => values.push(value),
-                InnerStream::Output => {
+                InnerStream::Output(outputs) => {
+                    *outputs = true;
                     print!("{}", value);
-                    let _ = std::io::stdout().flush();
+                    let _ = stdout().flush();
                 }
             },
         }
@@ -118,9 +124,26 @@ impl OutputStream {
     pub fn push_value_stream(&mut self, stream: ValueStream) {
         match &mut self.inner {
             InnerStream::Capture(values) => values.extend(stream.into_iter()),
-            InnerStream::Output => {
+            InnerStream::Output(outputs) => {
+                *outputs = true;
                 print!("{}", stream);
-                let _ = std::io::stdout().flush();
+                stdout().flush().unwrap();
+            }
+        }
+    }
+
+    pub fn end(&mut self) {
+        match &mut self.inner {
+            InnerStream::Capture(_) => panic!("cannot end capture stream"),
+            InnerStream::Output(output) => {
+                if *output {
+                    if let Ok((x, _)) = crossterm::cursor::position() {
+                        if x != 0 {
+                            println!();
+                        }
+                    }
+                }
+                *output = false;
             }
         }
     }
@@ -130,13 +153,13 @@ impl OutputStream {
     }
 
     pub fn is_output(&self) -> bool {
-        matches!(self.inner, InnerStream::Output)
+        matches!(self.inner, InnerStream::Output(_))
     }
 
     pub fn into_value_stream(self) -> ValueStream {
         match self.inner {
             InnerStream::Capture(values) => ValueStream::from_values(values),
-            InnerStream::Output => panic!("cannot convert output to value stream"),
+            InnerStream::Output(_) => panic!("cannot convert output to value stream"),
         }
     }
 }
@@ -155,5 +178,5 @@ impl fmt::Display for OutputStream {
 #[derive(Debug, Clone)]
 enum InnerStream {
     Capture(Vec<Value>),
-    Output,
+    Output(bool),
 }
