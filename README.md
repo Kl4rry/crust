@@ -77,8 +77,6 @@ Switch to lexical from dynamic scopes.
 Allow comments in strings.  
 Update string literal be like format string.  
 Add span info to ast.  
-Use native path separator.  
-Improve completion and remove \\ as escape for tokens to allow native windows paths.  
 Add builtins and functions to help when calling unknown command.  
 Rework defing functions to use cli parser.  
 Add sub commands to cli parser.  
