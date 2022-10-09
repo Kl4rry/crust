@@ -1,5 +1,5 @@
 // This file contains a modded version of the rustyline file completer
-use std::{borrow::Cow, fs, path::Path, rc::Rc};
+use std::{borrow::Cow, cmp, fs, path::Path, rc::Rc};
 
 use directories::BaseDirs;
 use memchr::memchr;
@@ -104,13 +104,27 @@ impl FilenameCompleter {
         let mut matches = Vec::new();
         if start == 0 {
             matches.extend(command_complete(&path));
-            matches.sort_by_cached_key(|v| levenshtein_stripped(v.display(), &path));
         }
 
-        let mut file_matches = filename_complete(&path, esc_char, break_chars, quote);
-        #[allow(clippy::unnecessary_sort_by)]
-        file_matches.sort_by(|a, b| a.display().cmp(b.display()));
-        matches.extend(file_matches);
+        matches.extend(filename_complete(&path, esc_char, break_chars, quote));
+        matches.par_sort_by(|a, b| {
+            let start_a = a.display().starts_with(&*path);
+            let start_b = b.display().starts_with(&*path);
+            match start_b.cmp(&start_a) {
+                cmp::Ordering::Equal => {
+                    let leven_a = levenshtein_stripped(a.display(), &path);
+                    let leven_b = levenshtein_stripped(b.display(), &path);
+                    match leven_a.cmp(&leven_b) {
+                        cmp::Ordering::Equal => a.display().cmp(b.display()),
+                        ord => ord,
+                    }
+                }
+                ord => ord,
+            }
+        });
+
+        matches.dedup_by(|a, b| a.display() == b.display());
+
         Ok((start, matches))
     }
 }
