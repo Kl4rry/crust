@@ -29,6 +29,7 @@ static BUILTIN_VARS: phf::Map<&'static str, BulitinVar> = phf_map! {
     "pi" => pi,
     "tau" => tau,
     "epoch" => epoch,
+    "path_sep" => path_sep,
 };
 
 #[inline(always)]
@@ -137,4 +138,12 @@ pub fn epoch(_: &mut Shell) -> Value {
     let duration =
         since_the_epoch.as_secs() * 1000 + since_the_epoch.subsec_nanos() as u64 / 1_000_000;
     Value::from(duration as i64)
+}
+
+pub fn path_sep(_: &mut Shell) -> Value {
+    #[cfg(unix)]
+    let sep = '/';
+    #[cfg(windows)]
+    let sep = '\\';
+    Value::from(String::from(sep))
 }
