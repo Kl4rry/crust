@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, time, time::Duration};
 
 use phf::*;
 use rand::Rng;
@@ -27,8 +27,11 @@ static BUILTIN_VARS: phf::Map<&'static str, BulitinVar> = phf_map! {
     "config" => config,
     "args" => args,
     "pi" => pi,
+    "tau" => tau,
+    "epoch" => epoch,
 };
 
+#[inline(always)]
 pub fn get_var(shell: &mut Shell, name: &str) -> Option<Value> {
     BUILTIN_VARS.get(name).map(|var| var(shell))
 }
@@ -120,4 +123,18 @@ pub fn columns(_: &mut Shell) -> Value {
 
 pub fn pi(_: &mut Shell) -> Value {
     Value::Float(std::f64::consts::PI)
+}
+
+pub fn tau(_: &mut Shell) -> Value {
+    Value::Float(std::f64::consts::TAU)
+}
+
+pub fn epoch(_: &mut Shell) -> Value {
+    let start = time::SystemTime::now();
+    let since_the_epoch = start
+        .duration_since(time::UNIX_EPOCH)
+        .unwrap_or(Duration::ZERO);
+    let duration =
+        since_the_epoch.as_secs() * 1000 + since_the_epoch.subsec_nanos() as u64 / 1_000_000;
+    Value::from(duration as i64)
 }
