@@ -14,6 +14,7 @@ use crate::{
     },
     shell::{
         builtins::{self, functions::BulitinFn},
+        frame::Frame,
         stream::{OutputStream, ValueStream},
         value::{Type, Value},
         Shell,
@@ -115,6 +116,7 @@ impl Expr {
     pub fn eval(
         &self,
         shell: &mut Shell,
+        frame: &mut Frame,
         output: &mut OutputStream,
     ) -> Result<Value, ShellErrorKind> {
         match self {
@@ -122,7 +124,7 @@ impl Expr {
                 unreachable!("calls must always be in a pipeline, bare calls are not allowed")
             }
             Self::Column(expr, col) => {
-                let value = expr.eval(shell, output)?;
+                let value = expr.eval(shell, frame, output)?;
                 match value {
                     Value::Map(map) => match map.get(col) {
                         Some(value) => Ok(value.clone()),
@@ -133,9 +135,9 @@ impl Expr {
                 }
             }
             Self::Index { expr, index } => {
-                let value = expr.eval(shell, output)?;
-                let index = index.eval(shell, output)?;
-                // todo use cow here and just clone once
+                let value = expr.eval(shell, frame, output)?;
+                let index = index.eval(shell, frame, output)?;
+                // TODO use cow here and just clone once
                 match value {
                     Value::List(list) => {
                         Ok(list.get(index.try_as_index(list.len())?).unwrap().clone())
@@ -151,10 +153,10 @@ impl Expr {
                     _ => Err(ShellErrorKind::NotIndexable(value.to_type())),
                 }
             }
-            Self::Literal(literal) => literal.eval(shell, output),
-            Self::Variable(variable) => variable.eval(shell),
+            Self::Literal(literal) => literal.eval(shell, frame, output),
+            Self::Variable(variable) => variable.eval(shell, frame),
             Self::Unary(unop, expr) => {
-                let value = expr.eval(shell, output)?;
+                let value = expr.eval(shell, frame, output)?;
                 match unop {
                     UnOp::Neg => match &value {
                         Value::Int(int) => Ok(Value::Int(-*int)),
@@ -167,18 +169,18 @@ impl Expr {
             }
             Self::Binary(binop, lhs, rhs) => match binop {
                 BinOp::Match => {
-                    let lhs = lhs.eval(shell, output)?;
-                    let rhs = rhs.eval(shell, output)?;
+                    let lhs = lhs.eval(shell, frame, output)?;
+                    let rhs = rhs.eval(shell, frame, output)?;
                     Ok(Value::Bool(lhs.try_match(rhs)?))
                 }
                 BinOp::NotMatch => {
-                    let lhs = lhs.eval(shell, output)?;
-                    let rhs = rhs.eval(shell, output)?;
+                    let lhs = lhs.eval(shell, frame, output)?;
+                    let rhs = rhs.eval(shell, frame, output)?;
                     Ok(Value::Bool(!lhs.try_match(rhs)?))
                 }
                 BinOp::Range => {
-                    let lhs_value = lhs.eval(shell, output)?;
-                    let rhs_value = rhs.eval(shell, output)?;
+                    let lhs_value = lhs.eval(shell, frame, output)?;
+                    let rhs_value = rhs.eval(shell, frame, output)?;
 
                     let lhs = lhs_value.try_as_int();
                     let rhs = rhs_value.try_as_int();
@@ -200,45 +202,45 @@ impl Expr {
                     }
                 }
                 BinOp::Add => {
-                    let lhs = lhs.eval(shell, output)?;
-                    let rhs = rhs.eval(shell, output)?;
+                    let lhs = lhs.eval(shell, frame, output)?;
+                    let rhs = rhs.eval(shell, frame, output)?;
                     lhs.try_add(rhs)
                 }
                 BinOp::Sub => {
-                    let lhs = lhs.eval(shell, output)?;
-                    let rhs = rhs.eval(shell, output)?;
+                    let lhs = lhs.eval(shell, frame, output)?;
+                    let rhs = rhs.eval(shell, frame, output)?;
                     lhs.try_sub(rhs)
                 }
                 BinOp::Mul => {
-                    let lhs = lhs.eval(shell, output)?;
-                    let rhs = rhs.eval(shell, output)?;
+                    let lhs = lhs.eval(shell, frame, output)?;
+                    let rhs = rhs.eval(shell, frame, output)?;
                     lhs.try_mul(rhs)
                 }
                 BinOp::Div => {
-                    let lhs = lhs.eval(shell, output)?;
-                    let rhs = rhs.eval(shell, output)?;
+                    let lhs = lhs.eval(shell, frame, output)?;
+                    let rhs = rhs.eval(shell, frame, output)?;
                     lhs.try_div(rhs)
                 }
                 BinOp::Expo => {
-                    let lhs = lhs.eval(shell, output)?;
-                    let rhs = rhs.eval(shell, output)?;
+                    let lhs = lhs.eval(shell, frame, output)?;
+                    let rhs = rhs.eval(shell, frame, output)?;
                     lhs.try_expo(rhs)
                 }
                 BinOp::Mod => {
-                    let lhs = lhs.eval(shell, output)?;
-                    let rhs = rhs.eval(shell, output)?;
+                    let lhs = lhs.eval(shell, frame, output)?;
+                    let rhs = rhs.eval(shell, frame, output)?;
                     lhs.try_mod(rhs)
                 }
                 // The == operator (equality)
                 BinOp::Eq => {
-                    let lhs = lhs.eval(shell, output)?;
-                    let rhs = rhs.eval(shell, output)?;
+                    let lhs = lhs.eval(shell, frame, output)?;
+                    let rhs = rhs.eval(shell, frame, output)?;
                     Ok(Value::Bool(lhs == rhs))
                 }
                 // The != operator (not equal to)
                 BinOp::Ne => {
-                    let lhs = lhs.eval(shell, output)?;
-                    let rhs = rhs.eval(shell, output)?;
+                    let lhs = lhs.eval(shell, frame, output)?;
+                    let rhs = rhs.eval(shell, frame, output)?;
                     Ok(Value::Bool(lhs != rhs))
                 }
 
@@ -247,48 +249,50 @@ impl Expr {
 
                 // The < operator (less than)
                 BinOp::Lt => {
-                    let lhs = lhs.eval(shell, output)?;
-                    let rhs = rhs.eval(shell, output)?;
+                    let lhs = lhs.eval(shell, frame, output)?;
+                    let rhs = rhs.eval(shell, frame, output)?;
                     compare_impl!(lhs, rhs, *binop, <)
                 }
                 // The <= operator (less than or equal to)
                 BinOp::Le => {
-                    let lhs = lhs.eval(shell, output)?;
-                    let rhs = rhs.eval(shell, output)?;
+                    let lhs = lhs.eval(shell, frame, output)?;
+                    let rhs = rhs.eval(shell, frame, output)?;
                     compare_impl!(lhs, rhs, *binop, <=)
                 }
                 // The >= operator (greater than or equal to)
                 BinOp::Ge => {
-                    let lhs = lhs.eval(shell, output)?;
-                    let rhs = rhs.eval(shell, output)?;
+                    let lhs = lhs.eval(shell, frame, output)?;
+                    let rhs = rhs.eval(shell, frame, output)?;
                     compare_impl!(lhs, rhs, *binop, >=)
                 }
                 // The > operator (greater than)
                 BinOp::Gt => {
-                    let lhs = lhs.eval(shell, output)?;
-                    let rhs = rhs.eval(shell, output)?;
+                    let lhs = lhs.eval(shell, frame, output)?;
+                    let rhs = rhs.eval(shell, frame, output)?;
                     compare_impl!(lhs, rhs, *binop, >)
                 }
                 BinOp::And => Ok(Value::Bool(
-                    lhs.eval(shell, output)?.truthy() && rhs.eval(shell, output)?.truthy(),
+                    lhs.eval(shell, frame, output)?.truthy()
+                        && rhs.eval(shell, frame, output)?.truthy(),
                 )),
                 BinOp::Or => Ok(Value::Bool(
-                    lhs.eval(shell, output)?.truthy() || rhs.eval(shell, output)?.truthy(),
+                    lhs.eval(shell, frame, output)?.truthy()
+                        || rhs.eval(shell, frame, output)?.truthy(),
                 )),
             },
             Self::Pipe(calls) => {
                 let mut calls = calls.iter().peekable();
                 let mut capture_output = OutputStream::new_capture();
                 if !matches!(calls.peek().unwrap(), Expr::Call(..)) {
-                    capture_output.push(calls.next().unwrap().eval(shell, output)?);
+                    capture_output.push(calls.next().unwrap().eval(shell, frame, output)?);
                 }
 
                 let mut expanded_calls = VecDeque::new();
                 for callable in calls {
                     match callable {
                         Self::Call(cmd, args) => {
-                            let (cmd, args) = expand_call(shell, cmd, args, output)?;
-                            expanded_calls.push_back(get_call_type(shell, cmd, args));
+                            let (cmd, args) = expand_call(shell, frame, cmd, args, output)?;
+                            expanded_calls.push_back(get_call_type(shell, frame, cmd, args));
                         }
                         _ => unreachable!(),
                     }
@@ -299,7 +303,7 @@ impl Expr {
                 while let Some(call_type) = expanded_calls.pop_front() {
                     match call_type {
                         CallType::External(exec, name) => {
-                            execs.push((exec, name));
+                            execs.push((*exec, name));
                         }
                         CallType::Builtin(builtin, args) => {
                             let stream = if execs.is_empty() {
@@ -310,6 +314,7 @@ impl Expr {
                                 let value = Value::from(
                                     run_pipeline(
                                         shell,
+                                        frame,
                                         execs,
                                         true,
                                         capture_output.into_value_stream(),
@@ -328,7 +333,7 @@ impl Expr {
                                 capture_output = OutputStream::new_capture();
                                 &mut capture_output
                             };
-                            builtin(shell, args, stream, temp_output_cap)?;
+                            builtin(shell, frame, args, stream, temp_output_cap)?;
                         }
                         CallType::Internal(func, args) => {
                             let stream = if execs.is_empty() {
@@ -339,6 +344,7 @@ impl Expr {
                                 let value = Value::from(
                                     run_pipeline(
                                         shell,
+                                        frame,
                                         execs,
                                         true,
                                         capture_output.into_value_stream(),
@@ -375,7 +381,13 @@ impl Expr {
                                 capture_output = OutputStream::new_capture();
                                 &mut capture_output
                             };
-                            block.eval(shell, Some(input_vars), Some(stream), temp_output_cap)?;
+                            block.eval(
+                                shell,
+                                frame.clone(),
+                                Some(input_vars),
+                                Some(stream),
+                                temp_output_cap,
+                            )?;
                         }
                     }
                 }
@@ -383,12 +395,24 @@ impl Expr {
                 if !execs.is_empty() {
                     if output.is_capture() {
                         let value = Value::String(Rc::new(
-                            run_pipeline(shell, execs, true, capture_output.into_value_stream())?
-                                .unwrap(),
+                            run_pipeline(
+                                shell,
+                                frame,
+                                execs,
+                                true,
+                                capture_output.into_value_stream(),
+                            )?
+                            .unwrap(),
                         ));
                         output.push(value);
                     } else {
-                        run_pipeline(shell, execs, false, capture_output.into_value_stream())?;
+                        run_pipeline(
+                            shell,
+                            frame,
+                            execs,
+                            false,
+                            capture_output.into_value_stream(),
+                        )?;
                     }
                 }
 
@@ -397,10 +421,10 @@ impl Expr {
             Self::SubExpr(expr) => {
                 if matches!(**expr, Self::Call { .. } | Self::Pipe { .. }) {
                     let mut capture = OutputStream::new_capture();
-                    expr.eval(shell, &mut capture)?;
+                    expr.eval(shell, frame, &mut capture)?;
                     Ok(capture.into_value_stream().unpack())
                 } else {
-                    expr.eval(shell, output)
+                    expr.eval(shell, frame, output)
                 }
             }
         }
@@ -409,6 +433,7 @@ impl Expr {
 
 fn run_pipeline(
     shell: &mut Shell,
+    frame: &mut Frame,
     mut execs: Vec<(Exec, String)>,
     capture_output: bool,
     input: ValueStream,
@@ -440,7 +465,7 @@ fn run_pipeline(
         Redirection::None
     };
 
-    let env = shell.env();
+    let env = frame.env();
     if execs.len() == 1 {
         let (exec, name) = if capture_output {
             let (exec, name) = execs.pop().unwrap();
@@ -469,7 +494,7 @@ fn run_pipeline(
         shell.set_child(None);
         res
     } else {
-        // todo this also need to be turned into a command not found error
+        // TODO this also need to be turned into a command not found error
         let execs = execs
             .into_iter()
             .map(|(exec, _)| exec.env_clear().env_extend(&env));
@@ -494,14 +519,14 @@ fn run_pipeline(
     }
 }
 
-fn get_call_type(shell: &Shell, cmd: String, args: Vec<Value>) -> CallType {
+fn get_call_type(shell: &Shell, frame: &mut Frame, cmd: String, args: Vec<Value>) -> CallType {
     if let Some(builtin) = builtins::functions::get_builtin(&cmd) {
         return CallType::Builtin(builtin, args);
     }
 
-    for frame in shell.stack.iter().rev() {
-        if let Some(func) = frame.functions.get(&cmd) {
-            return CallType::Internal(func.clone(), args);
+    for frame in frame.clone() {
+        if let Some(func) = frame.get_function(&cmd) {
+            return CallType::Internal(func, args);
         }
     }
 
@@ -510,27 +535,28 @@ fn get_call_type(shell: &Shell, cmd: String, args: Vec<Value>) -> CallType {
         None => cmd,
     };
 
-    // todo fix this stringification of args
+    // TODO fix this stringification of args
     // it should flatten arrays
     // and throw error when it cannot convert it to a string
     let args: Vec<_> = args.into_iter().map(|v| v.to_string()).collect();
-    CallType::External(Exec::cmd(cmd.clone()).args(&args), cmd)
+    CallType::External(P::new(Exec::cmd(cmd.clone()).args(&args)), cmd)
 }
 
 fn expand_call(
     shell: &mut Shell,
+    frame: &mut Frame,
     commandparts: &[CommandPart],
     args: &[Argument],
     output: &mut OutputStream,
 ) -> Result<(String, Vec<Value>), ShellErrorKind> {
     let mut expanded_args = Vec::new();
     for arg in args {
-        expanded_args.push(arg.eval(shell, output)?);
+        expanded_args.push(arg.eval(shell, frame, output)?);
     }
 
     let mut command = String::new();
     for part in commandparts.iter() {
-        command.push_str(&part.eval(shell, output)?);
+        command.push_str(&part.eval(shell, frame, output)?);
     }
 
     if let Some(alias) = shell.aliases.get(&command) {
@@ -546,7 +572,7 @@ fn expand_call(
 pub enum CallType {
     Builtin(BulitinFn, Vec<Value>),
     Internal(Rc<(Vec<Variable>, Block)>, Vec<Value>),
-    External(Exec, String),
+    External(P<Exec>, String),
 }
 
 fn popen_to_shell_err(error: PopenError, name: String) -> ShellErrorKind {

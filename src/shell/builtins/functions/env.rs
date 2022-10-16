@@ -5,6 +5,7 @@ use crate::{
     argparse::{App, ParseResult},
     parser::shell_error::ShellErrorKind,
     shell::{
+        frame::Frame,
         stream::{OutputStream, ValueStream},
         value::{table::Table, Value},
         Shell,
@@ -14,7 +15,8 @@ use crate::{
 static APP: Lazy<App> = Lazy::new(|| App::new("env").about("List all environment variables"));
 
 pub fn env(
-    shell: &mut Shell,
+    _: &mut Shell,
+    frame: &mut Frame,
     args: Vec<Value>,
     _: ValueStream,
     output: &mut OutputStream,
@@ -30,7 +32,7 @@ pub fn env(
 
     let mut table = Table::new();
 
-    for (name, value) in shell.env() {
+    for (name, value) in frame.env() {
         let map = IndexMap::from([
             (String::from("Name"), Value::from(name)),
             (String::from("Value"), Value::from(value)),

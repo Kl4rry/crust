@@ -140,7 +140,7 @@ impl fmt::Display for ShellErrorKind {
             InvalidPipelineInput { expected, recived } => {
                 write!(f, "Pipeline expected {expected} recived {recived}")
             }
-            InvalidEnvVar(t) => write!(f, "Cannot assign type {t} to environment variable"),
+            InvalidEnvVar(t) => write!(f, "Cannot assign type {t} to an environment variable"),
             ReadOnlyVar(name) => write!(f, "Cannot write to read only variable '{name}'"),
             ToFewArguments {
                 name,

@@ -19,7 +19,7 @@ impl Span {
 
     #[inline(always)]
     pub fn start(&self) -> usize {
-        self.start as usize
+        self.start
     }
 
     #[inline(always)]

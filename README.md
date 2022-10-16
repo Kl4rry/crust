@@ -73,7 +73,6 @@ import https://raw.githubusercontent.com/Kl4rry/crust/main/libs/starship.crust
 ## Todo
 Columns and indexing when passing arguments.  
 Allow column with number name.  
-Switch to lexical from dynamic scopes.  
 Allow comments in strings.  
 Update string literal be like format string.  
 Add span info to ast.  
@@ -85,6 +84,7 @@ Convert statements into expressions.
 Allow expressions to be start of pipeline.  
 Test scoped cd.  
 Table limit width.  
+Make it possible to use input from pipeline in user defined function.  
 
 ## Low prio todo
 Make command pipelines lazy.  

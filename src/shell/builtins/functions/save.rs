@@ -7,6 +7,7 @@ use crate::{
     argparse::{App, Arg, Flag, ParseResult},
     parser::shell_error::ShellErrorKind,
     shell::{
+        frame::Frame,
         stream::{OutputStream, ValueStream},
         value::{Type, Value},
         Shell,
@@ -43,6 +44,7 @@ static APP: Lazy<App> = Lazy::new(|| {
 
 pub fn save(
     _: &mut Shell,
+    _: &mut Frame,
     args: Vec<Value>,
     input: ValueStream,
     output: &mut OutputStream,

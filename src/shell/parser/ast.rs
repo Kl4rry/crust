@@ -61,12 +61,13 @@ impl Ast {
             if shell.interrupt.load(Ordering::SeqCst) {
                 return Err(ShellErrorKind::Interrupt);
             }
+            let mut frame = shell.stack.clone();
             match compound {
                 Compound::Expr(expr) => {
-                    let value = expr.eval(shell, output)?;
+                    let value = expr.eval(shell, &mut frame, output)?;
                     output.push(value);
                 }
-                Compound::Statement(statement) => statement.eval(shell, output)?,
+                Compound::Statement(statement) => statement.eval(shell, &mut frame, output)?,
             };
         }
         Ok(())
@@ -88,31 +89,31 @@ impl Block {
     pub fn eval(
         &self,
         shell: &mut Shell,
+        frame: Frame,
         variables: Option<HashMap<String, (bool, Value)>>,
         input: Option<ValueStream>,
         output: &mut OutputStream,
     ) -> Result<(), ShellErrorKind> {
-        if shell.stack.len() == shell.recursion_limit {
+        if frame.index() == shell.recursion_limit {
             return Err(ShellErrorKind::MaxRecursion(shell.recursion_limit));
         }
-        shell.stack.push(Frame::new(
+        let mut frame = frame.push(
             variables.unwrap_or_default(),
             HashMap::new(),
             input.unwrap_or_default(),
-        ));
+        );
         for compound in &self.sequence {
             if shell.interrupt.load(Ordering::SeqCst) {
                 return Err(ShellErrorKind::Interrupt);
             }
             match compound {
                 Compound::Expr(expr) => {
-                    let value = expr.eval(shell, output)?;
+                    let value = expr.eval(shell, &mut frame, output)?;
                     output.push(value);
                 }
-                Compound::Statement(statement) => statement.eval(shell, output)?,
+                Compound::Statement(statement) => statement.eval(shell, &mut frame, output)?,
             };
         }
-        shell.stack.pop().unwrap();
         Ok(())
     }
 }

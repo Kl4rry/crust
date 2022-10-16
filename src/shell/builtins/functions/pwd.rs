@@ -5,6 +5,7 @@ use crate::{
     parser::shell_error::ShellErrorKind,
     shell::{
         current_dir_str,
+        frame::Frame,
         stream::{OutputStream, ValueStream},
         Shell, Value,
     },
@@ -14,6 +15,7 @@ static APP: Lazy<App> = Lazy::new(|| App::new("pwd").about("Print current workin
 
 pub fn pwd(
     _: &mut Shell,
+    _: &mut Frame,
     args: Vec<Value>,
     _: ValueStream,
     output: &mut OutputStream,

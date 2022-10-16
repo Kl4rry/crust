@@ -131,18 +131,18 @@ impl Parser {
         }
     }
 
-    pub fn parse(mut self) -> std::result::Result<Ast, SyntaxError> {
+    pub fn parse(mut self) -> std::result::Result<Ast, P<SyntaxError>> {
         match self.parse_sequence(false) {
             Ok(sequence) => Ok(Ast::new(
                 sequence,
                 self.src().to_string(),
                 self.name.clone(),
             )),
-            Err(error) => Err(SyntaxError::new(
+            Err(error) => Err(P::new(SyntaxError::new(
                 error,
                 self.src().to_string(),
                 self.name.clone(),
-            )),
+            ))),
         }
     }
 
@@ -754,9 +754,9 @@ impl Parser {
         let (part, concat) = match self.peek()?.token_type {
             TokenType::Quote => (ArgumentPart::Expand(self.parse_expand()?), true),
             TokenType::LeftParen => (ArgumentPart::Expr(self.parse_sub_expr()?), true),
-            // todo list should maybe be parsed below to allow for concatination
+            // TODO list should maybe be parsed below to allow for concatination
             TokenType::LeftBracket => (ArgumentPart::Expr(self.parse_list()?), false),
-            // todo same for map
+            // TODO same for map
             TokenType::At => (ArgumentPart::Expr(self.parse_regex_or_map()?), false),
             _ => (self.eat()?.try_into_argpart()?, true),
         };
@@ -819,7 +819,7 @@ impl Parser {
             }
         }
 
-        // todo
+        // TODO
         // fix this fucking thing
         // it should make it a real expression and eval it with the correct operands
         // or it could just accept that it is a string

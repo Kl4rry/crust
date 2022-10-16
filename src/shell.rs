@@ -38,7 +38,7 @@ pub struct Shell {
     user_dirs: UserDirs,
     project_dirs: ProjectDirs,
     child_id: Arc<Mutex<Option<u32>>>,
-    stack: Vec<Frame>,
+    stack: Frame,
     aliases: HashMap<String, String>,
     recursion_limit: usize,
     interrupt: Arc<AtomicBool>,
@@ -93,7 +93,7 @@ impl Shell {
             user_dirs,
             project_dirs,
             child_id,
-            stack: vec![Frame::default()],
+            stack: Frame::default(),
             aliases: HashMap::new(),
             recursion_limit: 1000,
             interrupt,
@@ -106,9 +106,7 @@ impl Shell {
 
     fn load_env(&mut self) {
         for (key, value) in std::env::vars() {
-            self.stack[0]
-                .variables
-                .insert(key, (true, Value::from(value)));
+            self.stack.add_env_var(key, Value::from(value));
         }
     }
 
@@ -154,7 +152,7 @@ impl Shell {
                     }
                 }
             }
-            Err(error) => report_error(error),
+            Err(error) => report_error(*error),
         };
     }
 
@@ -202,11 +200,7 @@ impl Shell {
                 }
             }
             output.end();
-            if let Ok((x, _)) = crossterm::cursor::position() {
-                if x != 0 {
-                    println!();
-                }
-            }
+            reset_cursor()
         }
         Ok(self.exit_status)
     }
@@ -214,7 +208,7 @@ impl Shell {
     fn prompt(&mut self) -> Result<String, ShellErrorKind> {
         if let Some(block) = self.prompt.clone() {
             let mut output = OutputStream::new_capture();
-            block.eval(self, None, None, &mut output)?;
+            block.eval(self, self.stack.clone(), None, None, &mut output)?;
             Ok(output.to_string())
         } else {
             Ok(self.default_prompt())
@@ -268,18 +262,6 @@ impl Shell {
         None
     }
 
-    pub fn env(&self) -> Vec<(String, String)> {
-        let mut vars = HashMap::new();
-        for frame in self.stack.iter().rev() {
-            for (name, (export, var)) in &frame.variables {
-                if *export && !vars.contains_key(name) {
-                    vars.insert(name.to_string(), var.to_string());
-                }
-            }
-        }
-        vars.into_iter().collect()
-    }
-
     pub fn set_child(&mut self, pid: Option<u32>) {
         *self.child_id.lock().unwrap() = pid;
     }
@@ -323,8 +305,17 @@ pub fn history_path(project_dirs: &ProjectDirs) -> PathBuf {
 }
 
 pub fn report_error(error: impl Diagnostic) {
+    reset_cursor();
     let mut output = String::new();
     let report = GraphicalReportHandler::new();
     report.render_report(&mut output, &error).unwrap();
     eprintln!("{}", output);
+}
+
+pub fn reset_cursor() {
+    if let Ok((x, _)) = crossterm::cursor::position() {
+        if x != 0 {
+            println!();
+        }
+    }
 }

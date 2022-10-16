@@ -1,5 +1,6 @@
 #![feature(type_alias_impl_trait)]
 #![feature(arc_unwrap_or_clone)]
+#![feature(get_mut_unchecked)]
 use std::{
     env, fs,
     path::{Path, PathBuf},

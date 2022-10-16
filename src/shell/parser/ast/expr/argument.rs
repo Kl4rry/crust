@@ -2,7 +2,7 @@ use bigdecimal::{num_bigint::BigInt, BigDecimal, ToPrimitive};
 
 use crate::{
     parser::{shell_error::ShellErrorKind, Expr, Variable},
-    shell::{stream::OutputStream, value::Value},
+    shell::{frame::Frame, stream::OutputStream, value::Value},
     Shell,
 };
 
@@ -21,14 +21,15 @@ impl ArgumentPart {
     pub fn eval(
         &self,
         shell: &mut Shell,
+        frame: &mut Frame,
         output: &mut OutputStream,
     ) -> Result<Value, ShellErrorKind> {
         match self {
-            ArgumentPart::Variable(var) => Ok(var.eval(shell)?),
-            ArgumentPart::Expand(expand) => Ok(Value::from(expand.eval(shell, output)?)),
+            ArgumentPart::Variable(var) => Ok(var.eval(shell, frame)?),
+            ArgumentPart::Expand(expand) => Ok(Value::from(expand.eval(shell, frame, output)?)),
             ArgumentPart::Bare(value) => Ok(Value::from(value.to_string())),
             ArgumentPart::Quoted(string) => Ok(Value::from(string.clone())),
-            ArgumentPart::Expr(expr) => Ok(expr.eval(shell, output)?),
+            ArgumentPart::Expr(expr) => Ok(expr.eval(shell, frame, output)?),
             ArgumentPart::Float(number) => Ok(Value::Float(number.to_f64().unwrap())),
             ArgumentPart::Int(number) => match number.to_i64() {
                 Some(number) => Ok(Value::Int(number)),
@@ -47,6 +48,7 @@ impl Expand {
     pub fn eval(
         &self,
         shell: &mut Shell,
+        frame: &mut Frame,
         output: &mut OutputStream,
     ) -> Result<String, ShellErrorKind> {
         let mut value = String::new();
@@ -54,9 +56,11 @@ impl Expand {
             match item {
                 ExpandKind::String(string) => value.push_str(string),
                 ExpandKind::Expr(expr) => {
-                    value.push_str(&expr.eval(shell, output)?.try_into_string()?)
+                    value.push_str(&expr.eval(shell, frame, output)?.try_into_string()?)
                 }
-                ExpandKind::Variable(var) => value.push_str(&var.eval(shell)?.try_into_string()?),
+                ExpandKind::Variable(var) => {
+                    value.push_str(&var.eval(shell, frame)?.try_into_string()?)
+                }
             }
         }
         Ok(value)
@@ -79,6 +83,7 @@ impl Argument {
     pub fn eval(
         &self,
         shell: &mut Shell,
+        frame: &mut Frame,
         output: &mut OutputStream,
     ) -> Result<Value, ShellErrorKind> {
         let mut parts = Vec::new();
@@ -102,7 +107,7 @@ impl Argument {
                     }
                     (Value::from(string), false)
                 }
-                _ => (part.eval(shell, output)?, true),
+                _ => (part.eval(shell, frame, output)?, true),
             };
             parts.push((escape, string));
         }

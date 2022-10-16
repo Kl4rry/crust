@@ -1,6 +1,7 @@
 use crate::{
     parser::shell_error::ShellErrorKind,
     shell::{
+        frame::Frame,
         stream::{OutputStream, ValueStream},
         value::Value,
         Shell,
@@ -9,6 +10,7 @@ use crate::{
 
 pub fn echo(
     _: &mut Shell,
+    _: &mut Frame,
     args: Vec<Value>,
     _: ValueStream,
     output: &mut OutputStream,

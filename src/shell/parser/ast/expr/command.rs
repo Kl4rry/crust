@@ -7,7 +7,7 @@ use crate::{
         shell_error::ShellErrorKind,
         syntax_error::SyntaxErrorKind,
     },
-    shell::stream::OutputStream,
+    shell::{frame::Frame, stream::OutputStream},
     Shell,
 };
 
@@ -22,11 +22,12 @@ impl CommandPart {
     pub fn eval(
         &self,
         shell: &mut Shell,
+        frame: &mut Frame,
         output: &mut OutputStream,
     ) -> Result<String, ShellErrorKind> {
         match self {
-            CommandPart::Variable(var) => Ok(var.eval(shell)?.to_string()),
-            CommandPart::Expand(expand) => Ok(expand.eval(shell, output)?),
+            CommandPart::Variable(var) => Ok(var.eval(shell, frame)?.to_string()),
+            CommandPart::Expand(expand) => Ok(expand.eval(shell, frame, output)?),
             CommandPart::String(string) => Ok(string.clone()),
         }
     }

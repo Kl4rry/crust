@@ -6,7 +6,7 @@ use crate::{
         shell_error::ShellErrorKind,
         syntax_error::SyntaxErrorKind,
     },
-    shell::{builtins::variables, value::Value},
+    shell::{builtins::variables, frame::Frame, value::Value},
     Shell,
 };
 
@@ -16,14 +16,14 @@ pub struct Variable {
 }
 
 impl Variable {
-    pub fn eval(&self, shell: &mut Shell) -> Result<Value, ShellErrorKind> {
+    pub fn eval(&self, shell: &mut Shell, frame: &mut Frame) -> Result<Value, ShellErrorKind> {
         if let Some(value) = variables::get_var(shell, &self.name) {
             return Ok(value);
         }
 
-        for frame in shell.stack.iter().rev() {
-            if let Some((_, value)) = frame.variables.get(&self.name) {
-                return Ok(value.clone());
+        for frame in frame.clone() {
+            if let Some(value) = frame.get_var(&self.name) {
+                return Ok(value);
             }
         }
         Err(ShellErrorKind::VariableNotFound(self.name.clone()))

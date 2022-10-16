@@ -81,7 +81,7 @@ impl PartialEq for Value {
                 _ => false,
             },
             Value::Float(number) => match other {
-                Value::Float(rhs) => *number as f64 == *rhs,
+                Value::Float(rhs) => *number == *rhs,
                 Value::Int(rhs) => *number == *rhs as f64,
                 Value::Bool(rhs) => *number == *rhs as u8 as f64,
                 _ => false,
@@ -255,7 +255,7 @@ impl Value {
                 )),
             },
             Value::Float(number) => match rhs.try_as_float() {
-                Some(rhs) => Ok(Value::Float(number as f64 - rhs)),
+                Some(rhs) => Ok(Value::Float(number - rhs)),
                 None => Err(ShellErrorKind::InvalidBinaryOperand(
                     BinOp::Sub,
                     self.to_type(),
@@ -314,7 +314,7 @@ impl Value {
                 )),
             },
             Value::Float(number) => match rhs.try_as_float() {
-                Some(rhs) => Ok(Value::Float(number as f64 * rhs)),
+                Some(rhs) => Ok(Value::Float(number * rhs)),
                 None => Err(ShellErrorKind::InvalidBinaryOperand(
                     BinOp::Mul,
                     self.to_type(),
@@ -407,7 +407,7 @@ impl Value {
                 )),
             },
             Value::Float(number) => match rhs.try_as_float() {
-                Some(rhs) => Ok(Value::Float(number as f64 / rhs)),
+                Some(rhs) => Ok(Value::Float(number / rhs)),
                 None => Err(ShellErrorKind::InvalidBinaryOperand(
                     BinOp::Div,
                     self.to_type(),
@@ -480,7 +480,7 @@ impl Value {
                 )),
             },
             Value::Float(number) => match rhs.try_as_float() {
-                Some(rhs) => Ok(Value::Float(number as f64 % rhs)),
+                Some(rhs) => Ok(Value::Float(number % rhs)),
                 None => Err(ShellErrorKind::InvalidBinaryOperand(
                     BinOp::Mod,
                     self.to_type(),
@@ -488,7 +488,7 @@ impl Value {
                 )),
             },
             Value::Bool(boolean) => match rhs {
-                Value::Int(rhs) => Ok(Value::Int(boolean as i64 % rhs as i64)),
+                Value::Int(rhs) => Ok(Value::Int(boolean as i64 % rhs)),
                 Value::Float(rhs) => Ok(Value::Float(boolean as u8 as f64 % rhs)),
                 _ => Err(ShellErrorKind::InvalidBinaryOperand(
                     BinOp::Mod,
