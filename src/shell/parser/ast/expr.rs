@@ -292,7 +292,7 @@ impl Expr {
                     match callable {
                         Self::Call(cmd, args) => {
                             let (cmd, args) = expand_call(shell, frame, cmd, args, output)?;
-                            expanded_calls.push_back(get_call_type(shell, frame, cmd, args));
+                            expanded_calls.push_back(get_call_type(shell, frame, cmd, args)?);
                         }
                         _ => unreachable!(),
                     }
@@ -519,14 +519,19 @@ fn run_pipeline(
     }
 }
 
-fn get_call_type(shell: &Shell, frame: &mut Frame, cmd: String, args: Vec<Value>) -> CallType {
+fn get_call_type(
+    shell: &Shell,
+    frame: &mut Frame,
+    cmd: String,
+    args: Vec<Value>,
+) -> Result<CallType, ShellErrorKind> {
     if let Some(builtin) = builtins::functions::get_builtin(&cmd) {
-        return CallType::Builtin(builtin, args);
+        return Ok(CallType::Builtin(builtin, args));
     }
 
     for frame in frame.clone() {
         if let Some(func) = frame.get_function(&cmd) {
-            return CallType::Internal(func, args);
+            return Ok(CallType::Internal(func, args));
         }
     }
 
@@ -535,11 +540,15 @@ fn get_call_type(shell: &Shell, frame: &mut Frame, cmd: String, args: Vec<Value>
         None => cmd,
     };
 
-    // TODO fix this stringification of args
-    // it should flatten arrays
-    // and throw error when it cannot convert it to a string
-    let args: Vec<_> = args.into_iter().map(|v| v.to_string()).collect();
-    CallType::External(P::new(Exec::cmd(cmd.clone()).args(&args)), cmd)
+    let mut str_args = Vec::new();
+    for arg in args {
+        str_args.push(arg.try_into_string()?);
+    }
+
+    Ok(CallType::External(
+        P::new(Exec::cmd(cmd.clone()).args(&str_args)),
+        cmd,
+    ))
 }
 
 fn expand_call(

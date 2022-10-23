@@ -61,8 +61,12 @@ impl Frame {
         Some(value.clone())
     }
 
-    /// Update existing variable
-    pub fn update_var(&mut self, name: &str, value: Value) -> Result<bool, ShellErrorKind> {
+    /// Update existing variable. Returns the value if the variable does not exist.
+    pub fn update_var(
+        &mut self,
+        name: &str,
+        value: Value,
+    ) -> Result<Option<Value>, ShellErrorKind> {
         for mut frame in self.clone() {
             // safe because we never give out references to variable values
             unsafe {
@@ -78,11 +82,11 @@ impl Frame {
                     }
 
                     *heap_value = value;
-                    return Ok(true);
+                    return Ok(None);
                 }
             }
         }
-        Ok(false)
+        Ok(Some(value))
     }
 
     /// Add new var in this scope

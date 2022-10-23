@@ -305,6 +305,7 @@ dependencies = [
  "serde",
  "serde_json",
  "subprocess",
+ "textwrap",
  "thiserror",
  "toml",
  "unicode-segmentation",

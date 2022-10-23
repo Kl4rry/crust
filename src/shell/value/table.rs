@@ -1,9 +1,11 @@
 use std::{
-    cmp::PartialEq,
+    cmp::{self, PartialEq},
     fmt::{self},
 };
 
 use indexmap::IndexMap;
+use textwrap::core::display_width;
+use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use yansi::Paint;
 
@@ -106,25 +108,42 @@ impl fmt::Display for Table {
             return Ok(());
         }
 
+        let (max_width, _) = crossterm::terminal::size().unwrap_or((u16::MAX, u16::MAX));
+
         let rows: Vec<Vec<String>> = self
             .rows
             .iter()
             .map(|r| r.iter().map(|c| c.to_compact_string()).collect())
             .collect();
 
-        let mut column_widths = vec![(self.rows.len() - 1).to_string().len() + 2];
+        let mut column_widths = vec![(self.rows.len() - 1).to_string().width_cjk() + 2];
         column_widths.extend(self.headers.iter().map(|c| c.len() + 2));
 
         for row in &rows {
             for (index, col) in row.iter().enumerate() {
                 let len = &mut column_widths[index + 1];
-                *len = std::cmp::max(*len, console::strip_ansi_codes(col).width_cjk() + 2);
+                *len = std::cmp::max(*len, display_width(col) + 2);
             }
         }
 
-        fmt_horizontal(f, &column_widths, ConfigChars::TOP)?;
-        let bar = bar();
+        let max_width = max_width as i32 - column_widths.len() as i32 - 1;
+        let mut rest = if max_width <= 0 {
+            u16::MAX as usize
+        } else {
+            max_width as usize
+        };
 
+        let number_cols = column_widths.len();
+        for (i, width) in column_widths.iter_mut().enumerate() {
+            let max_col_width = rest / (number_cols - i);
+            let col_width = cmp::min(*width, max_col_width);
+            rest -= col_width;
+            *width = col_width;
+        }
+
+        fmt_horizontal(f, &column_widths, ConfigChars::TOP)?;
+
+        let bar = bar();
         bar.fmt(f)?;
         center_pad(Paint::green('#'), column_widths[0]).fmt(f)?;
         bar.fmt(f)?;
@@ -142,7 +161,16 @@ impl fmt::Display for Table {
             ' '.fmt(f)?;
             bar.fmt(f)?;
             for (index, col) in row.iter().enumerate() {
-                left_pad(col, column_widths[index + 1] - 1).fmt(f)?;
+                let mut ouput_col = "";
+                for (i, grapheme) in col.grapheme_indices(true) {
+                    if display_width(&col[..i + grapheme.len()]) < column_widths[index + 1] {
+                        ouput_col = &col[..i + grapheme.len()];
+                    } else {
+                        break;
+                    }
+                }
+
+                left_pad(ouput_col, column_widths[index + 1] - 1).fmt(f)?;
                 ' '.fmt(f)?;
                 bar.fmt(f)?;
             }

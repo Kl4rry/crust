@@ -239,7 +239,7 @@ impl Shell {
         self.user_dirs.home_dir().to_path_buf()
     }
 
-    // does this functoin really need to do a linear search?
+    // does this function really need to do a linear search?
     // it could probably use a hashset instead.
     pub fn find_exe(&self, name: &str) -> Option<String> {
         for exe in self.executables.iter() {

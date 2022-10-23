@@ -43,8 +43,7 @@ impl Statement {
                 }
 
                 let value = expr.eval(shell, frame, output)?;
-                // TODO fix this useless clone
-                if !frame.update_var(&var.name, value.clone())? {
+                if let Some(value) = frame.update_var(&var.name, value)? {
                     frame.add_var(var.name.clone(), value);
                 }
                 Ok(())

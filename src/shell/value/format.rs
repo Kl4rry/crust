@@ -3,7 +3,7 @@ use std::{
     iter,
 };
 
-use unicode_width::UnicodeWidthStr;
+use textwrap::core::display_width;
 use yansi::Paint;
 
 use super::Value;
@@ -28,13 +28,13 @@ where
         values.push(value.as_ref().to_compact_string());
         longest_value = std::cmp::max(
             longest_value,
-            console::strip_ansi_codes(unsafe { values.last().unwrap_unchecked() }).width_cjk(),
+            display_width(unsafe { values.last().unwrap_unchecked() }),
         );
 
         keys.push(Paint::green(key).to_string());
         longest_key = std::cmp::max(
             longest_key,
-            console::strip_ansi_codes(unsafe { keys.last().unwrap_unchecked() }).width_cjk(),
+            display_width(unsafe { keys.last().unwrap_unchecked() }),
         );
     }
 
@@ -42,8 +42,8 @@ where
 
     let bar = bar();
     for (key, value) in keys.into_iter().zip(values) {
-        let key_spacing = longest_key - console::strip_ansi_codes(&key).width_cjk();
-        let value_spacing = longest_value - console::strip_ansi_codes(&value).width_cjk();
+        let key_spacing = longest_key - display_width(&key);
+        let value_spacing = longest_value - display_width(&value);
         writeln!(
             f,
             "{bar} {:key_spacing$}{} {bar} {:value_spacing$}{} {bar}",
@@ -104,7 +104,7 @@ pub fn fmt_horizontal(
 
 pub fn center_pad(content: impl Display, width: usize) -> String {
     let string = content.to_string();
-    let content_width = console::strip_ansi_codes(&string).width_cjk();
+    let content_width = display_width(&string);
     debug_assert!(width >= content_width);
     let difference = width - content_width;
     let left = difference / 2;
@@ -119,7 +119,7 @@ pub fn center_pad(content: impl Display, width: usize) -> String {
 
 pub fn left_pad(content: impl Display, width: usize) -> String {
     let string = content.to_string();
-    let content_width = console::strip_ansi_codes(&string).width_cjk();
+    let content_width = display_width(&string);
     debug_assert!(width >= content_width);
     let left = width - content_width;
     let mut new = String::new();
