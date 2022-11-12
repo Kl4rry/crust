@@ -687,6 +687,12 @@ impl Value {
     }
 }
 
+impl From<&str> for Value {
+    fn from(value: &str) -> Self {
+        Value::String(Rc::new(value.to_string()))
+    }
+}
+
 impl From<String> for Value {
     fn from(value: String) -> Self {
         Value::String(Rc::new(value))

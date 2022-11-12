@@ -28,8 +28,10 @@ static BUILTIN_VARS: phf::Map<&'static str, BulitinVar> = phf_map! {
     "args" => args,
     "pi" => pi,
     "tau" => tau,
+    "e" => e,
     "epoch" => epoch,
     "path_sep" => path_sep,
+    "interactive" => interactive,
 };
 
 #[inline(always)]
@@ -130,6 +132,10 @@ pub fn tau(_: &mut Shell) -> Value {
     Value::Float(std::f64::consts::TAU)
 }
 
+pub fn e(_: &mut Shell) -> Value {
+    Value::Float(std::f64::consts::E)
+}
+
 pub fn epoch(_: &mut Shell) -> Value {
     let start = time::SystemTime::now();
     let since_the_epoch = start
@@ -146,4 +152,8 @@ pub fn path_sep(_: &mut Shell) -> Value {
     #[cfg(windows)]
     let sep = '\\';
     Value::from(String::from(sep))
+}
+
+pub fn interactive(shell: &mut Shell) -> Value {
+    Value::from(shell.interactive)
 }

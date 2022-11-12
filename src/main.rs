@@ -35,6 +35,10 @@ fn main() -> ExitCode {
 }
 
 fn start() -> Result<ExitCode, ShellErrorKind> {
+    if !yansi::Paint::enable_windows_ascii() {
+        yansi::Paint::disable();
+    }
+
     let mut args_iter = env::args();
     args_iter.next();
 
@@ -84,29 +88,27 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
     };
 
     let mut shell = Shell::new(args);
+    shell
+        .set_interactive(matches.get_str("FILE").is_some() || matches.get_str("COMMAND").is_some());
     shell.init()?;
 
-    let status = match matches.get_str("FILE") {
-        Some(input) => {
-            shell.run_src(
-                fs::read_to_string(input)
-                    .map_err(|e| ShellErrorKind::Io(Some(PathBuf::from(input)), e))?,
-                String::from(input),
-                &mut OutputStream::new_output(),
-            );
-            shell.status()
-        }
-        None => match matches.get_str("COMMAND") {
-            Some(command) => {
-                shell.run_src(
-                    command.to_string(),
-                    String::from("shell"),
-                    &mut OutputStream::new_output(),
-                );
-                shell.status()
-            }
-            None => shell.run()?,
-        },
+    let status = if let Some(file) = matches.get_str("FILE") {
+        shell.run_src(
+            fs::read_to_string(file)
+                .map_err(|e| ShellErrorKind::Io(Some(PathBuf::from(file)), e))?,
+            String::from(file),
+            &mut OutputStream::new_output(),
+        );
+        shell.status()
+    } else if let Some(command) = matches.get_str("COMMAND") {
+        shell.run_src(
+            command.to_string(),
+            String::from("shell"),
+            &mut OutputStream::new_output(),
+        );
+        shell.status()
+    } else {
+        shell.run()?
     };
 
     Ok(ExitCode::from(

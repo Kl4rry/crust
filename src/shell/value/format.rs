@@ -107,8 +107,8 @@ pub fn center_pad(content: impl Display, width: usize) -> String {
     let content_width = display_width(&string);
     debug_assert!(width >= content_width);
     let difference = width - content_width;
-    let left = difference / 2;
-    let right = difference - left;
+    let right = difference / 2;
+    let left = difference - right;
 
     let mut new = String::new();
     new.extend(iter::repeat(' ').take(left));
@@ -126,4 +126,13 @@ pub fn left_pad(content: impl Display, width: usize) -> String {
     new.extend(iter::repeat(' ').take(left));
     new.push_str(&string);
     new
+}
+
+pub fn right_pad(content: impl Display, width: usize) -> String {
+    let mut string = content.to_string();
+    let content_width = display_width(&string);
+    debug_assert!(width >= content_width);
+    let right = width - content_width;
+    string.extend(iter::repeat(' ').take(right));
+    string
 }

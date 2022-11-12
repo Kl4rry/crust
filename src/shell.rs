@@ -26,6 +26,7 @@ use subprocess::ExitStatus;
 use value::Value;
 mod frame;
 use frame::Frame;
+mod hello;
 
 use self::{helper::EditorHelper, parser::ast::Block, stream::OutputStream};
 
@@ -46,6 +47,7 @@ pub struct Shell {
     args: Vec<String>,
     prompt: Option<Block>,
     editor: Editor<EditorHelper>,
+    interactive: bool,
 }
 
 impl Shell {
@@ -79,7 +81,7 @@ impl Shell {
 
         let config = rustyline::Config::builder()
             .max_history_size(5000)
-            .color_mode(rustyline::ColorMode::Forced)
+            .color_mode(rustyline::ColorMode::Enabled)
             .bell_style(BellStyle::None)
             .build();
 
@@ -101,6 +103,7 @@ impl Shell {
             args,
             prompt: None,
             editor,
+            interactive: false,
         }
     }
 
@@ -157,6 +160,7 @@ impl Shell {
     }
 
     pub fn run(mut self) -> Result<i64, ShellErrorKind> {
+        hello::hello();
         let term = Term::stdout();
         while self.running {
             self.interrupt.store(false, Ordering::SeqCst);
@@ -281,6 +285,10 @@ impl Shell {
 
     fn save_history(&mut self) {
         let _ = self.editor.append_history(&self.history_path());
+    }
+
+    pub fn set_interactive(&mut self, interactive: bool) {
+        self.interactive = interactive;
     }
 }
 

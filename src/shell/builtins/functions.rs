@@ -22,6 +22,7 @@ mod clear;
 mod echo;
 mod env;
 mod exit;
+mod help;
 mod import;
 mod load;
 mod open;
@@ -50,6 +51,7 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "open" => open::open,
     "load" => load::load,
     "save" => save::save,
+    "help" => help::help,
 };
 
 pub fn get_builtin(command: &str) -> Option<BulitinFn> {

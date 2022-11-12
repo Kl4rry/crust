@@ -10,7 +10,7 @@ use unicode_width::UnicodeWidthStr;
 use yansi::Paint;
 
 use super::{
-    format::{bar, center_pad, fmt_horizontal, left_pad, ConfigChars},
+    format::{bar, center_pad, fmt_horizontal, left_pad, right_pad, ConfigChars},
     Value,
 };
 use crate::parser::shell_error::ShellErrorKind;
@@ -108,8 +108,6 @@ impl fmt::Display for Table {
             return Ok(());
         }
 
-        let (max_width, _) = crossterm::terminal::size().unwrap_or((u16::MAX, u16::MAX));
-
         let rows: Vec<Vec<String>> = self
             .rows
             .iter()
@@ -126,7 +124,8 @@ impl fmt::Display for Table {
             }
         }
 
-        let max_width = max_width as i32 - column_widths.len() as i32 - 1;
+        let (term_width, _) = crossterm::terminal::size().unwrap_or((u16::MAX, u16::MAX));
+        let max_width = term_width as i32 - column_widths.len() as i32 - 1;
         let mut rest = if max_width <= 0 {
             u16::MAX as usize
         } else {
@@ -163,14 +162,15 @@ impl fmt::Display for Table {
             for (index, col) in row.iter().enumerate() {
                 let mut ouput_col = "";
                 for (i, grapheme) in col.grapheme_indices(true) {
-                    if display_width(&col[..i + grapheme.len()]) < column_widths[index + 1] {
+                    if display_width(&col[..i + grapheme.len()]) < column_widths[index + 1] - 1 {
                         ouput_col = &col[..i + grapheme.len()];
                     } else {
                         break;
                     }
                 }
 
-                left_pad(ouput_col, column_widths[index + 1] - 1).fmt(f)?;
+                ' '.fmt(f)?;
+                right_pad(ouput_col, column_widths[index + 1] - 2).fmt(f)?;
                 ' '.fmt(f)?;
                 bar.fmt(f)?;
             }
