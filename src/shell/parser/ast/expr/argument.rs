@@ -1,9 +1,8 @@
 use bigdecimal::{num_bigint::BigInt, BigDecimal, ToPrimitive};
 
 use crate::{
-    parser::{shell_error::ShellErrorKind, Expr, Variable},
-    shell::{frame::Frame, stream::OutputStream, value::Value},
-    Shell,
+    parser::{ast::context::Context, shell_error::ShellErrorKind, Expr, Variable},
+    shell::value::Value,
 };
 
 #[derive(Debug, Clone)]
@@ -18,18 +17,13 @@ pub enum ArgumentPart {
 }
 
 impl ArgumentPart {
-    pub fn eval(
-        &self,
-        shell: &mut Shell,
-        frame: &mut Frame,
-        output: &mut OutputStream,
-    ) -> Result<Value, ShellErrorKind> {
+    pub fn eval(&self, ctx: &mut Context) -> Result<Value, ShellErrorKind> {
         match self {
-            ArgumentPart::Variable(var) => Ok(var.eval(shell, frame)?),
-            ArgumentPart::Expand(expand) => Ok(Value::from(expand.eval(shell, frame, output)?)),
+            ArgumentPart::Variable(var) => Ok(var.eval(ctx)?),
+            ArgumentPart::Expand(expand) => Ok(Value::from(expand.eval(ctx)?)),
             ArgumentPart::Bare(value) => Ok(Value::from(value.to_string())),
             ArgumentPart::Quoted(string) => Ok(Value::from(string.clone())),
-            ArgumentPart::Expr(expr) => Ok(expr.eval(shell, frame, output)?),
+            ArgumentPart::Expr(expr) => Ok(expr.eval(ctx)?),
             ArgumentPart::Float(number) => Ok(Value::Float(number.to_f64().unwrap())),
             ArgumentPart::Int(number) => match number.to_i64() {
                 Some(number) => Ok(Value::Int(number)),
@@ -45,22 +39,13 @@ pub struct Expand {
 }
 
 impl Expand {
-    pub fn eval(
-        &self,
-        shell: &mut Shell,
-        frame: &mut Frame,
-        output: &mut OutputStream,
-    ) -> Result<String, ShellErrorKind> {
+    pub fn eval(&self, ctx: &mut Context) -> Result<String, ShellErrorKind> {
         let mut value = String::new();
         for item in self.content.iter() {
             match item {
                 ExpandKind::String(string) => value.push_str(string),
-                ExpandKind::Expr(expr) => {
-                    value.push_str(&expr.eval(shell, frame, output)?.try_into_string()?)
-                }
-                ExpandKind::Variable(var) => {
-                    value.push_str(&var.eval(shell, frame)?.try_into_string()?)
-                }
+                ExpandKind::Expr(expr) => value.push_str(&expr.eval(ctx)?.try_into_string()?),
+                ExpandKind::Variable(var) => value.push_str(&var.eval(ctx)?.try_into_string()?),
             }
         }
         Ok(value)
@@ -80,12 +65,7 @@ pub struct Argument {
 }
 
 impl Argument {
-    pub fn eval(
-        &self,
-        shell: &mut Shell,
-        frame: &mut Frame,
-        output: &mut OutputStream,
-    ) -> Result<Value, ShellErrorKind> {
+    pub fn eval(&self, ctx: &mut Context) -> Result<Value, ShellErrorKind> {
         let mut parts = Vec::new();
         let mut glob = false;
         for part in self.parts.iter() {
@@ -99,15 +79,15 @@ impl Argument {
                         string = if glob {
                             string.replace(
                                 '~',
-                                &glob::Pattern::escape(&shell.home_dir().to_string_lossy()),
+                                &glob::Pattern::escape(&ctx.shell.home_dir().to_string_lossy()),
                             )
                         } else {
-                            string.replace('~', &shell.home_dir().to_string_lossy())
+                            string.replace('~', &ctx.shell.home_dir().to_string_lossy())
                         }
                     }
                     (Value::from(string), false)
                 }
-                _ => (part.eval(shell, frame, output)?, true),
+                _ => (part.eval(ctx)?, true),
             };
             parts.push((escape, string));
         }

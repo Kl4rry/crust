@@ -5,7 +5,6 @@ use crate::{
     shell::{
         stream::{OutputStream, ValueStream},
         value::Value,
-        Frame,
     },
     Shell,
 };
@@ -22,6 +21,9 @@ use statement::Statement;
 pub mod variable;
 use variable::Variable;
 
+pub mod context;
+
+use self::context::Context;
 use super::shell_error::ShellError;
 
 #[derive(Debug)]
@@ -61,13 +63,19 @@ impl Ast {
             if shell.interrupt.load(Ordering::SeqCst) {
                 return Err(ShellErrorKind::Interrupt);
             }
-            let mut frame = shell.stack.clone();
+            let frame = shell.stack.clone();
+            let mut ctx = Context {
+                shell,
+                frame,
+                output,
+            };
+
             match compound {
                 Compound::Expr(expr) => {
-                    let value = expr.eval(shell, &mut frame, output)?;
+                    let value = expr.eval(&mut ctx)?;
                     output.push(value);
                 }
-                Compound::Statement(statement) => statement.eval(shell, &mut frame, output)?,
+                Compound::Statement(statement) => statement.eval(&mut ctx)?,
             };
         }
         Ok(())
@@ -88,30 +96,33 @@ pub struct Block {
 impl Block {
     pub fn eval(
         &self,
-        shell: &mut Shell,
-        frame: Frame,
+        ctx: &mut Context,
         variables: Option<HashMap<String, (bool, Value)>>,
         input: Option<ValueStream>,
-        output: &mut OutputStream,
     ) -> Result<(), ShellErrorKind> {
-        if frame.index() == shell.recursion_limit {
-            return Err(ShellErrorKind::MaxRecursion(shell.recursion_limit));
+        if ctx.frame.index() == ctx.shell.recursion_limit {
+            return Err(ShellErrorKind::MaxRecursion(ctx.shell.recursion_limit));
         }
-        let mut frame = frame.push(
+        let frame = ctx.frame.clone().push(
             variables.unwrap_or_default(),
             HashMap::new(),
             input.unwrap_or_default(),
         );
+        let ctx = &mut Context {
+            shell: ctx.shell,
+            frame,
+            output: ctx.output,
+        };
         for compound in &self.sequence {
-            if shell.interrupt.load(Ordering::SeqCst) {
+            if ctx.shell.interrupt.load(Ordering::SeqCst) {
                 return Err(ShellErrorKind::Interrupt);
             }
             match compound {
                 Compound::Expr(expr) => {
-                    let value = expr.eval(shell, &mut frame, output)?;
-                    output.push(value);
+                    let value = expr.eval(ctx)?;
+                    ctx.output.push(value);
                 }
-                Compound::Statement(statement) => statement.eval(shell, &mut frame, output)?,
+                Compound::Statement(statement) => statement.eval(ctx)?,
             };
         }
         Ok(())

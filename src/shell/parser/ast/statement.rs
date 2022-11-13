@@ -5,12 +5,14 @@ use crate::{
         ast::{expr::Expr, Block, Variable},
         shell_error::ShellErrorKind,
     },
-    shell::{builtins::variables::is_builtin, frame::Frame, stream::OutputStream, value::Value},
-    Shell, P,
+    shell::{builtins::variables::is_builtin, value::Value},
+    P,
 };
 
 pub mod assign_op;
 use assign_op::AssignOp;
+
+use super::context::Context;
 
 #[derive(Debug, Clone)]
 pub enum Statement {
@@ -30,21 +32,16 @@ pub enum Statement {
 }
 
 impl Statement {
-    pub fn eval(
-        &self,
-        shell: &mut Shell,
-        frame: &mut Frame,
-        output: &mut OutputStream,
-    ) -> Result<(), ShellErrorKind> {
+    pub fn eval(&self, ctx: &mut Context) -> Result<(), ShellErrorKind> {
         match self {
             Self::Assign(var, expr) => {
                 if is_builtin(&var.name) {
                     return Err(ShellErrorKind::ReadOnlyVar(var.name.clone()));
                 }
 
-                let value = expr.eval(shell, frame, output)?;
-                if let Some(value) = frame.update_var(&var.name, value)? {
-                    frame.add_var(var.name.clone(), value);
+                let value = expr.eval(ctx)?;
+                if let Some(value) = ctx.frame.update_var(&var.name, value)? {
+                    ctx.frame.add_var(var.name.clone(), value);
                 }
                 Ok(())
             }
@@ -53,8 +50,8 @@ impl Statement {
                     return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string()));
                 }
 
-                let value = expr.eval(shell, frame, output)?;
-                frame.add_var(var.name.clone(), value);
+                let value = expr.eval(ctx)?;
+                ctx.frame.add_var(var.name.clone(), value);
 
                 Ok(())
             }
@@ -63,17 +60,17 @@ impl Statement {
                     return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string()));
                 }
 
-                let current = var.eval(shell, frame)?;
+                let current = var.eval(ctx)?;
                 let res = match op {
-                    AssignOp::Expo => current.try_expo(expr.eval(shell, frame, output)?),
-                    AssignOp::Add => current.try_add(expr.eval(shell, frame, output)?),
-                    AssignOp::Sub => current.try_sub(expr.eval(shell, frame, output)?),
-                    AssignOp::Mul => current.try_mul(expr.eval(shell, frame, output)?),
-                    AssignOp::Div => current.try_div(expr.eval(shell, frame, output)?),
-                    AssignOp::Mod => current.try_mod(expr.eval(shell, frame, output)?),
+                    AssignOp::Expo => current.try_expo(expr.eval(ctx)?),
+                    AssignOp::Add => current.try_add(expr.eval(ctx)?),
+                    AssignOp::Sub => current.try_sub(expr.eval(ctx)?),
+                    AssignOp::Mul => current.try_mul(expr.eval(ctx)?),
+                    AssignOp::Div => current.try_div(expr.eval(ctx)?),
+                    AssignOp::Mod => current.try_mod(expr.eval(ctx)?),
                 }?;
 
-                frame.update_var(&var.name, res)?;
+                ctx.frame.update_var(&var.name, res)?;
                 Ok(())
             }
             Self::Export(var, expr) => {
@@ -81,7 +78,7 @@ impl Statement {
                     return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string()));
                 }
 
-                let value = expr.eval(shell, frame, output)?;
+                let value = expr.eval(ctx)?;
                 if !matches!(
                     &value,
                     Value::Bool(_) | Value::Int(_) | Value::Float(_) | Value::String(_)
@@ -89,29 +86,27 @@ impl Statement {
                     return Err(ShellErrorKind::InvalidEnvVar(value.to_type()));
                 }
 
-                frame.add_env_var(var.name.clone(), value);
+                ctx.frame.add_env_var(var.name.clone(), value);
                 Ok(())
             }
             Self::If(expr, block, else_clause) => {
-                let value = expr.eval(shell, frame, output)?;
+                let value = expr.eval(ctx)?;
                 if value.truthy() {
-                    block.eval(shell, frame.clone(), None, None, output)?
+                    block.eval(ctx, None, None)?
                 } else if let Some(statement) = else_clause {
                     match &**statement {
-                        Self::Block(block) => {
-                            block.eval(shell, frame.clone(), None, None, output)?
-                        }
-                        Self::If(..) => statement.eval(shell, frame, output)?,
+                        Self::Block(block) => block.eval(ctx, None, None)?,
+                        Self::If(..) => statement.eval(ctx)?,
                         _ => unreachable!(),
                     }
                 }
                 Ok(())
             }
             Self::Loop(block) => loop {
-                if shell.interrupt.load(Ordering::SeqCst) {
+                if ctx.shell.interrupt.load(Ordering::SeqCst) {
                     return Err(ShellErrorKind::Interrupt);
                 }
-                match block.eval(shell, frame.clone(), None, None, output) {
+                match block.eval(ctx, None, None) {
                     Ok(()) => (),
                     Err(ShellErrorKind::Break) => return Ok(()),
                     Err(ShellErrorKind::Continue) => continue,
@@ -119,12 +114,12 @@ impl Statement {
                 }
             },
             Self::While(condition, block) => {
-                while condition.eval(shell, frame, output)?.truthy() {
-                    if shell.interrupt.load(Ordering::SeqCst) {
+                while condition.eval(ctx)?.truthy() {
+                    if ctx.shell.interrupt.load(Ordering::SeqCst) {
                         return Err(ShellErrorKind::Interrupt);
                     }
 
-                    match block.eval(shell, frame.clone(), None, None, output) {
+                    match block.eval(ctx, None, None) {
                         Ok(()) => (),
                         Err(ShellErrorKind::Break) => break,
                         Err(ShellErrorKind::Continue) => continue,
@@ -135,24 +130,22 @@ impl Statement {
             }
             Self::For(var, expr, block) => {
                 let name = var.name.clone();
-                let value = expr.eval(shell, frame, output)?;
+                let value = expr.eval(ctx)?;
 
                 fn for_loop(
-                    shell: &mut Shell,
-                    frame: &mut Frame,
+                    ctx: &mut Context,
                     iterator: impl Iterator<Item = Value>,
                     name: &str,
                     block: &Block,
-                    output: &mut OutputStream,
                 ) -> Result<(), ShellErrorKind> {
                     for item in iterator {
-                        if shell.interrupt.load(Ordering::SeqCst) {
+                        if ctx.shell.interrupt.load(Ordering::SeqCst) {
                             return Err(ShellErrorKind::Interrupt);
                         }
 
                         let mut variables: HashMap<String, (bool, Value)> = HashMap::new();
                         variables.insert(name.to_string(), (false, item.to_owned()));
-                        match block.eval(shell, frame.clone(), Some(variables), None, output) {
+                        match block.eval(ctx, Some(variables), None) {
                             Ok(()) => (),
                             Err(ShellErrorKind::Break) => break,
                             Err(ShellErrorKind::Continue) => continue,
@@ -163,60 +156,47 @@ impl Statement {
                 }
 
                 match value {
-                    Value::List(list) => {
-                        for_loop(shell, frame, list.iter().cloned(), &name, block, output)
-                    }
+                    Value::List(list) => for_loop(ctx, list.iter().cloned(), &name, block),
                     Value::String(string) => for_loop(
-                        shell,
-                        frame,
+                        ctx,
                         string.chars().map(|c| Value::from(String::from(c))),
                         &name,
                         block,
-                        output,
                     ),
                     Value::Range(range) =>
                     {
                         #[allow(clippy::redundant_closure)]
                         for_loop(
-                            shell,
-                            frame,
+                            ctx,
                             Rc::unwrap_or_clone(range).map(|i| Value::Int(i)),
                             &name,
                             block,
-                            output,
                         )
                     }
                     Value::Map(map) => for_loop(
-                        shell,
-                        frame,
+                        ctx,
                         map.iter()
                             .map(|(k, v)| Value::from(vec![Value::from(k.to_string()), v.clone()])),
                         &name,
                         block,
-                        output,
                     ),
-                    Value::Table(table) => for_loop(
-                        shell,
-                        frame,
-                        table.iter().map(Value::from),
-                        &name,
-                        block,
-                        output,
-                    ),
+                    Value::Table(table) => {
+                        for_loop(ctx, table.iter().map(Value::from), &name, block)
+                    }
                     _ => Err(ShellErrorKind::InvalidIterator(value.to_type())),
                 }
             }
             Self::Fn(name, func) => {
                 if name == "prompt" && func.0.is_empty() {
-                    shell.prompt = Some(func.1.clone());
+                    ctx.shell.prompt = Some(func.1.clone());
                 } else {
-                    frame.add_function(name.clone(), func.clone());
+                    ctx.frame.add_function(name.clone(), func.clone());
                 }
                 Ok(())
             }
             Self::Return(expr) => {
                 if let Some(expr) = expr {
-                    let value = expr.eval(shell, frame, output)?;
+                    let value = expr.eval(ctx)?;
                     Err(ShellErrorKind::Return(Some(value)))
                 } else {
                     Err(ShellErrorKind::Return(None))
@@ -224,7 +204,7 @@ impl Statement {
             }
             Self::Break => Err(ShellErrorKind::Break),
             Self::Continue => Err(ShellErrorKind::Continue),
-            Self::Block(block) => block.eval(shell, frame.clone(), None, None, output),
+            Self::Block(block) => block.eval(ctx, None, None),
         }
     }
 }

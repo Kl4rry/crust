@@ -5,6 +5,7 @@ use indexmap::IndexMap;
 use num_traits::cast::ToPrimitive;
 use regex::Regex;
 
+use super::context::Context;
 use crate::{
     parser::{
         ast::{expr::argument::Expand, Expr},
@@ -12,12 +13,7 @@ use crate::{
         syntax_error::SyntaxErrorKind,
         Token, TokenType,
     },
-    shell::{
-        frame::Frame,
-        stream::OutputStream,
-        value::{table::Table, Value},
-        Shell,
-    },
+    shell::value::{table::Table, Value},
 };
 
 #[derive(Debug, Clone)]
@@ -33,20 +29,15 @@ pub enum Literal {
 }
 
 impl Literal {
-    pub fn eval(
-        &self,
-        shell: &mut Shell,
-        frame: &mut Frame,
-        output: &mut OutputStream,
-    ) -> Result<Value, ShellErrorKind> {
+    pub fn eval(&self, ctx: &mut Context) -> Result<Value, ShellErrorKind> {
         match self {
             Literal::String(string) => Ok(Value::from(string.to_string())),
-            Literal::Expand(expand) => Ok(Value::from(expand.eval(shell, frame, output)?)),
+            Literal::Expand(expand) => Ok(Value::from(expand.eval(ctx)?)),
             Literal::List(list) => {
                 let mut values: Vec<Value> = Vec::new();
                 let mut is_table = true;
                 for expr in list.iter() {
-                    values.push(expr.eval(shell, frame, output)?);
+                    values.push(expr.eval(ctx)?);
                     unsafe {
                         if !matches!(values.last().unwrap_unchecked(), Value::Map(_)) {
                             is_table = false;
@@ -67,8 +58,8 @@ impl Literal {
             Literal::Map(exprs) => {
                 let mut map = IndexMap::new();
                 for (key, value) in exprs {
-                    let key = key.eval(shell, frame, output)?.try_into_string()?;
-                    let value = value.eval(shell, frame, output)?;
+                    let key = key.eval(ctx)?.try_into_string()?;
+                    let value = value.eval(ctx)?;
                     map.insert(key, value);
                 }
                 Ok(Value::Map(Rc::new(map)))

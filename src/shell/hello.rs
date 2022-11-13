@@ -8,14 +8,12 @@ pub fn hello() {
     let str_color = Color::Green;
 
     println!(
-        r#"
-     {}
+        r#"     {}
     {}       Welcome to {}!
     {}     The (very WIP) exotic shell.
     {}    Type {} for more instructions.
     {} {}{}
-{}
-"#,
+{}"#,
         shell_color.paint("__"),
         shell_color.paint("(__)_"),
         shell_color.paint("Crust"),

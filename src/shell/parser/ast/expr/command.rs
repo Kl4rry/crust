@@ -1,14 +1,10 @@
 use std::convert::{TryFrom, TryInto};
 
-use crate::{
-    parser::{
-        ast::{expr::argument::Expand, Variable},
-        lexer::token::{Token, TokenType},
-        shell_error::ShellErrorKind,
-        syntax_error::SyntaxErrorKind,
-    },
-    shell::{frame::Frame, stream::OutputStream},
-    Shell,
+use crate::parser::{
+    ast::{context::Context, expr::argument::Expand, Variable},
+    lexer::token::{Token, TokenType},
+    shell_error::ShellErrorKind,
+    syntax_error::SyntaxErrorKind,
 };
 
 #[derive(Debug, Clone)]
@@ -19,15 +15,10 @@ pub enum CommandPart {
 }
 
 impl CommandPart {
-    pub fn eval(
-        &self,
-        shell: &mut Shell,
-        frame: &mut Frame,
-        output: &mut OutputStream,
-    ) -> Result<String, ShellErrorKind> {
+    pub fn eval(&self, ctx: &mut Context) -> Result<String, ShellErrorKind> {
         match self {
-            CommandPart::Variable(var) => Ok(var.eval(shell, frame)?.to_string()),
-            CommandPart::Expand(expand) => Ok(expand.eval(shell, frame, output)?),
+            CommandPart::Variable(var) => Ok(var.eval(ctx)?.to_string()),
+            CommandPart::Expand(expand) => Ok(expand.eval(ctx)?),
             CommandPart::String(string) => Ok(string.clone()),
         }
     }

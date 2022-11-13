@@ -28,7 +28,11 @@ mod frame;
 use frame::Frame;
 mod hello;
 
-use self::{helper::EditorHelper, parser::ast::Block, stream::OutputStream};
+use self::{
+    helper::EditorHelper,
+    parser::ast::{context::Context, Block},
+    stream::OutputStream,
+};
 
 mod helper;
 mod levenshtein;
@@ -212,7 +216,13 @@ impl Shell {
     fn prompt(&mut self) -> Result<String, ShellErrorKind> {
         if let Some(block) = self.prompt.clone() {
             let mut output = OutputStream::new_capture();
-            block.eval(self, self.stack.clone(), None, None, &mut output)?;
+            let mut ctx = Context {
+                frame: self.stack.clone(),
+                shell: self,
+                output: &mut output,
+            };
+
+            block.eval(&mut ctx, None, None)?;
             Ok(output.to_string())
         } else {
             Ok(self.default_prompt())
