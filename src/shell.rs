@@ -30,7 +30,7 @@ mod hello;
 
 use self::{
     helper::EditorHelper,
-    parser::ast::{context::Context, Block},
+    parser::{ast::context::Context, shell_error::ShellError},
     stream::OutputStream,
 };
 
@@ -49,7 +49,6 @@ pub struct Shell {
     interrupt: Arc<AtomicBool>,
     executables: Rc<Vec<Executable>>,
     args: Vec<String>,
-    prompt: Option<Block>,
     editor: Editor<EditorHelper>,
     interactive: bool,
 }
@@ -105,7 +104,6 @@ impl Shell {
             interrupt,
             executables,
             args,
-            prompt: None,
             editor,
             interactive: false,
         }
@@ -141,16 +139,16 @@ impl Shell {
             .map_err(|e| ShellErrorKind::Io(Some(config_path.to_path_buf()), e))?;
         let mut output = OutputStream::new_output();
         self.run_src(
-            config,
             config_path.to_string_lossy().to_string(),
+            config,
             &mut output,
         );
         output.end();
         Ok(())
     }
 
-    pub fn run_src(&mut self, src: String, name: String, output: &mut OutputStream) {
-        match Parser::new(src, name).parse() {
+    pub fn run_src(&mut self, name: String, src: String, output: &mut OutputStream) {
+        match Parser::new(name, src).parse() {
             Ok(ast) => {
                 let res = ast.eval(self, output);
                 if let Err(error) = res {
@@ -177,8 +175,7 @@ impl Shell {
 
             term.set_title(format!("Crust: {info}"));
 
-            self.editor.helper_mut().unwrap().prompt =
-                self.prompt().unwrap_or_else(|_| self.default_prompt());
+            self.editor.helper_mut().unwrap().prompt = self.prompt();
             let stripped =
                 console::strip_ansi_codes(&self.editor.helper_mut().unwrap().prompt).to_string();
 
@@ -193,7 +190,7 @@ impl Shell {
 
                     self.editor.add_history_entry(&line);
                     self.save_history();
-                    self.run_src(line, String::from("shell"), &mut output);
+                    self.run_src(String::from("shell"), line, &mut output);
                 }
                 Err(ReadlineError::Interrupted) => {
                     println!("{}", Paint::red("^C"));
@@ -213,20 +210,28 @@ impl Shell {
         Ok(self.exit_status)
     }
 
-    fn prompt(&mut self) -> Result<String, ShellErrorKind> {
-        if let Some(block) = self.prompt.clone() {
-            let mut output = OutputStream::new_capture();
-            let mut ctx = Context {
-                frame: self.stack.clone(),
-                shell: self,
-                output: &mut output,
-            };
+    fn prompt(&mut self) -> String {
+        if let Some(func) = self.stack.get_function("prompt") {
+            if func.parameters.is_empty() {
+                let mut output = OutputStream::new_capture();
+                let mut ctx = Context {
+                    frame: self.stack.clone(),
+                    shell: self,
+                    output: &mut output,
+                    src: func.src.clone(),
+                };
 
-            block.eval(&mut ctx, None, None)?;
-            Ok(output.to_string())
-        } else {
-            Ok(self.default_prompt())
+                match func.block.eval(&mut ctx, None, None) {
+                    Ok(_) => return output.to_string(),
+                    Err(err) => report_error(ShellError::new(
+                        err,
+                        func.src.clone(),
+                        self.executables.clone(),
+                    )),
+                }
+            }
         }
+        self.default_prompt()
     }
 
     fn default_prompt(&self) -> String {

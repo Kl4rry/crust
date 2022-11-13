@@ -51,7 +51,7 @@ pub fn import(
         read_file(&*path)?
     };
 
-    shell.run_src(src, Rc::unwrap_or_clone(path), output);
+    shell.run_src(Rc::unwrap_or_clone(path), src, output);
     Ok(())
 }
 

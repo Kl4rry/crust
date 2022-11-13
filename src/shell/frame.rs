@@ -2,30 +2,27 @@ use std::{collections::HashMap, rc::Rc};
 
 use super::stream::ValueStream;
 use crate::{
-    parser::{
-        ast::{variable::Variable, Block},
-        shell_error::ShellErrorKind,
-    },
+    parser::{ast::statement::function::Function, shell_error::ShellErrorKind},
     shell::value::Value,
 };
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 struct Inner {
     variables: HashMap<String, (bool, Value)>,
-    functions: HashMap<String, Rc<(Vec<Variable>, Block)>>,
+    functions: HashMap<String, Rc<Function>>,
     #[allow(unused)]
     input: ValueStream,
     parent: Option<Frame>,
     index: usize,
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct Frame(Rc<Inner>);
 
 impl Frame {
     pub fn new(
         variables: HashMap<String, (bool, Value)>,
-        functions: HashMap<String, Rc<(Vec<Variable>, Block)>>,
+        functions: HashMap<String, Rc<Function>>,
         input: ValueStream,
     ) -> Self {
         Self(Rc::new(Inner {
@@ -40,7 +37,7 @@ impl Frame {
     pub fn push(
         self,
         variables: HashMap<String, (bool, Value)>,
-        functions: HashMap<String, Rc<(Vec<Variable>, Block)>>,
+        functions: HashMap<String, Rc<Function>>,
         input: ValueStream,
     ) -> Frame {
         Self(Rc::new(Inner {
@@ -112,11 +109,11 @@ impl Frame {
         };
     }
 
-    pub fn get_function(&self, name: &str) -> Option<Rc<(Vec<Variable>, Block)>> {
+    pub fn get_function(&self, name: &str) -> Option<Rc<Function>> {
         self.0.functions.get(name).cloned()
     }
 
-    pub fn add_function(&mut self, name: String, func: Rc<(Vec<Variable>, Block)>) {
+    pub fn add_function(&mut self, name: String, func: Rc<Function>) {
         unsafe {
             let inner = Rc::get_mut_unchecked(&mut self.0);
             inner.functions.insert(name, func);

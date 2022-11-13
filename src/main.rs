@@ -94,16 +94,16 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
 
     let status = if let Some(file) = matches.get_str("FILE") {
         shell.run_src(
+            String::from(file),
             fs::read_to_string(file)
                 .map_err(|e| ShellErrorKind::Io(Some(PathBuf::from(file)), e))?,
-            String::from(file),
             &mut OutputStream::new_output(),
         );
         shell.status()
     } else if let Some(command) = matches.get_str("COMMAND") {
         shell.run_src(
-            command.to_string(),
             String::from("shell"),
+            command.to_string(),
             &mut OutputStream::new_output(),
         );
         shell.status()

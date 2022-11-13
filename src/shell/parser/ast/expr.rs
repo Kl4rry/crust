@@ -32,7 +32,7 @@ use command::CommandPart;
 pub mod argument;
 use argument::Argument;
 
-use super::{context::Context, Block};
+use super::{context::Context, statement::function::Function};
 
 // used to implement comparison operators without duplciating code
 macro_rules! compare_impl {
@@ -346,18 +346,20 @@ impl Expr {
                                 ValueStream::from_value(value)
                             };
 
-                            let (vars, block) = &*func;
+                            let Function {
+                                parameters, block, ..
+                            } = &*func;
                             let mut input_vars = HashMap::new();
-                            for (i, var) in vars.iter().enumerate() {
+                            for (i, var) in parameters.iter().enumerate() {
                                 match args.get(i) {
                                     Some(arg) => {
                                         input_vars.insert(var.name.clone(), (false, arg.clone()));
                                     }
                                     None => {
                                         return Err(ShellErrorKind::ToFewArguments {
-                                            // this should be function name
+                                            // TODO this should be function name
                                             name: String::from("function"),
-                                            expected: vars.len(),
+                                            expected: parameters.len(),
                                             recived: args.len(),
                                         });
                                     }
@@ -374,6 +376,7 @@ impl Expr {
                                 shell: ctx.shell,
                                 frame: ctx.frame.clone(),
                                 output: temp_output_cap,
+                                src: ctx.src.clone(),
                             };
                             block.eval(ctx, Some(input_vars), Some(stream))?;
                         }
@@ -401,6 +404,7 @@ impl Expr {
                         shell: ctx.shell,
                         frame: ctx.frame.clone(),
                         output: &mut capture,
+                        src: ctx.src.clone(),
                     };
                     expr.eval(ctx)?;
                     Ok(capture.into_value_stream().unpack())
@@ -568,7 +572,7 @@ fn expand_call(
 
 pub enum CallType {
     Builtin(BulitinFn, Vec<Value>),
-    Internal(Rc<(Vec<Variable>, Block)>, Vec<Value>),
+    Internal(Rc<Function>, Vec<Value>),
     External(P<Exec>, String),
 }
 

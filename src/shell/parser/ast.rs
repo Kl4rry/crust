@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::atomic::Ordering};
+use std::{
+    collections::HashMap,
+    sync::{atomic::Ordering, Arc},
+};
 
 use crate::{
     parser::shell_error::ShellErrorKind,
@@ -24,33 +27,22 @@ use variable::Variable;
 pub mod context;
 
 use self::context::Context;
-use super::shell_error::ShellError;
+use super::{shell_error::ShellError, source::Source};
 
-#[derive(Debug)]
 pub struct Ast {
     sequence: Vec<Compound>,
-    src: String,
-    name: String,
+    src: Arc<Source>,
 }
 
 impl Ast {
-    pub fn new(sequence: Vec<Compound>, src: String, name: String) -> Self {
-        Self {
-            sequence,
-            src,
-            name,
-        }
+    pub fn new(sequence: Vec<Compound>, src: Arc<Source>) -> Self {
+        Self { sequence, src }
     }
 
     pub fn eval(&self, shell: &mut Shell, output: &mut OutputStream) -> Result<(), ShellError> {
         let res = self.eval_errorkind(shell, output);
         res.map_err(|err| {
-            ShellError::new(
-                err,
-                self.src.clone(),
-                self.name.clone(),
-                shell.executables.clone(),
-            )
+            ShellError::new(err, (*self.src).clone().into(), shell.executables.clone())
         })
     }
 
@@ -68,6 +60,7 @@ impl Ast {
                 shell,
                 frame,
                 output,
+                src: self.src.clone(),
             };
 
             match compound {
@@ -82,13 +75,13 @@ impl Ast {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Compound {
     Statement(Statement),
     Expr(Expr),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Block {
     pub sequence: Vec<Compound>,
 }
@@ -112,6 +105,7 @@ impl Block {
             shell: ctx.shell,
             frame,
             output: ctx.output,
+            src: ctx.src.clone(),
         };
         for compound in &self.sequence {
             if ctx.shell.interrupt.load(Ordering::SeqCst) {

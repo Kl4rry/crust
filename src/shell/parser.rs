@@ -1,4 +1,4 @@
-use std::{convert::TryInto, rc::Rc};
+use std::{convert::TryInto, rc::Rc, sync::Arc};
 
 use memchr::memchr;
 
@@ -31,7 +31,10 @@ pub mod syntax_error;
 use regex::Regex;
 use syntax_error::{SyntaxError, SyntaxErrorKind};
 
+use self::{ast::statement::function::Function, source::Source};
+
 pub mod shell_error;
+pub mod source;
 
 pub type Result<T> = std::result::Result<T, SyntaxErrorKind>;
 
@@ -46,14 +49,17 @@ pub fn escape_char(c: u8) -> u8 {
 pub struct Parser {
     token: Option<Token>,
     lexer: Lexer,
-    name: String,
 }
 
 impl Parser {
-    pub fn new(src: String, name: String) -> Self {
-        let mut lexer = Lexer::new(src);
+    pub fn new(name: String, src: String) -> Self {
+        let mut lexer = Lexer::new(Source::new(name, src).into());
         let token = lexer.next();
-        Self { lexer, token, name }
+        Self { lexer, token }
+    }
+
+    pub fn named_source(&self) -> Arc<Source> {
+        self.lexer.named_source()
     }
 
     #[inline(always)]
@@ -133,15 +139,11 @@ impl Parser {
 
     pub fn parse(mut self) -> std::result::Result<Ast, P<SyntaxError>> {
         match self.parse_sequence(false) {
-            Ok(sequence) => Ok(Ast::new(
-                sequence,
-                self.src().to_string(),
-                self.name.clone(),
-            )),
+            Ok(sequence) => Ok(Ast::new(sequence, self.named_source())),
             Err(error) => Err(P::new(SyntaxError::new(
                 error,
                 self.src().to_string(),
-                self.name.clone(),
+                self.named_source().name.clone(),
             ))),
         }
     }
@@ -269,10 +271,14 @@ impl Parser {
                 }
                 self.skip_whitespace();
                 let block = self.parse_block()?;
-                Ok(Compound::Statement(Statement::Fn(
-                    name,
-                    Rc::new((vars, block)),
-                )))
+
+                let func = Function {
+                    parameters: vars,
+                    block,
+                    src: self.named_source(),
+                };
+
+                Ok(Compound::Statement(Statement::Fn(name, Rc::new(func))))
             }
             TokenType::Loop => {
                 self.eat()?;

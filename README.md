@@ -83,7 +83,7 @@ Add custom ls command.
 Convert statements into expressions.  
 Allow expressions to be start of pipeline.  
 Test scoped cd.  
-Table limit width.  
+Multi line Table entry.  
 Make it possible to use input from pipeline in user defined function.  
 
 ## Low prio todo

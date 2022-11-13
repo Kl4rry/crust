@@ -12,16 +12,19 @@ use crate::{
 pub mod assign_op;
 use assign_op::AssignOp;
 
+pub mod function;
+
+use self::function::Function;
 use super::context::Context;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Statement {
     Export(Variable, Expr),
     Declaration(Variable, Expr),
     Assign(Variable, Expr),
     AssignOp(Variable, AssignOp, Expr),
     If(Expr, Block, Option<P<Statement>>),
-    Fn(String, Rc<(Vec<Variable>, Block)>),
+    Fn(String, Rc<Function>),
     Return(Option<Expr>),
     For(Variable, Expr, Block),
     While(Expr, Block),
@@ -187,11 +190,7 @@ impl Statement {
                 }
             }
             Self::Fn(name, func) => {
-                if name == "prompt" && func.0.is_empty() {
-                    ctx.shell.prompt = Some(func.1.clone());
-                } else {
-                    ctx.frame.add_function(name.clone(), func.clone());
-                }
+                ctx.frame.add_function(name.clone(), func.clone());
                 Ok(())
             }
             Self::Return(expr) => {

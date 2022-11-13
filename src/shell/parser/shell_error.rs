@@ -3,16 +3,20 @@ use std::{
     num::{ParseFloatError, ParseIntError},
     path::PathBuf,
     rc::Rc,
+    sync::Arc,
 };
 
 use executable_finder::Executable;
 use glob::{GlobError, PatternError};
-use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
+use miette::{Diagnostic, LabeledSpan, SourceCode};
 use rayon::prelude::*;
 use subprocess::{CommunicateError, PopenError};
 use thiserror::Error;
 
-use super::ast::expr::{binop::BinOp, unop::UnOp};
+use super::{
+    ast::expr::{binop::BinOp, unop::UnOp},
+    source::Source,
+};
 use crate::{
     argparse::ParseError,
     shell::{
@@ -25,22 +29,15 @@ use crate::{
 #[derive(Debug, Error)]
 pub struct ShellError {
     pub error: ShellErrorKind,
-    pub src: NamedSource,
-    pub len: usize,
+    pub src: Arc<Source>,
     pub executables: Rc<Vec<Executable>>,
 }
 
 impl ShellError {
-    pub fn new(
-        error: ShellErrorKind,
-        src: String,
-        name: String,
-        executables: Rc<Vec<Executable>>,
-    ) -> Self {
+    pub fn new(error: ShellErrorKind, src: Arc<Source>, executables: Rc<Vec<Executable>>) -> Self {
         ShellError {
             error,
-            len: src.len(),
-            src: NamedSource::new(name, src),
+            src,
             executables,
         }
     }

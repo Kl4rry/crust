@@ -1,21 +1,25 @@
 pub mod token;
 
+use std::sync::Arc;
+
 use token::{span::Span, Token, TokenType};
 
+use super::source::Source;
+
 pub struct Lexer {
-    src: String,
+    src: Arc<Source>,
     current: u8,
     index: usize,
     eof: bool,
 }
 
 impl Lexer {
-    pub fn new(src: String) -> Self {
-        let (current, eof) = if src.is_empty() {
+    pub fn new(src: Arc<Source>) -> Self {
+        let (current, eof) = if src.code.is_empty() {
             // this null byte should NEVER be read as the eof flag is set to true
             (b'\0', true)
         } else {
-            (src.as_bytes()[0], false)
+            (src.code.as_bytes()[0], false)
         };
 
         Self {
@@ -26,21 +30,25 @@ impl Lexer {
         }
     }
 
+    pub fn named_source(&self) -> Arc<Source> {
+        self.src.clone()
+    }
+
     #[inline(always)]
     pub fn src(&self) -> &str {
-        &self.src
+        &self.src.code
     }
 
     #[inline(always)]
     fn peek(&self, offset: i32) -> u8 {
-        self.src.as_bytes()[(self.index as i32 + offset) as usize]
+        self.src().as_bytes()[(self.index as i32 + offset) as usize]
     }
 
     #[inline(always)]
     fn advance(&mut self) {
-        if (self.index < self.src.len() - 1) && !self.eof {
+        if (self.index < self.src().len() - 1) && !self.eof {
             self.index += 1;
-            self.current = self.src.as_bytes()[self.index];
+            self.current = self.src().as_bytes()[self.index];
         } else if !self.eof {
             self.index += 1;
             self.eof = true;
@@ -148,7 +156,7 @@ impl Lexer {
             self.advance();
         }
         let end = self.index;
-        let value = self.src[start + 1..end].to_string();
+        let value = self.src()[start + 1..end].to_string();
 
         Token {
             token_type: TokenType::Variable(value),
@@ -184,7 +192,7 @@ impl Lexer {
         while (self.current.is_ascii_digit()
             || self.current == b'_'
             || (self.current == b'.'
-                && self.index + 1 < self.src.len()
+                && self.index + 1 < self.src().len()
                 && self.peek(1).is_ascii_digit()))
             && !self.eof
         {
@@ -192,7 +200,7 @@ impl Lexer {
                 if float {
                     let end = self.index;
                     return Token {
-                        token_type: TokenType::Symbol(self.src[start..end].to_string()),
+                        token_type: TokenType::Symbol(self.src()[start..end].to_string()),
                         span: Span::new(start, end),
                     };
                 }
@@ -205,7 +213,7 @@ impl Lexer {
         }
         let end = self.index;
         let value = String::from_utf8(value).unwrap();
-        let string = self.src[start..end].to_string();
+        let string = self.src()[start..end].to_string();
 
         if float {
             Token {
@@ -244,7 +252,7 @@ impl Iterator for Lexer {
                     self.parse_newline()?
                 }
                 b'$' => {
-                    if self.index + 1 < self.src.len() && self.peek(1).is_ascii_alphanumeric() {
+                    if self.index + 1 < self.src().len() && self.peek(1).is_ascii_alphanumeric() {
                         self.parse_variable()
                     } else {
                         self.advance_with(TokenType::Dollar, 1)
@@ -252,7 +260,7 @@ impl Iterator for Lexer {
                 }
 
                 b'.' => {
-                    if self.index + 1 < self.src.len() && self.peek(1) == b'.' {
+                    if self.index + 1 < self.src().len() && self.peek(1) == b'.' {
                         self.advance_with(TokenType::Range, 2)
                     } else {
                         self.advance_with(TokenType::Dot, 1)
@@ -260,14 +268,14 @@ impl Iterator for Lexer {
                 }
                 b',' => self.advance_with(TokenType::Comma, 1),
                 b'|' => {
-                    if self.index + 1 < self.src.len() && self.peek(1) == b'|' {
+                    if self.index + 1 < self.src().len() && self.peek(1) == b'|' {
                         self.advance_with(TokenType::Or, 2)
                     } else {
                         self.advance_with(TokenType::Pipe, 1)
                     }
                 }
                 b'&' => {
-                    if self.index + 1 < self.src.len() && self.peek(1) == b'&' {
+                    if self.index + 1 < self.src().len() && self.peek(1) == b'&' {
                         self.advance_with(TokenType::And, 2)
                     } else {
                         self.advance_with(TokenType::Exec, 1)
@@ -286,7 +294,7 @@ impl Iterator for Lexer {
                 b';' => self.advance_with(TokenType::SemiColon, 1),
                 // binary operators
                 b'=' => {
-                    if self.index + 1 < self.src.len() {
+                    if self.index + 1 < self.src().len() {
                         match self.peek(1) {
                             b'=' => return Some(self.advance_with(TokenType::Eq, 2)),
                             b'~' => return Some(self.advance_with(TokenType::Match, 2)),
@@ -296,41 +304,41 @@ impl Iterator for Lexer {
                     self.advance_with(TokenType::Assignment, 1)
                 }
                 b'+' => {
-                    if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
+                    if self.index + 1 < self.src().len() && self.peek(1) == b'=' {
                         self.advance_with(TokenType::AddAssign, 2)
                     } else {
                         self.advance_with(TokenType::Add, 1)
                     }
                 }
                 b'-' => {
-                    if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
+                    if self.index + 1 < self.src().len() && self.peek(1) == b'=' {
                         self.advance_with(TokenType::SubAssign, 2)
                     } else {
                         self.advance_with(TokenType::Sub, 1)
                     }
                 }
                 b'/' => {
-                    if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
+                    if self.index + 1 < self.src().len() && self.peek(1) == b'=' {
                         self.advance_with(TokenType::DivAssign, 2)
                     } else {
                         self.advance_with(TokenType::Div, 1)
                     }
                 }
                 b'%' => {
-                    if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
+                    if self.index + 1 < self.src().len() && self.peek(1) == b'=' {
                         self.advance_with(TokenType::ModAssign, 2)
                     } else {
                         self.advance_with(TokenType::Mod, 1)
                     }
                 }
                 b'*' => {
-                    if self.index + 1 < self.src.len() && self.peek(1) == b'*' {
-                        if self.index + 2 < self.src.len() && self.peek(2) == b'=' {
+                    if self.index + 1 < self.src().len() && self.peek(1) == b'*' {
+                        if self.index + 2 < self.src().len() && self.peek(2) == b'=' {
                             self.advance_with(TokenType::ExpoAssign, 3)
                         } else {
                             self.advance_with(TokenType::Expo, 2)
                         }
-                    } else if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
+                    } else if self.index + 1 < self.src().len() && self.peek(1) == b'=' {
                         self.advance_with(TokenType::MulAssign, 2)
                     } else {
                         self.advance_with(TokenType::Mul, 1)
@@ -338,21 +346,21 @@ impl Iterator for Lexer {
                 }
 
                 b'<' => {
-                    if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
+                    if self.index + 1 < self.src().len() && self.peek(1) == b'=' {
                         self.advance_with(TokenType::Le, 2)
                     } else {
                         self.advance_with(TokenType::Lt, 1)
                     }
                 }
                 b'>' => {
-                    if self.index + 1 < self.src.len() && self.peek(1) == b'=' {
+                    if self.index + 1 < self.src().len() && self.peek(1) == b'=' {
                         self.advance_with(TokenType::Ge, 2)
                     } else {
                         self.advance_with(TokenType::Gt, 1)
                     }
                 }
                 b'!' => {
-                    if self.index + 1 < self.src.len() {
+                    if self.index + 1 < self.src().len() {
                         match self.peek(1) {
                             b'=' => return Some(self.advance_with(TokenType::Ne, 2)),
                             b'~' => return Some(self.advance_with(TokenType::NotMatch, 2)),

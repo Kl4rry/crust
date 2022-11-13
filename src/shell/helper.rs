@@ -13,7 +13,10 @@ use yansi::Paint;
 mod completer;
 use completer::FilenameCompleter;
 
-use crate::parser::lexer::{token::TokenType, Lexer};
+use crate::parser::{
+    lexer::{token::TokenType, Lexer},
+    source::Source,
+};
 
 pub struct EditorHelper {
     filename_completer: FilenameCompleter,
@@ -80,7 +83,7 @@ pub struct Highlighter<'a> {
 impl<'a> Highlighter<'a> {
     fn new(line: &'a str) -> Self {
         Self {
-            lexer: Lexer::new(line.to_string()),
+            lexer: Lexer::new(Source::new(String::new(), line.to_string()).into()),
             index: 0,
             line,
             output: String::new(),
