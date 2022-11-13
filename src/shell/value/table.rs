@@ -142,23 +142,22 @@ impl fmt::Display for Table {
 
         fmt_horizontal(f, &column_widths, ConfigChars::TOP)?;
 
-        let bar = bar();
-        bar.fmt(f)?;
+        bar().fmt(f)?;
         center_pad(Paint::green('#'), column_widths[0]).fmt(f)?;
-        bar.fmt(f)?;
+        bar().fmt(f)?;
         for (index, header) in self.headers.iter().enumerate() {
             center_pad(Paint::green(header), column_widths[index + 1]).fmt(f)?;
-            bar.fmt(f)?;
+            bar().fmt(f)?;
         }
         writeln!(f)?;
 
         fmt_horizontal(f, &column_widths, ConfigChars::MID)?;
 
         for (number, row) in rows.iter().enumerate() {
-            bar.fmt(f)?;
+            bar().fmt(f)?;
             left_pad(Paint::green(number), column_widths[0] - 1).fmt(f)?;
             ' '.fmt(f)?;
-            bar.fmt(f)?;
+            bar().fmt(f)?;
             for (index, col) in row.iter().enumerate() {
                 let mut ouput_col = "";
                 for (i, grapheme) in col.grapheme_indices(true) {
@@ -172,7 +171,7 @@ impl fmt::Display for Table {
                 ' '.fmt(f)?;
                 right_pad(ouput_col, column_widths[index + 1] - 2).fmt(f)?;
                 ' '.fmt(f)?;
-                bar.fmt(f)?;
+                bar().fmt(f)?;
             }
             writeln!(f)?;
         }
