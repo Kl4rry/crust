@@ -117,33 +117,36 @@ impl Shell {
 
     pub fn init(&mut self) -> Result<(), ShellErrorKind> {
         self.load_env();
-        fs::create_dir_all(self.project_dirs.config_dir()).map_err(|e| {
-            ShellErrorKind::Io(Some(self.project_dirs.config_dir().to_path_buf()), e)
-        })?;
-        fs::create_dir_all(self.project_dirs.data_dir())
-            .map_err(|e| ShellErrorKind::Io(Some(self.project_dirs.data_dir().to_path_buf()), e))?;
+        if self.interactive {
+            fs::create_dir_all(self.project_dirs.config_dir()).map_err(|e| {
+                ShellErrorKind::Io(Some(self.project_dirs.config_dir().to_path_buf()), e)
+            })?;
+            fs::create_dir_all(self.project_dirs.data_dir()).map_err(|e| {
+                ShellErrorKind::Io(Some(self.project_dirs.data_dir().to_path_buf()), e)
+            })?;
 
-        let config_path = self.config_path();
-        if !config_path.is_file() {
-            let mut f = OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(&config_path)
+            let config_path = self.config_path();
+            if !config_path.is_file() {
+                let mut f = OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .open(&config_path)
+                    .map_err(|e| ShellErrorKind::Io(Some(config_path.to_path_buf()), e))?;
+                f.write_all(include_bytes!("../config/default.crust"))
+                    .map_err(|e| ShellErrorKind::Io(Some(config_path.to_path_buf()), e))?;
+            }
+
+            let config = std::fs::read_to_string(&config_path)
                 .map_err(|e| ShellErrorKind::Io(Some(config_path.to_path_buf()), e))?;
-            f.write_all(include_bytes!("../config/default.crust"))
-                .map_err(|e| ShellErrorKind::Io(Some(config_path.to_path_buf()), e))?;
+            let mut output = OutputStream::new_output();
+            self.run_src(
+                config_path.to_string_lossy().to_string(),
+                config,
+                &mut output,
+            );
+            output.end();
         }
-
-        let config = std::fs::read_to_string(&config_path)
-            .map_err(|e| ShellErrorKind::Io(Some(config_path.to_path_buf()), e))?;
-        let mut output = OutputStream::new_output();
-        self.run_src(
-            config_path.to_string_lossy().to_string(),
-            config,
-            &mut output,
-        );
-        output.end();
         Ok(())
     }
 
