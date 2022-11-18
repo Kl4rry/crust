@@ -88,7 +88,7 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
     };
 
     let mut shell = Shell::new(args);
-    let interactive = matches.get_str("FILE").is_some() || matches.get_str("COMMAND").is_some();
+    let interactive = !(matches.get_str("FILE").is_some() || matches.get_str("COMMAND").is_some());
     shell.set_interactive(interactive);
     shell.init()?;
 

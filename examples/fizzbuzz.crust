@@ -11,7 +11,7 @@ for $i in 1..100 {
     }
 
     if $output == "" {
-        $output = $i
+        $output = "$i"
     }
 
     $output += "\n"

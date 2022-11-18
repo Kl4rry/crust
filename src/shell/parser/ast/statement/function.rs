@@ -5,6 +5,7 @@ use crate::parser::{
     source::Source,
 };
 
+#[derive(Debug)]
 pub struct Function {
     pub parameters: Vec<Variable>,
     pub block: Block,

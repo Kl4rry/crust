@@ -17,7 +17,7 @@ pub mod function;
 use self::function::Function;
 use super::context::Context;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Statement {
     Export(Variable, Expr),
     Declaration(Variable, Expr),

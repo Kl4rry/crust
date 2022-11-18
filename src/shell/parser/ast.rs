@@ -29,6 +29,7 @@ pub mod context;
 use self::context::Context;
 use super::{shell_error::ShellError, source::Source};
 
+#[derive(Debug)]
 pub struct Ast {
     sequence: Vec<Compound>,
     src: Arc<Source>,
@@ -75,13 +76,13 @@ impl Ast {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Compound {
     Statement(Statement),
     Expr(Expr),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Block {
     pub sequence: Vec<Compound>,
 }

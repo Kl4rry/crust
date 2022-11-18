@@ -103,12 +103,6 @@ impl Lexer {
         }
     }
 
-    fn skip_comment(&mut self) {
-        while (self.current != b'\n') && !self.eof {
-            self.advance();
-        }
-    }
-
     fn parse_arg(&mut self) -> Token {
         let start = self.index;
         let mut value = String::new();
@@ -247,10 +241,7 @@ impl Iterator for Lexer {
             }
 
             let token = match self.current {
-                b'#' => {
-                    self.skip_comment();
-                    self.parse_newline()?
-                }
+                b'#' => self.advance_with(TokenType::Symbol(String::from("#")), 1),
                 b'$' => {
                     if self.index + 1 < self.src().len() && self.peek(1).is_ascii_alphanumeric() {
                         self.parse_variable()

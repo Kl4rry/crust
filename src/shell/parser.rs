@@ -74,8 +74,55 @@ impl Parser {
         &self.src()[start..end]
     }
 
+    /// Returns reference to first token that is not a comment
     #[inline(always)]
-    fn peek(&self) -> Result<&Token> {
+    fn peek(&mut self) -> Result<&Token> {
+        loop {
+            match self.token {
+                Some(Token {
+                    token_type: TokenType::Symbol(ref symbol),
+                    ..
+                }) if symbol == "#" => {
+                    loop {
+                        let token = self.eat()?;
+                        if token.token_type == TokenType::NewLine {
+                            break;
+                        }
+                    }
+                    continue;
+                }
+                Some(ref token) => return Ok(token),
+                None => return Err(SyntaxErrorKind::ExpectedToken),
+            }
+        }
+    }
+
+    #[inline(always)]
+    fn eat(&mut self) -> Result<Token> {
+        loop {
+            let token = self.token.take();
+            self.token = self.lexer.next();
+            match token {
+                Some(Token {
+                    token_type: TokenType::Symbol(ref symbol),
+                    ..
+                }) if symbol == "#" => {
+                    loop {
+                        let token = self.eat()?;
+                        if token.token_type == TokenType::NewLine {
+                            break;
+                        }
+                    }
+                    continue;
+                }
+                Some(token) => return Ok(token),
+                None => return Err(SyntaxErrorKind::ExpectedToken),
+            }
+        }
+    }
+
+    #[inline(always)]
+    fn peek_with_comment(&self) -> Result<&Token> {
         match self.token {
             Some(ref token) => Ok(token),
             None => Err(SyntaxErrorKind::ExpectedToken),
@@ -83,7 +130,7 @@ impl Parser {
     }
 
     #[inline(always)]
-    fn eat(&mut self) -> Result<Token> {
+    fn eat_with_comment(&mut self) -> Result<Token> {
         let token = self.token.take();
         self.token = self.lexer.next();
         match token {
@@ -360,7 +407,7 @@ impl Parser {
         };
 
         loop {
-            let token = self.peek()?;
+            let token = self.peek_with_comment()?;
             match token.token_type {
                 TokenType::LeftParen => {
                     expand
@@ -377,7 +424,7 @@ impl Parser {
                     break;
                 }
                 _ => {
-                    let token = self.eat()?;
+                    let token = self.eat_with_comment()?;
                     let new = self.get_span_from_src(token.span);
                     let mut escaped = String::new();
                     let mut index = 0;
