@@ -388,8 +388,8 @@ impl Parser {
             | TokenType::Dollar
             | TokenType::Int(_, _)
             | TokenType::Float(_, _)
-            | TokenType::String(_)
             | TokenType::Quote
+            | TokenType::DoubleQuote
             | TokenType::Sub
             | TokenType::LeftParen
             | TokenType::True
@@ -400,8 +400,24 @@ impl Parser {
         }
     }
 
-    fn parse_expand(&mut self) -> Result<Expand> {
+    fn parse_string(&mut self) -> Result<String> {
         self.eat()?.expect(TokenType::Quote)?;
+        let mut string = String::new();
+
+        loop {
+            let token = self.eat_with_comment()?;
+            match token.token_type {
+                TokenType::Quote => break,
+                _ => {
+                    string.push_str(self.get_span_from_src(token.span));
+                }
+            }
+        }
+        Ok(string)
+    }
+
+    fn parse_expand(&mut self) -> Result<Expand> {
+        self.eat()?.expect(TokenType::DoubleQuote)?;
         let mut expand = Expand {
             content: Vec::new(),
         };
@@ -419,7 +435,7 @@ impl Parser {
                         .content
                         .push(ExpandKind::Variable(self.eat()?.try_into()?));
                 }
-                TokenType::Quote => {
+                TokenType::DoubleQuote => {
                     self.eat()?;
                     break;
                 }
@@ -532,7 +548,7 @@ impl Parser {
         self.eat()?.expect(TokenType::At)?;
         match self.peek()?.token_type {
             TokenType::LeftBrace => self.parse_map(),
-            TokenType::String(_) => self.parse_regex(),
+            TokenType::Quote => self.parse_regex(),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         }
     }
@@ -571,15 +587,18 @@ impl Parser {
     }
 
     fn parse_regex(&mut self) -> Result<Expr> {
-        let token = self.eat()?;
-        let string = match token.token_type {
-            TokenType::String(string) => string,
-            _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
-        };
+        let token = self.peek()?; // TODO expect quote
+        let start = token.span.start();
+        let string = self.parse_string()?;
 
         let regex = match Regex::new(&string) {
             Ok(regex) => regex,
-            Err(e) => return Err(SyntaxErrorKind::Regex(e, token.span)),
+            Err(e) => {
+                return Err(SyntaxErrorKind::Regex(
+                    e,
+                    Span::new(start, start - string.len()),
+                ))
+            }
         };
 
         Ok(Expr::Literal(Literal::Regex(Rc::new((regex, string)))))
@@ -600,10 +619,9 @@ impl Parser {
             TokenType::Symbol(_) | TokenType::Exec => self.parse_pipe(None)?,
             TokenType::LeftParen => self.parse_sub_expr()?.wrap(unop),
             TokenType::Variable(_) => Expr::Variable(self.eat()?.try_into()?),
-            TokenType::String(_) | TokenType::Int(_, _) | TokenType::Float(_, _) => {
-                Expr::Literal(self.eat()?.try_into()?)
-            }
-            TokenType::Quote => Expr::Literal(Literal::Expand(self.parse_expand()?)),
+            TokenType::Quote => Expr::Literal(Literal::String(Rc::new(self.parse_string()?))),
+            TokenType::Int(_, _) | TokenType::Float(_, _) => Expr::Literal(self.eat()?.try_into()?),
+            TokenType::DoubleQuote => Expr::Literal(Literal::Expand(self.parse_expand()?)),
             TokenType::Sub | TokenType::Not => {
                 let inner = self.eat()?.try_into()?;
                 self.skip_optional_space();
@@ -784,7 +802,7 @@ impl Parser {
         let mut parts = Vec::new();
         while let Ok(token) = self.peek() {
             let part = match &token.token_type {
-                TokenType::Quote => CommandPart::Expand(self.parse_expand()?),
+                TokenType::DoubleQuote => CommandPart::Expand(self.parse_expand()?),
                 TokenType::Space
                 | TokenType::NewLine
                 | TokenType::SemiColon
@@ -805,7 +823,8 @@ impl Parser {
         let mut parts = Vec::new();
 
         let (part, concat) = match self.peek()?.token_type {
-            TokenType::Quote => (ArgumentPart::Expand(self.parse_expand()?), true),
+            TokenType::Quote => (ArgumentPart::Quoted(self.parse_string()?), true),
+            TokenType::DoubleQuote => (ArgumentPart::Expand(self.parse_expand()?), true),
             TokenType::LeftParen => (ArgumentPart::Expr(self.parse_sub_expr()?), true),
             // TODO list should maybe be parsed below to allow for concatination
             TokenType::LeftBracket => (ArgumentPart::Expr(self.parse_list()?), false),
@@ -829,7 +848,7 @@ impl Parser {
         while let Ok(token) = self.peek() {
             if token.is_valid_argpart() {
                 match token.token_type {
-                    TokenType::Quote => {
+                    TokenType::DoubleQuote => {
                         parts.push(ArgumentPart::Expand(self.parse_expand()?));
                         continue;
                     }
@@ -842,12 +861,15 @@ impl Parser {
 
                 let token = self.eat()?;
                 match token.token_type {
-                    TokenType::String(string) => match parts.last_mut() {
-                        Some(ArgumentPart::Quoted(text)) => {
-                            text.push_str(&string);
+                    TokenType::Quote => {
+                        let string = self.parse_string()?;
+                        match parts.last_mut() {
+                            Some(ArgumentPart::Quoted(text)) => {
+                                text.push_str(&string);
+                            }
+                            _ => parts.push(ArgumentPart::Quoted(string)),
                         }
-                        _ => parts.push(ArgumentPart::Quoted(string)),
-                    },
+                    }
                     TokenType::Symbol(string) => match parts.last_mut() {
                         Some(ArgumentPart::Bare(text)) => {
                             text.push_str(&string);
@@ -869,45 +891,6 @@ impl Parser {
                 }
             } else {
                 break;
-            }
-        }
-
-        // TODO
-        // fix this fucking thing
-        // it should make it a real expression and eval it with the correct operands
-        // or it could just accept that it is a string
-        let last = parts.last().unwrap();
-        if let ArgumentPart::Int(_) = last {
-            if let ArgumentPart::Bare(s) = parts.first().unwrap() {
-                if s.bytes().all(|b| b == b'-') {
-                    let neg = !s.len() % 2 == 0;
-                    let last = parts.pop().unwrap();
-                    let mut number = match last {
-                        ArgumentPart::Int(number) => number,
-                        _ => unreachable!(),
-                    };
-                    parts.clear();
-                    if neg {
-                        number = -number;
-                    }
-                    parts.push(ArgumentPart::Int(number));
-                }
-            }
-        } else if let ArgumentPart::Float(_) = last {
-            if let ArgumentPart::Bare(s) = parts.first().unwrap() {
-                if s.bytes().all(|b| b == b'-') {
-                    let neg = !s.len() % 2 == 0;
-                    let last = parts.pop().unwrap();
-                    let mut number = match last {
-                        ArgumentPart::Float(number) => number,
-                        _ => unreachable!(),
-                    };
-                    parts.clear();
-                    if neg {
-                        number = -number;
-                    }
-                    parts.push(ArgumentPart::Float(number));
-                }
             }
         }
 

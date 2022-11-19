@@ -158,27 +158,6 @@ impl Lexer {
         }
     }
 
-    fn parse_string(&mut self) -> Token {
-        let start = self.index;
-        self.advance();
-        let mut value = String::new();
-        while !self.eof {
-            if self.current == b'\'' {
-                self.advance();
-                break;
-            } else {
-                unsafe { value.as_mut_vec().push(self.current) };
-                self.advance();
-            }
-        }
-        let end = self.index;
-
-        Token {
-            token_type: TokenType::String(value),
-            span: Span::new(start, end),
-        }
-    }
-
     fn parse_number(&mut self) -> Token {
         let start = self.index;
         let mut float = false;
@@ -272,9 +251,9 @@ impl Iterator for Lexer {
                         self.advance_with(TokenType::Exec, 1)
                     }
                 }
-                b'\'' => self.parse_string(),
                 b'@' => self.advance_with(TokenType::At, 1),
-                b'"' => self.advance_with(TokenType::Quote, 1),
+                b'\'' => self.advance_with(TokenType::Quote, 1),
+                b'"' => self.advance_with(TokenType::DoubleQuote, 1),
                 b')' => self.advance_with(TokenType::RightParen, 1),
                 b'(' => self.advance_with(TokenType::LeftParen, 1),
                 b'}' => self.advance_with(TokenType::RightBrace, 1),

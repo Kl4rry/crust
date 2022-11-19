@@ -79,7 +79,6 @@ impl TryFrom<Token> for Literal {
     type Error = SyntaxErrorKind;
     fn try_from(token: Token) -> Result<Self, SyntaxErrorKind> {
         match token.token_type {
-            TokenType::String(text) => Ok(Literal::String(Rc::new(text))),
             TokenType::Float(number, _) => Ok(Literal::Float(number)),
             TokenType::Int(number, _) => Ok(Literal::Int(number)),
             TokenType::True => Ok(Literal::Bool(true)),

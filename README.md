@@ -85,6 +85,7 @@ Allow expressions to be start of pipeline.
 Test scoped cd.  
 Multi line Table entry.  
 Make it possible to use input from pipeline in user defined function.  
+Better error for unclosed delimiters.  
 
 ## Low prio todo
 Make command pipelines lazy.  

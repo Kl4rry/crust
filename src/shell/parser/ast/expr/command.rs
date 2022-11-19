@@ -28,7 +28,6 @@ impl TryFrom<Token> for CommandPart {
     type Error = SyntaxErrorKind;
     fn try_from(token: Token) -> Result<Self, Self::Error> {
         match token.token_type {
-            TokenType::String(text) => Ok(CommandPart::String(text)),
             TokenType::Symbol(text) => Ok(CommandPart::String(text)),
             TokenType::Int(_, text) => Ok(CommandPart::String(text)),
             TokenType::Float(_, text) => Ok(CommandPart::String(text)),

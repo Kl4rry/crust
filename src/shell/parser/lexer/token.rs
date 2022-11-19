@@ -25,9 +25,9 @@ pub struct Token {
 pub enum TokenType {
     Symbol(String),
     Variable(String),
-    String(String),
     Float(BigDecimal, String),
     Int(BigUint, String),
+    DoubleQuote,
     Quote,
     NewLine,
     Space,
@@ -165,6 +165,7 @@ impl TokenType {
                 | LeftBracket
                 | LeftParen
                 | Quote
+                | DoubleQuote
                 | AddAssign
                 | SubAssign
                 | MulAssign
@@ -189,7 +190,6 @@ impl TokenType {
                 | NotMatch
                 | Symbol(_)
                 | Variable(_)
-                | String(_)
                 | Float(_, _)
                 | Int(_, _)
                 | True
@@ -209,9 +209,9 @@ impl TokenType {
 }
 
 impl Token {
-    pub fn expect(self, token_type: TokenType) -> Result<()> {
+    pub fn expect(self, token_type: TokenType) -> Result<Self> {
         if mem::discriminant(&self.token_type) == mem::discriminant(&token_type) {
-            Ok(())
+            Ok(self)
         } else {
             Err(SyntaxErrorKind::UnexpectedToken(self))
         }
@@ -236,12 +236,12 @@ impl Token {
     pub fn try_into_argpart(self) -> Result<ArgumentPart> {
         use TokenType::*;
         match self.token_type {
-            String(text) => Ok(ArgumentPart::Quoted(text)),
             Symbol(text) => Ok(ArgumentPart::Bare(text)),
             Variable(_) => Ok(ArgumentPart::Variable(self.try_into()?)),
             Int(number, _) => Ok(ArgumentPart::Int(number.into())),
             Float(number, _) => Ok(ArgumentPart::Float(number)),
             True => Ok(ArgumentPart::Expr(Expr::Literal(Literal::Bool(true)))),
+            False => Ok(ArgumentPart::Expr(Expr::Literal(Literal::Bool(false)))),
             _ => Ok(ArgumentPart::Bare(self.try_into_glob_str()?.to_string())),
         }
     }
