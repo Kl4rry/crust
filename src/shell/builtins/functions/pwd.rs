@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 
 use crate::{
-    argparse::{App, ParseResult},
+    argparse::{App, Flag, ParseResult},
     parser::shell_error::ShellErrorKind,
     shell::{
         current_dir_str,
@@ -11,7 +11,11 @@ use crate::{
     },
 };
 
-static APP: Lazy<App> = Lazy::new(|| App::new("pwd").about("Print current working directory"));
+static APP: Lazy<App> = Lazy::new(|| {
+    App::new("pwd")
+        .about("Print current working directory")
+        .flag(Flag::new("PHYSICAL").short('p').help("Resolve symlinks"))
+});
 
 pub fn pwd(
     _: &mut Shell,
@@ -20,7 +24,7 @@ pub fn pwd(
     _: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    let _ = match APP.parse(args.into_iter()) {
+    let matches = match APP.parse(args.into_iter()) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
             output.push(info);
@@ -29,7 +33,13 @@ pub fn pwd(
         Err(e) => return Err(e.into()),
     };
 
-    output.push(Value::from(current_dir_str()));
+    if matches.conatins("PHYSICAL") {
+        if let Ok(path) = std::fs::read_link(current_dir_str()) {
+            output.push(Value::from(path.to_string_lossy().to_string()));
+            return Ok(());
+        }
+    }
 
+    output.push(Value::from(current_dir_str()));
     Ok(())
 }
