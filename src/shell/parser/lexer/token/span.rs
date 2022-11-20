@@ -11,6 +11,7 @@ pub struct Span {
 impl Span {
     #[inline(always)]
     pub fn new(start: usize, end: usize) -> Self {
+        debug_assert!(start <= end);
         Self {
             start,
             len: end - start,
