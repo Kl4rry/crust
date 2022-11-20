@@ -240,8 +240,8 @@ impl Parser {
 
         match token_type {
             TokenType::LeftBrace => Ok(Compound::Statement(Statement::Block(self.parse_block()?))),
-            TokenType::Variable(_) => {
-                let var: Variable = self.eat()?.try_into()?;
+            TokenType::Dollar => {
+                let var: Variable = self.parse_variable(true)?;
                 if let Ok(token) = self.peek() {
                     match token.token_type {
                         TokenType::Dot => {
@@ -304,7 +304,7 @@ impl Parser {
                     let token = self.eat()?;
                     match token.token_type {
                         TokenType::RightParen => break,
-                        TokenType::Variable(_) => vars.push(token.try_into()?),
+                        TokenType::Dollar => vars.push(self.parse_variable(false)?),
                         _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
                     }
 
@@ -336,7 +336,7 @@ impl Parser {
             TokenType::For => {
                 self.eat()?;
                 self.skip_whitespace();
-                let var: Variable = self.eat()?.try_into()?;
+                let var: Variable = self.parse_variable(false)?;
                 self.skip_whitespace();
                 self.eat()?.expect(TokenType::In)?;
                 self.skip_whitespace();
@@ -385,7 +385,6 @@ impl Parser {
             TokenType::Symbol(_) => Ok(Compound::Expr(self.parse_expr(None)?)),
             TokenType::Exec
             | TokenType::At
-            | TokenType::Dollar
             | TokenType::Int(_, _)
             | TokenType::Float(_, _)
             | TokenType::Quote
@@ -397,6 +396,25 @@ impl Parser {
             | TokenType::LeftBracket
             | TokenType::Not => Ok(Compound::Expr(self.parse_expr(None)?)),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
+        }
+    }
+
+    fn parse_variable(&mut self, require_prefix: bool) -> Result<Variable> {
+        if require_prefix {
+            self.eat()?.expect(TokenType::Dollar)?;
+        }
+
+        if self.peek()?.token_type == TokenType::Dollar {
+            self.eat()?.expect(TokenType::Dollar)?;
+        }
+
+        let token = self.eat()?;
+        if token.token_type == TokenType::LeftBrace {
+            let var = Variable::try_from(self.eat()?)?;
+            self.eat()?.expect(TokenType::RightBrace)?;
+            Ok(var)
+        } else {
+            Variable::try_from(token)
         }
     }
 
@@ -430,10 +448,10 @@ impl Parser {
                         .content
                         .push(ExpandKind::Expr(self.parse_sub_expr()?));
                 }
-                TokenType::Variable(_) => {
+                TokenType::Dollar => {
                     expand
                         .content
-                        .push(ExpandKind::Variable(self.eat()?.try_into()?));
+                        .push(ExpandKind::Variable(self.parse_variable(true)?));
                 }
                 TokenType::DoubleQuote => {
                     self.eat()?;
@@ -494,10 +512,10 @@ impl Parser {
     }
 
     fn parse_declaration(&mut self, export: bool) -> Result<Statement> {
-        self.eat()?;
+        self.eat()?.expect(TokenType::Let)?;
         self.skip_space()?;
 
-        let variable: Variable = self.eat()?.try_into()?;
+        let variable: Variable = self.parse_variable(false)?;
 
         self.skip_optional_space();
 
@@ -618,7 +636,7 @@ impl Parser {
             TokenType::True | TokenType::False => Expr::Literal(self.eat()?.try_into()?),
             TokenType::Symbol(_) | TokenType::Exec => self.parse_pipe(None)?,
             TokenType::LeftParen => self.parse_sub_expr()?.wrap(unop),
-            TokenType::Variable(_) => Expr::Variable(self.eat()?.try_into()?),
+            TokenType::Dollar => Expr::Variable(self.parse_variable(true)?),
             TokenType::Quote => Expr::Literal(Literal::String(Rc::new(self.parse_string()?))),
             TokenType::Int(_, _) | TokenType::Float(_, _) => Expr::Literal(self.eat()?.try_into()?),
             TokenType::DoubleQuote => Expr::Literal(Literal::Expand(self.parse_expand()?)),
@@ -803,6 +821,7 @@ impl Parser {
         while let Ok(token) = self.peek() {
             let part = match &token.token_type {
                 TokenType::DoubleQuote => CommandPart::Expand(self.parse_expand()?),
+                TokenType::Dollar => CommandPart::Variable(self.parse_variable(true)?),
                 TokenType::Space
                 | TokenType::NewLine
                 | TokenType::SemiColon
@@ -830,6 +849,7 @@ impl Parser {
             TokenType::LeftBracket => (ArgumentPart::Expr(self.parse_list()?), false),
             // TODO same for map
             TokenType::At => (ArgumentPart::Expr(self.parse_regex_or_map()?), false),
+            TokenType::Dollar => (ArgumentPart::Variable(self.parse_variable(true)?), true),
             _ => (self.eat()?.try_into_argpart()?, true),
         };
         parts.push(part);
@@ -876,7 +896,9 @@ impl Parser {
                         }
                         _ => parts.push(ArgumentPart::Bare(string)),
                     },
-                    TokenType::Variable(_) => parts.push(ArgumentPart::Variable(token.try_into()?)),
+                    TokenType::Dollar => {
+                        parts.push(ArgumentPart::Variable(self.parse_variable(true)?))
+                    }
                     TokenType::Int(number, _) => parts.push(ArgumentPart::Int(number.into())),
                     TokenType::Float(number, _) => parts.push(ArgumentPart::Float(number)),
                     _ => {

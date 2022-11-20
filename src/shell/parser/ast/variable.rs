@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use super::context::Context;
 use crate::{
     parser::{
-        lexer::token::{Token, TokenType},
+        lexer::token::{is_valid_identifier, Token, TokenType},
         shell_error::ShellErrorKind,
         syntax_error::SyntaxErrorKind,
     },
@@ -34,7 +34,13 @@ impl TryFrom<Token> for Variable {
     type Error = SyntaxErrorKind;
     fn try_from(token: Token) -> Result<Self, Self::Error> {
         match token.token_type {
-            TokenType::Variable(name) => Ok(Variable { name }),
+            TokenType::Symbol(name) => {
+                if is_valid_identifier(&name) {
+                    Err(SyntaxErrorKind::InvalidIdentifier(token.span))
+                } else {
+                    Ok(Self { name })
+                }
+            }
             _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
         }
     }

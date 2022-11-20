@@ -104,11 +104,6 @@ impl<'a> Highlighter<'a> {
                         Paint::yellow(&self.line[token.span.start()..token.span.end()]).to_string();
                     self.output.push_str(&s);
                 }
-                TokenType::Variable(..) => {
-                    let s =
-                        Paint::red(&self.line[token.span.start()..token.span.end()]).to_string();
-                    self.output.push_str(&s);
-                }
                 token_type => {
                     if token_type.is_keyword() {
                         let s = Paint::magenta(&self.line[token.span.start()..token.span.end()])

@@ -143,21 +143,6 @@ impl Lexer {
         Token { token_type, span }
     }
 
-    fn parse_variable(&mut self) -> Token {
-        let start = self.index;
-        self.advance();
-        while (self.current.is_ascii_alphanumeric() || self.current == b'_') && !self.eof {
-            self.advance();
-        }
-        let end = self.index;
-        let value = self.src()[start + 1..end].to_string();
-
-        Token {
-            token_type: TokenType::Variable(value),
-            span: Span::new(start, end),
-        }
-    }
-
     fn parse_number(&mut self) -> Token {
         let start = self.index;
         let mut float = false;
@@ -221,14 +206,7 @@ impl Iterator for Lexer {
 
             let token = match self.current {
                 b'#' => self.advance_with(TokenType::Symbol(String::from("#")), 1),
-                b'$' => {
-                    if self.index + 1 < self.src().len() && self.peek(1).is_ascii_alphanumeric() {
-                        self.parse_variable()
-                    } else {
-                        self.advance_with(TokenType::Dollar, 1)
-                    }
-                }
-
+                b'$' => self.advance_with(TokenType::Dollar, 1),
                 b'.' => {
                     if self.index + 1 < self.src().len() && self.peek(1) == b'.' {
                         self.advance_with(TokenType::Range, 2)

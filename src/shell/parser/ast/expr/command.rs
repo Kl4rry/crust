@@ -1,4 +1,4 @@
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 
 use crate::parser::{
     ast::{context::Context, expr::argument::Expand, Variable},
@@ -31,7 +31,6 @@ impl TryFrom<Token> for CommandPart {
             TokenType::Symbol(text) => Ok(CommandPart::String(text)),
             TokenType::Int(_, text) => Ok(CommandPart::String(text)),
             TokenType::Float(_, text) => Ok(CommandPart::String(text)),
-            TokenType::Variable(_) => Ok(CommandPart::Variable(token.try_into()?)),
             _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
         }
     }

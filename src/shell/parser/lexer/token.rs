@@ -1,7 +1,7 @@
 use bigdecimal::{num_bigint::BigUint, BigDecimal};
 pub mod span;
 
-use std::{convert::TryInto, mem};
+use std::mem;
 
 use span::Span;
 
@@ -24,7 +24,6 @@ pub struct Token {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum TokenType {
     Symbol(String),
-    Variable(String),
     Float(BigDecimal, String),
     Int(BigUint, String),
     DoubleQuote,
@@ -189,7 +188,6 @@ impl TokenType {
                 | Match
                 | NotMatch
                 | Symbol(_)
-                | Variable(_)
                 | Float(_, _)
                 | Int(_, _)
                 | True
@@ -237,7 +235,6 @@ impl Token {
         use TokenType::*;
         match self.token_type {
             Symbol(text) => Ok(ArgumentPart::Bare(text)),
-            Variable(_) => Ok(ArgumentPart::Variable(self.try_into()?)),
             Int(number, _) => Ok(ArgumentPart::Int(number.into())),
             Float(number, _) => Ok(ArgumentPart::Float(number)),
             True => Ok(ArgumentPart::Expr(Expr::Literal(Literal::Bool(true)))),
@@ -320,4 +317,13 @@ impl Token {
             _ => panic!("could not convert token {:?} to assign op", self),
         }
     }
+}
+
+pub fn is_valid_identifier(ident: &str) -> bool {
+    if let Some(c) = ident.chars().next() {
+        if !c.is_ascii_alphabetic() || c != '_' {
+            return false;
+        }
+    }
+    ident.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }

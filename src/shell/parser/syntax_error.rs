@@ -11,6 +11,7 @@ pub enum SyntaxErrorKind {
     UnexpectedToken(Token),
     ExpectedToken,
     Regex(regex::Error, Span),
+    InvalidIdentifier(Span),
 }
 
 impl fmt::Display for SyntaxErrorKind {
@@ -19,6 +20,7 @@ impl fmt::Display for SyntaxErrorKind {
             Self::UnexpectedToken(ref token) => write!(f, "unexpected token: {:?}", token),
             Self::ExpectedToken => write!(f, "expected token"),
             Self::Regex(e, _) => e.fmt(f),
+            Self::InvalidIdentifier(_) => write!(f, "invalid identifier"),
         }
     }
 }
@@ -32,17 +34,21 @@ pub struct SyntaxError {
 
 impl Diagnostic for SyntaxError {
     fn labels(&self) -> Option<P<dyn Iterator<Item = LabeledSpan> + '_>> {
+        use SyntaxErrorKind::*;
         let label = match &self.error {
-            SyntaxErrorKind::UnexpectedToken(token) => {
+            UnexpectedToken(token) => {
                 LabeledSpan::new_with_span(Some(String::from("Unexpected token")), token.span)
             }
-            SyntaxErrorKind::Regex(e, span) => {
+            Regex(e, span) => {
                 LabeledSpan::new_with_span(Some(e.to_string()), *span)
             }
-            SyntaxErrorKind::ExpectedToken => LabeledSpan::new_with_span(
+            ExpectedToken => LabeledSpan::new_with_span(
                 Some(String::from("Expected token after here")),
                 Span::new(self.len - 1, self.len),
             ),
+            InvalidIdentifier(span) => {
+                LabeledSpan::new_with_span(Some(String::from("Identifiers can only contain numbers, letters and underscores and must not start with a number")), *span)
+            }
         };
         Some(P::new(vec![label].into_iter()))
     }
@@ -76,6 +82,7 @@ impl fmt::Display for SyntaxError {
             SyntaxErrorKind::UnexpectedToken(_) => f.write_str("Unexpected token"),
             SyntaxErrorKind::ExpectedToken => f.write_str("Expected token"),
             SyntaxErrorKind::Regex(_, _) => write!(f, "Regex error"),
+            SyntaxErrorKind::InvalidIdentifier(_) => write!(f, "Invalid identifier"),
         }
     }
 }
