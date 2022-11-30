@@ -3,6 +3,7 @@ use std::{collections::HashMap, rc::Rc, sync::atomic::Ordering};
 use crate::{
     parser::{
         ast::{expr::Expr, Block, Variable},
+        lexer::token::span::Span,
         shell_error::ShellErrorKind,
     },
     shell::{builtins::variables::is_builtin, value::Value},
@@ -18,7 +19,7 @@ use self::function::Function;
 use super::context::Context;
 
 #[derive(Clone, Debug)]
-pub enum Statement {
+pub enum StatementKind {
     Export(Variable, Expr),
     Declaration(Variable, Expr),
     Assign(Variable, Expr),
@@ -34,10 +35,22 @@ pub enum Statement {
     Break,
 }
 
+impl StatementKind {
+    pub fn spanned(self, span: Span) -> Statement {
+        Statement { kind: self, span }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Statement {
+    pub kind: StatementKind,
+    pub span: Span,
+}
+
 impl Statement {
     pub fn eval(&self, ctx: &mut Context) -> Result<(), ShellErrorKind> {
-        match self {
-            Self::Assign(var, expr) => {
+        match &self.kind {
+            StatementKind::Assign(var, expr) => {
                 if is_builtin(&var.name) {
                     return Err(ShellErrorKind::ReadOnlyVar(var.name.clone()));
                 }
@@ -48,7 +61,7 @@ impl Statement {
                 }
                 Ok(())
             }
-            Self::Declaration(var, expr) => {
+            StatementKind::Declaration(var, expr) => {
                 if is_builtin(&var.name) {
                     return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string()));
                 }
@@ -58,7 +71,7 @@ impl Statement {
 
                 Ok(())
             }
-            Self::AssignOp(var, op, expr) => {
+            StatementKind::AssignOp(var, op, expr) => {
                 if is_builtin(&var.name) {
                     return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string()));
                 }
@@ -76,7 +89,7 @@ impl Statement {
                 ctx.frame.update_var(&var.name, res)?;
                 Ok(())
             }
-            Self::Export(var, expr) => {
+            StatementKind::Export(var, expr) => {
                 if is_builtin(&var.name) {
                     return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string()));
                 }
@@ -92,20 +105,20 @@ impl Statement {
                 ctx.frame.add_env_var(var.name.clone(), value);
                 Ok(())
             }
-            Self::If(expr, block, else_clause) => {
+            StatementKind::If(expr, block, else_clause) => {
                 let value = expr.eval(ctx)?;
                 if value.truthy() {
                     block.eval(ctx, None, None)?
                 } else if let Some(statement) = else_clause {
-                    match &**statement {
-                        Self::Block(block) => block.eval(ctx, None, None)?,
-                        Self::If(..) => statement.eval(ctx)?,
+                    match &statement.kind {
+                        StatementKind::Block(block) => block.eval(ctx, None, None)?,
+                        StatementKind::If(..) => statement.eval(ctx)?,
                         _ => unreachable!(),
                     }
                 }
                 Ok(())
             }
-            Self::Loop(block) => loop {
+            StatementKind::Loop(block) => loop {
                 if ctx.shell.interrupt.load(Ordering::SeqCst) {
                     return Err(ShellErrorKind::Interrupt);
                 }
@@ -116,7 +129,7 @@ impl Statement {
                     Err(error) => return Err(error),
                 }
             },
-            Self::While(condition, block) => {
+            StatementKind::While(condition, block) => {
                 while condition.eval(ctx)?.truthy() {
                     if ctx.shell.interrupt.load(Ordering::SeqCst) {
                         return Err(ShellErrorKind::Interrupt);
@@ -131,7 +144,7 @@ impl Statement {
                 }
                 Ok(())
             }
-            Self::For(var, expr, block) => {
+            StatementKind::For(var, expr, block) => {
                 let name = var.name.clone();
                 let value = expr.eval(ctx)?;
 
@@ -189,11 +202,11 @@ impl Statement {
                     _ => Err(ShellErrorKind::InvalidIterator(value.to_type())),
                 }
             }
-            Self::Fn(name, func) => {
+            StatementKind::Fn(name, func) => {
                 ctx.frame.add_function(name.clone(), func.clone());
                 Ok(())
             }
-            Self::Return(expr) => {
+            StatementKind::Return(expr) => {
                 if let Some(expr) = expr {
                     let value = expr.eval(ctx)?;
                     Err(ShellErrorKind::Return(Some(value)))
@@ -201,9 +214,9 @@ impl Statement {
                     Err(ShellErrorKind::Return(None))
                 }
             }
-            Self::Break => Err(ShellErrorKind::Break),
-            Self::Continue => Err(ShellErrorKind::Continue),
-            Self::Block(block) => block.eval(ctx, None, None),
+            StatementKind::Break => Err(ShellErrorKind::Break),
+            StatementKind::Continue => Err(ShellErrorKind::Continue),
+            StatementKind::Block(block) => block.eval(ctx, None, None),
         }
     }
 }

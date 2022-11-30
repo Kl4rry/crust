@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use super::context::Context;
 use crate::{
     parser::{
-        lexer::token::{is_valid_identifier, Token, TokenType},
+        lexer::token::{is_valid_identifier, span::Span, Token, TokenType},
         shell_error::ShellErrorKind,
         syntax_error::SyntaxErrorKind,
     },
@@ -13,6 +13,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Variable {
     pub name: String,
+    pub span: Span,
 }
 
 impl Variable {
@@ -38,7 +39,10 @@ impl TryFrom<Token> for Variable {
                 if is_valid_identifier(&name) {
                     Err(SyntaxErrorKind::InvalidIdentifier(token.span))
                 } else {
-                    Ok(Self { name })
+                    Ok(Self {
+                        name,
+                        span: token.span,
+                    })
                 }
             }
             _ => Err(SyntaxErrorKind::UnexpectedToken(token)),

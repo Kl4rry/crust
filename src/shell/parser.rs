@@ -21,8 +21,7 @@ use ast::{
         unop::UnOp,
         Expr,
     },
-    literal::Literal,
-    statement::Statement,
+    statement::StatementKind,
     variable::Variable,
     Ast, Block, Compound, Direction, Precedence,
 };
@@ -31,7 +30,15 @@ pub mod syntax_error;
 use regex::Regex;
 use syntax_error::{SyntaxError, SyntaxErrorKind};
 
-use self::{ast::statement::function::Function, source::Source};
+use self::{
+    ast::{
+        expr::{argument::ArgumentPartKind, command::CommandPartKind, ExprKind},
+        literal::{LiteralKind, Literal},
+        statement::{function::Function, Statement},
+    },
+    lexer::token::span::Spanned,
+    source::Source,
+};
 
 pub mod shell_error;
 pub mod source;
@@ -229,26 +236,40 @@ impl Parser {
     }
 
     fn parse_block(&mut self) -> Result<Block> {
-        self.eat()?.expect(TokenType::LeftBrace)?;
+        let start = self.eat()?.expect(TokenType::LeftBrace)?.span;
         let sequence = self.parse_sequence(true)?;
-        self.eat()?.expect(TokenType::RightBrace)?;
-        Ok(Block { sequence })
+        let end = self.eat()?.expect(TokenType::RightBrace)?.span;
+        Ok(Block {
+            sequence,
+            span: start + end,
+        })
     }
 
     fn parse_compound(&mut self) -> Result<Compound> {
         let token_type = &self.peek()?.token_type;
 
         match token_type {
-            TokenType::LeftBrace => Ok(Compound::Statement(Statement::Block(self.parse_block()?))),
+            TokenType::LeftBrace => {
+                let block = self.parse_block()?;
+                let span = block.span;
+                Ok(Compound::Statement(
+                    StatementKind::Block(block).spanned(span),
+                ))
+            }
             TokenType::Dollar => {
                 let var: Variable = self.parse_variable(true)?;
+                let var_span = var.span;
                 if let Ok(token) = self.peek() {
                     match token.token_type {
                         TokenType::Dot => {
-                            return Ok(Compound::Expr(self.parse_column(Expr::Variable(var))?))
+                            return Ok(Compound::Expr(
+                                self.parse_column(ExprKind::Variable(var).spanned(var_span))?,
+                            ))
                         }
                         TokenType::LeftBracket => {
-                            return Ok(Compound::Expr(self.parse_index(Expr::Variable(var))?))
+                            return Ok(Compound::Expr(
+                                self.parse_index(ExprKind::Variable(var).spanned(var_span))?,
+                            ))
                         }
                         _ => (),
                     }
@@ -259,35 +280,38 @@ impl Parser {
                         TokenType::Assignment => {
                             self.eat()?.expect(TokenType::Assignment)?;
                             self.skip_optional_space();
-                            return Ok(Compound::Statement(Statement::Assign(
-                                var,
-                                self.parse_expr(None)?,
-                            )));
+                            let expr = self.parse_expr(None)?;
+                            let expr_span = expr.span;
+                            return Ok(Compound::Statement(
+                                StatementKind::Assign(var, expr).spanned(var_span + expr_span),
+                            ));
                         }
                         TokenType::Space => drop(self.eat()?),
                         ref token_type => {
                             if token_type.is_assign_op() {
                                 let op = self.eat()?.to_assign_op();
                                 self.skip_optional_space();
-                                return Ok(Compound::Statement(Statement::AssignOp(
-                                    var,
-                                    op,
-                                    self.parse_expr(None)?,
-                                )));
-                            } else if token_type.is_binop() {
-                                return Ok(Compound::Expr(
-                                    self.parse_expr_part(Some(Expr::Variable(var)), 0)?,
+                                let expr = self.parse_expr(None)?;
+                                let expr_span = expr.span;
+                                return Ok(Compound::Statement(
+                                    StatementKind::AssignOp(var, op, expr)
+                                        .spanned(var_span + expr_span),
                                 ));
+                            } else if token_type.is_binop() {
+                                return Ok(Compound::Expr(self.parse_expr_part(
+                                    Some(ExprKind::Variable(var).spanned(var_span)),
+                                    0,
+                                )?));
                             } else {
                                 return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?));
                             }
                         }
                     }
                 }
-                Ok(Compound::Expr(Expr::Variable(var)))
+                Ok(Compound::Expr(ExprKind::Variable(var).spanned(var_span)))
             }
             TokenType::Fn => {
-                self.eat()?;
+                let start = self.eat()?.span;
                 self.skip_whitespace();
 
                 let token = self.eat()?;
@@ -318,6 +342,7 @@ impl Parser {
                 }
                 self.skip_whitespace();
                 let block = self.parse_block()?;
+                let end = block.span;
 
                 let func = Function {
                     parameters: vars,
@@ -325,16 +350,21 @@ impl Parser {
                     src: self.named_source(),
                 };
 
-                Ok(Compound::Statement(Statement::Fn(name, Rc::new(func))))
+                Ok(Compound::Statement(
+                    StatementKind::Fn(name, Rc::new(func)).spanned(start + end),
+                ))
             }
             TokenType::Loop => {
-                self.eat()?;
+                let start = self.eat()?.span;
                 self.skip_whitespace();
                 let block = self.parse_block()?;
-                Ok(Compound::Statement(Statement::Loop(block)))
+                let end = block.span;
+                Ok(Compound::Statement(
+                    StatementKind::Loop(block).spanned(start + end),
+                ))
             }
             TokenType::For => {
-                self.eat()?;
+                let start = self.eat()?.span;
                 self.skip_whitespace();
                 let var: Variable = self.parse_variable(false)?;
                 self.skip_whitespace();
@@ -343,47 +373,62 @@ impl Parser {
                 let expr = self.parse_expr(None)?;
                 self.skip_whitespace();
                 let block = self.parse_block()?;
+                let end = block.span;
 
-                Ok(Compound::Statement(Statement::For(var, expr, block)))
+                Ok(Compound::Statement(
+                    StatementKind::For(var, expr, block).spanned(start + end),
+                ))
             }
             TokenType::While => {
-                self.eat()?;
+                let start = self.eat()?.span;
                 self.skip_whitespace();
                 let expr = self.parse_expr(None)?;
                 self.skip_whitespace();
                 let block = self.parse_block()?;
-                Ok(Compound::Statement(Statement::While(expr, block)))
+                let end = block.span;
+                Ok(Compound::Statement(
+                    StatementKind::While(expr, block).spanned(start + end),
+                ))
             }
             TokenType::If => Ok(Compound::Statement(self.parse_if()?)),
             TokenType::Break => {
-                self.eat()?;
-                Ok(Compound::Statement(Statement::Break))
+                let span = self.eat()?.span;
+                Ok(Compound::Statement(StatementKind::Break.spanned(span)))
             }
             TokenType::Continue => {
-                self.eat()?;
-                Ok(Compound::Statement(Statement::Continue))
+                let span = self.eat()?.span;
+                Ok(Compound::Statement(StatementKind::Continue.spanned(span)))
             }
             TokenType::Return => {
-                self.eat()?;
+                let start = self.eat()?.span;
                 self.skip_optional_space();
                 match self.peek() {
                     Ok(token) => match token.token_type {
                         TokenType::NewLine | TokenType::SemiColon => {
                             self.eat()?;
-                            Ok(Compound::Statement(Statement::Return(None)))
+                            Ok(Compound::Statement(
+                                StatementKind::Return(None).spanned(start),
+                            ))
                         }
                         _ => {
                             let expr = self.parse_expr(None)?;
-                            Ok(Compound::Statement(Statement::Return(Some(expr))))
+                            let end = expr.span;
+                            Ok(Compound::Statement(
+                                StatementKind::Return(Some(expr)).spanned(start + end),
+                            ))
                         }
                     },
-                    Err(_) => Ok(Compound::Statement(Statement::Return(None))),
+                    Err(_) => Ok(Compound::Statement(
+                        StatementKind::Return(None).spanned(start),
+                    )),
                 }
             }
             TokenType::Let => Ok(Compound::Statement(self.parse_declaration(false)?)),
             TokenType::Export => Ok(Compound::Statement(self.parse_declaration(true)?)),
             TokenType::Symbol(_) => Ok(Compound::Expr(self.parse_expr(None)?)),
             TokenType::Exec
+            | TokenType::Dot
+            | TokenType::Div
             | TokenType::At
             | TokenType::Int(_, _)
             | TokenType::Float(_, _)
@@ -418,43 +463,41 @@ impl Parser {
         }
     }
 
-    fn parse_string(&mut self) -> Result<String> {
-        self.eat()?.expect(TokenType::Quote)?;
+    fn parse_string(&mut self) -> Result<Spanned<String>> {
+        let mut span = self.eat()?.expect(TokenType::Quote)?.span;
         let mut string = String::new();
 
         loop {
             let token = self.eat_with_comment()?;
             match token.token_type {
-                TokenType::Quote => break,
+                TokenType::Quote => {
+                    span += token.span;
+                    break;
+                }
                 _ => {
                     string.push_str(self.get_span_from_src(token.span));
                 }
             }
         }
-        Ok(string)
+        Ok(Spanned::new(string, span))
     }
 
     fn parse_expand(&mut self) -> Result<Expand> {
-        self.eat()?.expect(TokenType::DoubleQuote)?;
-        let mut expand = Expand {
-            content: Vec::new(),
-        };
+        let mut span = self.eat()?.expect(TokenType::DoubleQuote)?.span;
+        let mut content = Vec::new();
 
+        // TODO add spans not just at the end
         loop {
             let token = self.peek_with_comment()?;
             match token.token_type {
                 TokenType::LeftParen => {
-                    expand
-                        .content
-                        .push(ExpandKind::Expr(self.parse_sub_expr()?));
+                    content.push(ExpandKind::Expr(self.parse_sub_expr()?));
                 }
                 TokenType::Dollar => {
-                    expand
-                        .content
-                        .push(ExpandKind::Variable(self.parse_variable(true)?));
+                    content.push(ExpandKind::Variable(self.parse_variable(true)?));
                 }
                 TokenType::DoubleQuote => {
-                    self.eat()?;
+                    span += self.eat()?.span;
                     break;
                 }
                 _ => {
@@ -473,19 +516,19 @@ impl Parser {
                         }
                         index += 1;
                     }
-                    match expand.content.last_mut() {
+                    match content.last_mut() {
                         Some(ExpandKind::String(string)) => string.push_str(&escaped),
-                        _ => expand.content.push(ExpandKind::String(escaped)),
+                        _ => content.push(ExpandKind::String(escaped)),
                     }
                 }
             }
         }
 
-        Ok(expand)
+        Ok(Expand { content, span })
     }
 
     fn parse_if(&mut self) -> Result<Statement> {
-        self.eat()?;
+        let start = self.eat()?.expect(TokenType::If)?.span;
         self.skip_optional_space();
         let expr = self.parse_expr(None)?;
         self.skip_optional_space();
@@ -499,7 +542,11 @@ impl Parser {
                     self.skip_optional_space();
                     match self.peek()?.token_type {
                         TokenType::If => Some(P::new(self.parse_if()?)),
-                        TokenType::LeftBrace => Some(P::new(Statement::Block(self.parse_block()?))),
+                        TokenType::LeftBrace => {
+                            let block = self.parse_block()?;
+                            let block_span = block.span;
+                            Some(P::new(StatementKind::Block(block).spanned(block_span)))
+                        }
                         _ => return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
                     }
                 }
@@ -508,11 +555,16 @@ impl Parser {
             Err(_) => None,
         };
 
-        Ok(Statement::If(expr, block, statement))
+        let end = match &statement {
+            Some(statement) => statement.span,
+            None => block.span,
+        };
+
+        Ok(StatementKind::If(expr, block, statement).spanned(start + end))
     }
 
     fn parse_declaration(&mut self, export: bool) -> Result<Statement> {
-        self.eat()?.expect(TokenType::Let)?;
+        let start = self.eat()?.span;
         self.skip_space()?;
 
         let variable: Variable = self.parse_variable(false)?;
@@ -524,10 +576,11 @@ impl Parser {
             TokenType::Assignment => {
                 self.skip_optional_space();
                 let expr = self.parse_expr(None)?;
+                let end = expr.span;
                 if export {
-                    Ok(Statement::Export(variable, expr))
+                    Ok(StatementKind::Export(variable, expr).spanned(start + end))
                 } else {
-                    Ok(Statement::Declaration(variable, expr))
+                    Ok(StatementKind::Declaration(variable, expr).spanned(start + end))
                 }
             }
             _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
@@ -535,7 +588,7 @@ impl Parser {
     }
 
     fn parse_list(&mut self) -> Result<Expr> {
-        self.eat()?.expect(TokenType::LeftBracket)?;
+        let mut span = self.eat()?.expect(TokenType::LeftBracket)?.span;
         let mut list = Vec::new();
         let mut last_was_comma = true;
         loop {
@@ -549,17 +602,19 @@ impl Parser {
                     if last_was_comma {
                         return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?));
                     } else {
-                        self.eat()?;
+                        span += self.eat()?.span;
                         last_was_comma = true;
                     }
                 }
                 _ => {
                     last_was_comma = false;
-                    list.push(self.parse_expr(None)?)
+                    let expr = self.parse_expr(None)?;
+                    span += expr.span;
+                    list.push(expr);
                 }
             }
         }
-        Ok(Expr::Literal(Literal::List(list)))
+        Ok(ExprKind::Literal(LiteralKind::List(list).spanned(span)).spanned(span))
     }
 
     fn parse_regex_or_map(&mut self) -> Result<Expr> {
@@ -572,14 +627,14 @@ impl Parser {
     }
 
     fn parse_map(&mut self) -> Result<Expr> {
-        self.eat()?.expect(TokenType::LeftBrace)?;
+        let mut span = self.eat()?.expect(TokenType::LeftBrace)?.span;
         let mut exprs: Vec<(Expr, Expr)> = Vec::new();
         let mut last_was_comma = true;
         loop {
             self.skip_whitespace();
             match self.peek()?.token_type {
                 TokenType::RightBrace => {
-                    self.eat()?;
+                    span += self.eat()?.span;
                     break;
                 }
                 TokenType::Comma => {
@@ -601,45 +656,68 @@ impl Parser {
                 }
             }
         }
-        Ok(Expr::Literal(Literal::Map(exprs)))
+        Ok(ExprKind::Literal(LiteralKind::Map(exprs).spanned(span)).spanned(span))
     }
 
     fn parse_regex(&mut self) -> Result<Expr> {
-        let token = self.peek()?; // TODO expect quote
-        let start = token.span.start();
-        let string = self.parse_string()?;
+        let span = self.peek()?.span; // TODO expect quote
+        let Spanned {
+            inner: string,
+            span: end,
+        } = self.parse_string()?;
+        let span = span + end;
 
         let regex = match Regex::new(&string) {
             Ok(regex) => regex,
-            Err(e) => {
-                return Err(SyntaxErrorKind::Regex(
-                    e,
-                    Span::new(start, start - string.len()),
-                ))
-            }
+            Err(e) => return Err(SyntaxErrorKind::Regex(e, span)),
         };
 
-        Ok(Expr::Literal(Literal::Regex(Rc::new((regex, string)))))
+        Ok(
+            ExprKind::Literal(LiteralKind::Regex(Rc::new((regex, string))).spanned(span))
+                .spanned(span),
+        )
     }
 
     fn parse_sub_expr(&mut self) -> Result<Expr> {
-        self.eat()?.expect(TokenType::LeftParen)?;
+        let start = self.eat()?.expect(TokenType::LeftParen)?.span;
         self.skip_whitespace();
         let expr = self.parse_expr(None)?;
         self.skip_whitespace();
-        self.eat()?.expect(TokenType::RightParen)?;
-        Ok(Expr::SubExpr(P::new(expr)))
+        let end = self.eat()?.expect(TokenType::RightParen)?.span;
+        Ok(ExprKind::SubExpr(P::new(expr)).spanned(start + end))
     }
 
     fn parse_primary(&mut self, unop: Option<UnOp>) -> Result<Expr> {
         let expr = match self.peek()?.token_type {
-            TokenType::True | TokenType::False => Expr::Literal(self.eat()?.try_into()?),
-            TokenType::Symbol(_) | TokenType::Exec => self.parse_pipe(None)?,
+            TokenType::True | TokenType::False => {
+                let token = self.eat()?;
+                let span = token.span;
+                ExprKind::Literal(token.try_into()?).spanned(span)
+            }
+            TokenType::Symbol(_) | TokenType::Exec | TokenType::Dot | TokenType::Div => self.parse_pipe(None)?,
             TokenType::LeftParen => self.parse_sub_expr()?.wrap(unop),
-            TokenType::Dollar => Expr::Variable(self.parse_variable(true)?),
-            TokenType::Quote => Expr::Literal(Literal::String(Rc::new(self.parse_string()?))),
-            TokenType::Int(_, _) | TokenType::Float(_, _) => Expr::Literal(self.eat()?.try_into()?),
-            TokenType::DoubleQuote => Expr::Literal(Literal::Expand(self.parse_expand()?)),
+            TokenType::Dollar => {
+                let var = self.parse_variable(true)?;
+                let span = var.span;
+                ExprKind::Variable(var).spanned(span)
+            }
+            TokenType::Quote => {
+                let Spanned {
+                    inner: string,
+                    span,
+                } = self.parse_string()?;
+                ExprKind::Literal(LiteralKind::String(Rc::new(string)).spanned(span)).spanned(span)
+            }
+            TokenType::Int(_, _) | TokenType::Float(_, _) => {
+                let literal: Literal = self.eat()?.try_into()?;
+                let span = literal.span;
+                ExprKind::Literal(literal).spanned(span)
+            }
+            TokenType::DoubleQuote => {
+                let expand = self.parse_expand()?;
+                let span = expand.span;
+                ExprKind::Literal(LiteralKind::Expand(expand).spanned(span)).spanned(span)
+            }
             TokenType::Sub | TokenType::Not => {
                 let inner = self.eat()?.try_into()?;
                 self.skip_optional_space();
@@ -664,13 +742,13 @@ impl Parser {
     }
 
     fn parse_column(&mut self, expr: Expr) -> Result<Expr> {
-        self.eat()?.expect(TokenType::Dot)?;
+        let start = self.eat()?.expect(TokenType::Dot)?.span;
         let token = self.eat()?;
         let column = match token.token_type {
             TokenType::Symbol(column) => column,
             _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
         };
-        let expr = Expr::Column(P::new(expr), column);
+        let expr = ExprKind::Column(P::new(expr), column).spanned(start + token.span);
 
         match self.peek() {
             Ok(token) => {
@@ -686,15 +764,16 @@ impl Parser {
     }
 
     fn parse_index(&mut self, expr: Expr) -> Result<Expr> {
-        self.eat()?.expect(TokenType::LeftBracket)?;
+        let left = self.eat()?.expect(TokenType::LeftBracket)?.span;
         self.skip_whitespace();
         let index = self.parse_expr(None)?;
         self.skip_whitespace();
-        self.eat()?.expect(TokenType::RightBracket)?;
-        let expr = Expr::Index {
+        let right = self.eat()?.expect(TokenType::RightBracket)?.span;
+        let expr = ExprKind::Index {
             expr: P::new(expr),
             index: P::new(index),
-        };
+        }
+        .spanned(left + right);
 
         match self.peek() {
             Ok(token) => {
@@ -750,7 +829,9 @@ impl Parser {
             self.skip_whitespace();
             let rhs = self.parse_expr_part(None, next_min)?;
             self.skip_optional_space();
-            lhs = Expr::Binary(op, P::new(lhs), P::new(rhs));
+            let lhs_span = lhs.span;
+            let rhs_span = rhs.span;
+            lhs = ExprKind::Binary(op, P::new(lhs), P::new(rhs)).spanned(lhs_span + rhs_span);
 
             lookahead = match self.peek() {
                 Ok(token) => {
@@ -776,22 +857,26 @@ impl Parser {
             Some(expr) => vec![expr],
             None => vec![self.parse_call()?],
         };
+        let mut span = calls[0].span;
 
         self.skip_optional_space();
         while let Ok(token) = self.peek() {
             if token.token_type == TokenType::Pipe {
                 self.eat()?;
                 self.skip_whitespace();
-                calls.push(self.parse_call()?);
+                let expr = self.parse_call()?;
+                span += expr.span;
+                calls.push(expr);
             } else {
                 break;
             }
         }
-        Ok(Expr::Pipe(calls))
+        Ok(ExprKind::Pipe(calls).spanned(span))
     }
 
     fn parse_call(&mut self) -> Result<Expr> {
         let command = self.parse_command()?;
+        let mut span = command[0].span;
         let mut args = Vec::new();
 
         while let Ok(token) = self.peek() {
@@ -801,14 +886,17 @@ impl Parser {
                 }
                 _ => {
                     if token.is_valid_argpart() {
-                        args.push(self.parse_argument()?);
+                        let arg = self.parse_argument()?;
+                        span += arg.parts.last().unwrap().span;
+                        args.push(arg);
                     } else {
                         break;
                     }
                 }
             }
         }
-        Ok(Expr::Call(command, args))
+
+        Ok(ExprKind::Call(command, args).spanned(span))
     }
 
     fn parse_command(&mut self) -> Result<Vec<CommandPart>> {
@@ -820,8 +908,16 @@ impl Parser {
         let mut parts = Vec::new();
         while let Ok(token) = self.peek() {
             let part = match &token.token_type {
-                TokenType::DoubleQuote => CommandPart::Expand(self.parse_expand()?),
-                TokenType::Dollar => CommandPart::Variable(self.parse_variable(true)?),
+                TokenType::DoubleQuote => {
+                    let expand = self.parse_expand()?;
+                    let span = expand.span;
+                    CommandPartKind::Expand(expand).spanned(span)
+                },
+                TokenType::Dollar => {
+                    let var = self.parse_variable(true)?;
+                    let span = var.span;
+                    CommandPartKind::Variable(var).spanned(span)
+                },
                 TokenType::Space
                 | TokenType::NewLine
                 | TokenType::SemiColon
@@ -842,14 +938,37 @@ impl Parser {
         let mut parts = Vec::new();
 
         let (part, concat) = match self.peek()?.token_type {
-            TokenType::Quote => (ArgumentPart::Quoted(self.parse_string()?), true),
-            TokenType::DoubleQuote => (ArgumentPart::Expand(self.parse_expand()?), true),
-            TokenType::LeftParen => (ArgumentPart::Expr(self.parse_sub_expr()?), true),
+            TokenType::Quote => {
+                let Spanned { inner, span } = self.parse_string()?;
+                (ArgumentPartKind::Quoted(inner).spanned(span), true)
+            }
+            TokenType::DoubleQuote => {
+                let expand = self.parse_expand()?;
+                let span = expand.span;
+                (ArgumentPartKind::Expand(expand).spanned(span), true)
+            }
+            TokenType::LeftParen => {
+                let expr = self.parse_sub_expr()?;
+                let span = expr.span;
+                (ArgumentPartKind::Expr(expr).spanned(span), true)
+            }
             // TODO list should maybe be parsed below to allow for concatination
-            TokenType::LeftBracket => (ArgumentPart::Expr(self.parse_list()?), false),
+            TokenType::LeftBracket => {
+                let expr = self.parse_list()?;
+                let span = expr.span;
+                (ArgumentPartKind::Expr(expr).spanned(span), false)
+            }
             // TODO same for map
-            TokenType::At => (ArgumentPart::Expr(self.parse_regex_or_map()?), false),
-            TokenType::Dollar => (ArgumentPart::Variable(self.parse_variable(true)?), true),
+            TokenType::At => {
+                let expr = self.parse_regex_or_map()?;
+                let span = expr.span;
+                (ArgumentPartKind::Expr(expr).spanned(span), false)
+            }
+            TokenType::Dollar => {
+                let var = self.parse_variable(true)?;
+                let span = var.span;
+                (ArgumentPartKind::Variable(var).spanned(span), true)
+            }
             _ => (self.eat()?.try_into_argpart()?, true),
         };
         parts.push(part);
@@ -858,7 +977,7 @@ impl Parser {
             if let Ok(token) = self.peek() {
                 if !matches!(
                     token.token_type,
-                    TokenType::Space | TokenType::NewLine | TokenType::SemiColon
+                    TokenType::Space | TokenType::NewLine | TokenType::SemiColon | TokenType::Pipe
                 ) {
                     return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?));
                 }
@@ -869,45 +988,77 @@ impl Parser {
             if token.is_valid_argpart() {
                 match token.token_type {
                     TokenType::DoubleQuote => {
-                        parts.push(ArgumentPart::Expand(self.parse_expand()?));
+                        let expand = self.parse_expand()?;
+                        let span = expand.span;
+                        parts.push(ArgumentPartKind::Expand(expand).spanned(span));
                         continue;
                     }
                     TokenType::LeftParen => {
-                        parts.push(ArgumentPart::Expr(self.parse_sub_expr()?));
+                        let expr = self.parse_sub_expr()?;
+                        let span = expr.span;
+                        parts.push(ArgumentPartKind::Expr(expr).spanned(span));
                         continue;
                     }
                     _ => (),
                 }
 
-                let token = self.eat()?;
+                let token = self.peek()?;
                 match token.token_type {
                     TokenType::Quote => {
                         let string = self.parse_string()?;
                         match parts.last_mut() {
-                            Some(ArgumentPart::Quoted(text)) => {
-                                text.push_str(&string);
+                            Some(ArgumentPart {
+                                kind: ArgumentPartKind::Quoted(text),
+                                span,
+                            }) => {
+                                text.push_str(&string.inner);
+                                *span += string.span;
                             }
-                            _ => parts.push(ArgumentPart::Quoted(string)),
+                            _ => parts
+                                .push(ArgumentPartKind::Quoted(string.inner).spanned(string.span)),
                         }
                     }
-                    TokenType::Symbol(string) => match parts.last_mut() {
-                        Some(ArgumentPart::Bare(text)) => {
-                            text.push_str(&string);
-                        }
-                        _ => parts.push(ArgumentPart::Bare(string)),
-                    },
                     TokenType::Dollar => {
-                        parts.push(ArgumentPart::Variable(self.parse_variable(true)?))
+                        let var = self.parse_variable(true)?;
+                        let span = var.span;
+                        parts.push(ArgumentPartKind::Variable(var).spanned(span))
                     }
-                    TokenType::Int(number, _) => parts.push(ArgumentPart::Int(number.into())),
-                    TokenType::Float(number, _) => parts.push(ArgumentPart::Float(number)),
                     _ => {
-                        let string = token.try_into_glob_str()?;
-                        match parts.last_mut() {
-                            Some(ArgumentPart::Bare(text)) => {
-                                text.push_str(string);
+                        let token = self.eat()?;
+                        match token.token_type {
+                            TokenType::Symbol(string) => match parts.last_mut() {
+                                Some(ArgumentPart {
+                                    kind: ArgumentPartKind::Bare(text),
+                                    span,
+                                }) => {
+                                    *span += token.span; 
+                                    text.push_str(&string);
+                                }
+                                _ => parts.push(ArgumentPartKind::Bare(string).spanned(token.span)),
+                            },
+                            TokenType::Int(number, _) => {
+                                parts.push(ArgumentPartKind::Int(number.into()).spanned(token.span))
                             }
-                            _ => parts.push(ArgumentPart::Bare(string.to_string())),
+                            TokenType::Float(number, _) => {
+                                parts.push(ArgumentPartKind::Float(number).spanned(token.span))
+                            }
+                            _ => {
+                                let string_span = token.span;
+                                let string = token.try_into_glob_str()?;
+                                match parts.last_mut() {
+                                    Some(ArgumentPart {
+                                        kind: ArgumentPartKind::Bare(text),
+                                        span,
+                                    }) => {
+                                        text.push_str(string);
+                                        *span += string_span;
+                                    }
+                                    _ => parts.push(
+                                        ArgumentPartKind::Bare(string.to_string())
+                                            .spanned(string_span),
+                                    ),
+                                }
+                            }
                         }
                     }
                 }

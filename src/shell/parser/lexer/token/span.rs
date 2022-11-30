@@ -44,11 +44,29 @@ impl From<Span> for SourceSpan {
 impl std::ops::Add for Span {
     type Output = Span;
     #[inline(always)]
-    fn add(self, rhs: Self) -> Self::Output {
+    fn add(mut self, rhs: Self) -> Self::Output {
+        self += rhs;
+        self
+    }
+}
+
+impl std::ops::AddAssign for Span {
+    #[inline(always)]
+    fn add_assign(&mut self, rhs: Self) {
         let (start1, end1) = (self.start, self.start + self.len);
         let (start2, end2) = (rhs.start, rhs.start + rhs.len);
-        let start = cmp::min(start1, start2);
-        let end = cmp::max(end1, end2);
-        Span::new(start, end)
+        self.start = cmp::min(start1, start2);
+        self.len = cmp::max(end1, end2) - self.start;
+    }
+}
+
+pub struct Spanned<T> {
+    pub inner: T,
+    pub span: Span,
+}
+
+impl<T> Spanned<T> {
+    pub fn new(inner: T, span: Span) -> Self {
+        Self { inner, span }
     }
 }

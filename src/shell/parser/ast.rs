@@ -19,15 +19,14 @@ pub mod expr;
 use expr::Expr;
 
 pub mod statement;
-use statement::Statement;
 
 pub mod variable;
 use variable::Variable;
 
 pub mod context;
 
-use self::context::Context;
-use super::{shell_error::ShellError, source::Source};
+use self::{context::Context, statement::Statement};
+use super::{lexer::token::span::Span, shell_error::ShellError, source::Source};
 
 #[derive(Debug)]
 pub struct Ast {
@@ -82,9 +81,19 @@ pub enum Compound {
     Expr(Expr),
 }
 
+impl Compound {
+    pub fn span(&self) -> Span {
+        match self {
+            Self::Statement(statement) => statement.span,
+            Self::Expr(expr) => expr.span,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Block {
     pub sequence: Vec<Compound>,
+    pub span: Span,
 }
 
 impl Block {

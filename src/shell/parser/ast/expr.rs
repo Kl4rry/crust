@@ -10,6 +10,7 @@ use subprocess::{CommunicateError, Exec, Pipeline, PopenError, Redirection};
 use crate::{
     parser::{
         ast::{Literal, Variable},
+        lexer::token::span::Span,
         shell_error::ShellErrorKind,
     },
     shell::{
@@ -32,6 +33,7 @@ use command::CommandPart;
 pub mod argument;
 use argument::Argument;
 
+use self::unop::UnOpKind;
 use super::{context::Context, statement::function::Function};
 
 // used to implement comparison operators without duplciating code
@@ -90,7 +92,7 @@ macro_rules! compare_impl {
 }
 
 #[derive(Debug, Clone)]
-pub enum Expr {
+pub enum ExprKind {
     Call(Vec<CommandPart>, Vec<Argument>),
     Pipe(Vec<Expr>),
     Variable(Variable),
@@ -102,21 +104,33 @@ pub enum Expr {
     Index { expr: P<Expr>, index: P<Expr> },
 }
 
+impl ExprKind {
+    pub fn spanned(self, span: Span) -> Expr {
+        Expr { kind: self, span }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Expr {
+    pub kind: ExprKind,
+    pub span: Span,
+}
+
 impl Expr {
     #[inline(always)]
     pub fn wrap(self, unop: Option<UnOp>) -> Self {
         match unop {
-            Some(unop) => Expr::Unary(unop, P::new(self)),
+            Some(unop) => ExprKind::Unary(unop, P::new(self)).spanned(unop.span),
             None => self,
         }
     }
 
     pub fn eval(&self, ctx: &mut Context) -> Result<Value, ShellErrorKind> {
-        match self {
-            Self::Call(_, _) => {
+        match &self.kind {
+            ExprKind::Call(_, _) => {
                 unreachable!("calls must always be in a pipeline, bare calls are not allowed")
             }
-            Self::Column(expr, col) => {
+            ExprKind::Column(expr, col) => {
                 let value = expr.eval(ctx)?;
                 match value {
                     Value::Map(map) => match map.get(col) {
@@ -127,7 +141,7 @@ impl Expr {
                     _ => Err(ShellErrorKind::NoColumns(value.to_type())),
                 }
             }
-            Self::Index { expr, index } => {
+            ExprKind::Index { expr, index } => {
                 let value = expr.eval(ctx)?;
                 let index = index.eval(ctx)?;
                 // TODO use cow here and just clone once
@@ -146,21 +160,21 @@ impl Expr {
                     _ => Err(ShellErrorKind::NotIndexable(value.to_type())),
                 }
             }
-            Self::Literal(literal) => literal.eval(ctx),
-            Self::Variable(variable) => variable.eval(ctx),
-            Self::Unary(unop, expr) => {
+            ExprKind::Literal(literal) => literal.eval(ctx),
+            ExprKind::Variable(variable) => variable.eval(ctx),
+            ExprKind::Unary(unop, expr) => {
                 let value = expr.eval(ctx)?;
-                match unop {
-                    UnOp::Neg => match &value {
+                match unop.kind {
+                    UnOpKind::Neg => match &value {
                         Value::Int(int) => Ok(Value::Int(-*int)),
                         Value::Float(float) => Ok(Value::Float(-*float)),
                         Value::Bool(boolean) => Ok(Value::Int(-(*boolean as i64))),
                         _ => Err(ShellErrorKind::InvalidUnaryOperand(*unop, value.to_type())),
                     },
-                    UnOp::Not => Ok(Value::Bool(!value.truthy())),
+                    UnOpKind::Not => Ok(Value::Bool(!value.truthy())),
                 }
             }
-            Self::Binary(binop, lhs, rhs) => match binop {
+            ExprKind::Binary(binop, lhs, rhs) => match binop {
                 BinOp::Match => {
                     let lhs = lhs.eval(ctx)?;
                     let rhs = rhs.eval(ctx)?;
@@ -271,18 +285,18 @@ impl Expr {
                     lhs.eval(ctx)?.truthy() || rhs.eval(ctx)?.truthy(),
                 )),
             },
-            Self::Pipe(calls) => {
+            ExprKind::Pipe(calls) => {
                 let mut calls = calls.iter().peekable();
                 let mut capture_output = OutputStream::new_capture();
-                if !matches!(calls.peek().unwrap(), Expr::Call(..)) {
+                if !matches!(calls.peek().unwrap().kind, ExprKind::Call(..)) {
                     capture_output.push(calls.next().unwrap().eval(ctx)?);
                 }
 
                 let mut expanded_calls = VecDeque::new();
                 for callable in calls {
-                    match callable {
-                        Self::Call(cmd, args) => {
-                            let (cmd, args) = expand_call(ctx, cmd, args)?;
+                    match &callable.kind {
+                        ExprKind::Call(cmd, args) => {
+                            let (cmd, args) = expand_call(ctx, &cmd, &args)?;
                             expanded_calls.push_back(get_call_type(ctx, cmd, args)?);
                         }
                         _ => unreachable!(),
@@ -397,8 +411,8 @@ impl Expr {
 
                 Ok(Value::Null)
             }
-            Self::SubExpr(expr) => {
-                if matches!(**expr, Self::Call { .. } | Self::Pipe { .. }) {
+            ExprKind::SubExpr(expr) => {
+                if matches!(expr.kind, ExprKind::Call { .. } | ExprKind::Pipe { .. }) {
                     let mut capture = OutputStream::new_capture();
                     let ctx = &mut Context {
                         shell: ctx.shell,

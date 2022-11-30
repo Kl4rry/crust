@@ -7,8 +7,12 @@ use span::Span;
 
 use crate::parser::{
     ast::{
-        expr::{argument::ArgumentPart, binop::BinOp, Expr},
-        literal::Literal,
+        expr::{
+            argument::{ArgumentPart, ArgumentPartKind},
+            binop::BinOp,
+            ExprKind,
+        },
+        literal::LiteralKind,
         statement::assign_op::AssignOp,
     },
     syntax_error::SyntaxErrorKind,
@@ -234,12 +238,22 @@ impl Token {
     pub fn try_into_argpart(self) -> Result<ArgumentPart> {
         use TokenType::*;
         match self.token_type {
-            Symbol(text) => Ok(ArgumentPart::Bare(text)),
-            Int(number, _) => Ok(ArgumentPart::Int(number.into())),
-            Float(number, _) => Ok(ArgumentPart::Float(number)),
-            True => Ok(ArgumentPart::Expr(Expr::Literal(Literal::Bool(true)))),
-            False => Ok(ArgumentPart::Expr(Expr::Literal(Literal::Bool(false)))),
-            _ => Ok(ArgumentPart::Bare(self.try_into_glob_str()?.to_string())),
+            Symbol(text) => Ok(ArgumentPartKind::Bare(text).spanned(self.span)),
+            Int(number, _) => Ok(ArgumentPartKind::Int(number.into()).spanned(self.span)),
+            Float(number, _) => Ok(ArgumentPartKind::Float(number).spanned(self.span)),
+            True => Ok(ArgumentPartKind::Expr(
+                ExprKind::Literal(LiteralKind::Bool(true).spanned(self.span)).spanned(self.span),
+            )
+            .spanned(self.span)),
+            False => Ok(ArgumentPartKind::Expr(
+                ExprKind::Literal(LiteralKind::Bool(false).spanned(self.span)).spanned(self.span),
+            )
+            .spanned(self.span)),
+            _ => {
+                let span = self.span;
+                Ok(
+                ArgumentPartKind::Bare(self.try_into_glob_str()?.to_string()).spanned(span),
+            )},
         }
     }
 

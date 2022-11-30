@@ -9,6 +9,7 @@ use super::context::Context;
 use crate::{
     parser::{
         ast::{expr::argument::Expand, Expr},
+        lexer::token::span::Span,
         shell_error::ShellErrorKind,
         syntax_error::SyntaxErrorKind,
         Token, TokenType,
@@ -17,7 +18,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub enum Literal {
+pub enum LiteralKind {
     String(Rc<String>),
     Expand(Expand),
     List(Vec<Expr>),
@@ -28,12 +29,37 @@ pub enum Literal {
     Regex(Rc<(Regex, String)>),
 }
 
+impl LiteralKind {
+    pub fn spanned(self, span: Span) -> Literal {
+        Literal { kind: self, span }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Literal {
+    pub kind: LiteralKind,
+    pub span: Span,
+}
+
+impl TryFrom<Token> for Literal {
+    type Error = SyntaxErrorKind;
+    fn try_from(token: Token) -> Result<Self, SyntaxErrorKind> {
+        match token.token_type {
+            TokenType::Float(number, _) => Ok(LiteralKind::Float(number).spanned(token.span)),
+            TokenType::Int(number, _) => Ok(LiteralKind::Int(number).spanned(token.span)),
+            TokenType::True => Ok(LiteralKind::Bool(true).spanned(token.span)),
+            TokenType::False => Ok(LiteralKind::Bool(false).spanned(token.span)),
+            _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
+        }
+    }
+}
+
 impl Literal {
     pub fn eval(&self, ctx: &mut Context) -> Result<Value, ShellErrorKind> {
-        match self {
-            Literal::String(string) => Ok(Value::from(string.to_string())),
-            Literal::Expand(expand) => Ok(Value::from(expand.eval(ctx)?)),
-            Literal::List(list) => {
+        match &self.kind {
+            LiteralKind::String(string) => Ok(Value::from(string.to_string())),
+            LiteralKind::Expand(expand) => Ok(Value::from(expand.eval(ctx)?)),
+            LiteralKind::List(list) => {
                 let mut values: Vec<Value> = Vec::new();
                 let mut is_table = true;
                 for expr in list.iter() {
@@ -55,7 +81,7 @@ impl Literal {
                     Ok(Value::from(values))
                 }
             }
-            Literal::Map(exprs) => {
+            LiteralKind::Map(exprs) => {
                 let mut map = IndexMap::new();
                 for (key, value) in exprs {
                     let key = key.eval(ctx)?.try_into_string()?;
@@ -64,26 +90,13 @@ impl Literal {
                 }
                 Ok(Value::Map(Rc::new(map)))
             }
-            Literal::Float(number) => Ok(Value::Float(number.to_f64().unwrap())),
-            Literal::Int(number) => match number.to_i64() {
+            LiteralKind::Float(number) => Ok(Value::Float(number.to_f64().unwrap())),
+            LiteralKind::Int(number) => match number.to_i64() {
                 Some(number) => Ok(Value::Int(number)),
                 None => Err(ShellErrorKind::IntegerOverFlow),
             },
-            Literal::Bool(boolean) => Ok(Value::Bool(*boolean)),
-            Literal::Regex(regex) => Ok(Value::Regex(regex.clone())),
-        }
-    }
-}
-
-impl TryFrom<Token> for Literal {
-    type Error = SyntaxErrorKind;
-    fn try_from(token: Token) -> Result<Self, SyntaxErrorKind> {
-        match token.token_type {
-            TokenType::Float(number, _) => Ok(Literal::Float(number)),
-            TokenType::Int(number, _) => Ok(Literal::Int(number)),
-            TokenType::True => Ok(Literal::Bool(true)),
-            TokenType::False => Ok(Literal::Bool(false)),
-            _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
+            LiteralKind::Bool(boolean) => Ok(Value::Bool(*boolean)),
+            LiteralKind::Regex(regex) => Ok(Value::Regex(regex.clone())),
         }
     }
 }
