@@ -1,0 +1,15 @@
+let failed = 0
+
+for test in (echo tests/*.crust) {
+    crust $test
+    if $status != 0 {
+        echo "$test Failed"
+        $failed += 1 
+    }
+}
+
+if $failed == 0 {
+    echo 'Passed all tests'
+} else {
+    echo "$failed tests failed"
+}

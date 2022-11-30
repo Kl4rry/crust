@@ -1,0 +1,9 @@
+let x = 10
+
+if "hello${x}hello$x" != 'hello10hello10' {
+    exit 1
+}
+
+if 'hellohellohello' != 'hello' * 3 {
+    exit 1
+}
