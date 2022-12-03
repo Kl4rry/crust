@@ -33,7 +33,7 @@ use syntax_error::{SyntaxError, SyntaxErrorKind};
 use self::{
     ast::{
         expr::{argument::ArgumentPartKind, command::CommandPartKind, ExprKind},
-        literal::{LiteralKind, Literal},
+        literal::{Literal, LiteralKind},
         statement::{function::Function, Statement},
     },
     lexer::token::span::Spanned,
@@ -49,8 +49,8 @@ pub const ESCAPES: &[u8] = b"nt0rs\\";
 pub const REPLACEMENTS: &[u8] = b"\n\t\0\r \\";
 
 #[inline(always)]
-pub fn escape_char(c: u8) -> u8 {
-    memchr(c, ESCAPES).map(|i| REPLACEMENTS[i]).unwrap_or(c)
+pub fn escape_char(c: u8) -> Option<u8> {
+    memchr(c, ESCAPES).map(|i| REPLACEMENTS[i])
 }
 
 pub struct Parser {
@@ -487,38 +487,47 @@ impl Parser {
         let mut content = Vec::new();
 
         // TODO add spans not just at the end
+        let mut backslash = false;
         loop {
             let token = self.peek_with_comment()?;
             match token.token_type {
-                TokenType::LeftParen => {
+                TokenType::LeftParen if !backslash => {
                     content.push(ExpandKind::Expr(self.parse_sub_expr()?));
                 }
-                TokenType::Dollar => {
+                TokenType::Dollar if !backslash => {
                     content.push(ExpandKind::Variable(self.parse_variable(true)?));
                 }
-                TokenType::DoubleQuote => {
+                TokenType::DoubleQuote if !backslash => {
                     span += self.eat()?.span;
                     break;
                 }
+                TokenType::Symbol(ref s) if s == "\\" => {
+                    self.eat()?;
+                    backslash = true;
+                }
                 _ => {
                     let token = self.eat_with_comment()?;
-                    let new = self.get_span_from_src(token.span);
-                    let mut escaped = String::new();
-                    let mut index = 0;
-                    while index < new.len() {
-                        let byte = new.as_bytes()[index];
-                        if byte == b'\\' {
-                            index += 1;
-                            let escape = escape_char(*new.as_bytes().get(index).unwrap_or(&b'\\'));
-                            unsafe { escaped.as_mut_vec().push(escape) };
-                        } else {
-                            unsafe { escaped.as_mut_vec().push(byte) };
+                    let mut new = self.get_span_from_src(token.span).to_string();
+
+                    if backslash {
+                        let first = new.as_bytes()[0];
+                        match escape_char(first) {
+                            Some(escaped) => unsafe {
+                                new.as_bytes_mut()[0] = escaped;
+                            },
+                            None => {
+                                let chars = b"(\"$";
+                                if memchr(new.as_bytes()[0], chars).is_none() {
+                                    new.insert(0, '\\')
+                                }
+                            }
                         }
-                        index += 1;
+                        backslash = false;
                     }
+
                     match content.last_mut() {
-                        Some(ExpandKind::String(string)) => string.push_str(&escaped),
-                        _ => content.push(ExpandKind::String(escaped)),
+                        Some(ExpandKind::String(string)) => string.push_str(&new),
+                        _ => content.push(ExpandKind::String(new)),
                     }
                 }
             }
@@ -694,7 +703,9 @@ impl Parser {
                 let span = token.span;
                 ExprKind::Literal(token.try_into()?).spanned(span)
             }
-            TokenType::Symbol(_) | TokenType::Exec | TokenType::Dot | TokenType::Div => self.parse_pipe(None)?,
+            TokenType::Symbol(_) | TokenType::Exec | TokenType::Dot | TokenType::Div => {
+                self.parse_pipe(None)?
+            }
             TokenType::LeftParen => self.parse_sub_expr()?.wrap(unop),
             TokenType::Dollar => {
                 let var = self.parse_variable(true)?;
@@ -1031,7 +1042,7 @@ impl Parser {
                                     kind: ArgumentPartKind::Bare(text),
                                     span,
                                 }) => {
-                                    *span += token.span; 
+                                    *span += token.span;
                                     text.push_str(&string);
                                 }
                                 _ => parts.push(ArgumentPartKind::Bare(string).spanned(token.span)),

@@ -103,10 +103,10 @@ impl Lexer {
         }
     }
 
-    fn parse_arg(&mut self) -> Token {
+    fn parse_symbol(&mut self) -> Token {
         let start = self.index;
         let mut value = String::new();
-        const DISALLOWED: &[u8] = b"\0#$\"\'(){}[]|;&,.";
+        const DISALLOWED: &[u8] = b"\0#$\"\'(){}[]|;&,.:\\/";
         while !DISALLOWED.contains(&self.current)
             && !self.current.is_ascii_whitespace()
             && !self.eof
@@ -205,6 +205,7 @@ impl Iterator for Lexer {
             }
 
             let token = match self.current {
+                b'\\' => self.advance_with(TokenType::Symbol(String::from("\\")), 1),
                 b'#' => self.advance_with(TokenType::Symbol(String::from("#")), 1),
                 b'$' => self.advance_with(TokenType::Dollar, 1),
                 b'.' => {
@@ -317,7 +318,7 @@ impl Iterator for Lexer {
                     }
                     self.advance_with(TokenType::Not, 1)
                 }
-                _ => self.parse_arg(),
+                _ => self.parse_symbol(),
             };
             return Some(token);
         }

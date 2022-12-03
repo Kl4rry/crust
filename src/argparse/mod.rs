@@ -488,7 +488,14 @@ where
                     }
                 }
             }
-            self.parse_arg()?
+
+            if let Some(arg) = self.app.args.get(self.arg_index) {
+                if arg.multiple {
+                    self.parse_args()?;
+                    continue;
+                }
+            }
+            self.parse_arg()?;
         }
 
         let mut missing_args = Vec::new();

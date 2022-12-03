@@ -251,9 +251,8 @@ impl Token {
             .spanned(self.span)),
             _ => {
                 let span = self.span;
-                Ok(
-                ArgumentPartKind::Bare(self.try_into_glob_str()?.to_string()).spanned(span),
-            )},
+                Ok(ArgumentPartKind::Bare(self.try_into_glob_str()?.to_string()).spanned(span))
+            }
         }
     }
 

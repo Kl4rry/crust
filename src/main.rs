@@ -82,10 +82,11 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
             .map_err(|e| ShellErrorKind::Io(Some(Path::new(path).to_path_buf()), e))?;
     }
 
-    let args: Vec<_> = match matches.get("ARGS") {
-        Some(args) => args.iter().map(|s| s.unwrap_as_str().to_string()).collect(),
-        None => Vec::new(),
-    };
+    let mut args = Vec::new();
+    args.push(env::args().next().unwrap());
+    if let Some(a) = matches.get("ARGS") {
+        args.extend(a.iter().map(|s| s.unwrap_as_str().to_string()));
+    }
 
     let mut shell = Shell::new(args);
     let interactive = !(matches.get_str("FILE").is_some() || matches.get_str("COMMAND").is_some());

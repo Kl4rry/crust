@@ -296,7 +296,7 @@ impl Expr {
                 for callable in calls {
                     match &callable.kind {
                         ExprKind::Call(cmd, args) => {
-                            let (cmd, args) = expand_call(ctx, &cmd, &args)?;
+                            let (cmd, args) = expand_call(ctx, cmd, args)?;
                             expanded_calls.push_back(get_call_type(ctx, cmd, args)?);
                         }
                         _ => unreachable!(),
