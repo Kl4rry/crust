@@ -101,6 +101,7 @@ pub enum ShellErrorKind {
         expected: Type,
         recived: Type,
     },
+    AssertionFailed,
     UnknownFileType(String),
     ArgParse(#[from] ParseError),
     Io(Option<PathBuf>, io::Error),
@@ -137,6 +138,7 @@ impl fmt::Display for ShellErrorKind {
             InvalidPipelineInput { expected, recived } => {
                 write!(f, "Pipeline expected {expected} recived {recived}")
             }
+            AssertionFailed => write!(f, "Assertion failed"),
             InvalidEnvVar(t) => write!(f, "Cannot assign type {t} to an environment variable"),
             ReadOnlyVar(name) => write!(f, "Cannot write to read only variable '{name}'"),
             ToFewArguments {
@@ -208,6 +210,7 @@ impl Diagnostic for ShellError {
             | NoColumns(..)
             | NotIndexable(..)
             | InvalidPipelineInput { .. } => P::new("Type Error"),
+            AssertionFailed => P::new("Assertion Error"),
             IndexOutOfBounds { .. } | ColumnNotFound(..) => P::new("Indexing Error"),
             Glob(..) | Pattern(..) | NoMatch(..) => P::new("Glob Error"),
             InvalidConversion { .. } => P::new("Coercion Error"),

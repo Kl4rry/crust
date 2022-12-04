@@ -17,6 +17,7 @@ use crate::{
 };
 
 mod alias;
+mod assert;
 mod cd;
 mod clear;
 mod echo;
@@ -52,6 +53,7 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "load" => load::load,
     "save" => save::save,
     "help" => help::help,
+    "assert" => assert::assert,
 };
 
 pub fn get_builtin(command: &str) -> Option<BulitinFn> {
