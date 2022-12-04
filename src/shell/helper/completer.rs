@@ -102,20 +102,19 @@ impl FilenameCompleter {
             };
 
         let mut matches = Vec::new();
-        if start == 0 {
+        if start == 0 && !path.contains("/") {
             matches.extend(command_complete(&path));
         }
-
         matches.extend(filename_complete(&path, esc_char, break_chars, quote));
         matches.par_sort_by(|a, b| {
-            let start_a = a.display().starts_with(&*path);
-            let start_b = b.display().starts_with(&*path);
+            let start_a = a.replacement().starts_with(&*path);
+            let start_b = b.replacement().starts_with(&*path);
             match start_b.cmp(&start_a) {
                 cmp::Ordering::Equal => {
-                    let leven_a = levenshtein_stripped(a.display(), &path);
-                    let leven_b = levenshtein_stripped(b.display(), &path);
+                    let leven_a = levenshtein_stripped(a.replacement(), &path);
+                    let leven_b = levenshtein_stripped(b.replacement(), &path);
                     match leven_a.cmp(&leven_b) {
-                        cmp::Ordering::Equal => a.display().cmp(b.display()),
+                        cmp::Ordering::Equal => a.replacement().cmp(b.replacement()),
                         ord => ord,
                     }
                 }
@@ -123,7 +122,7 @@ impl FilenameCompleter {
             }
         });
 
-        matches.dedup_by(|a, b| a.display() == b.display());
+        matches.dedup_by(|a, b| a.replacement() == b.replacement());
 
         Ok((start, matches))
     }
