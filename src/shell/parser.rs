@@ -706,7 +706,7 @@ impl Parser {
             TokenType::Symbol(_) | TokenType::Exec | TokenType::Dot | TokenType::Div => {
                 self.parse_pipe(None)?
             }
-            TokenType::LeftParen => self.parse_sub_expr()?.wrap(unop),
+            TokenType::LeftParen => self.parse_sub_expr()?,
             TokenType::Dollar => {
                 let var = self.parse_variable(true)?;
                 let span = var.span;
@@ -732,7 +732,7 @@ impl Parser {
             TokenType::Sub | TokenType::Not => {
                 let inner = self.eat()?.try_into()?;
                 self.skip_optional_space();
-                self.parse_expr(Some(inner))?
+                self.parse_primary(Some(inner))?
             }
             TokenType::LeftBracket => self.parse_list()?,
             TokenType::At => self.parse_regex_or_map()?,
