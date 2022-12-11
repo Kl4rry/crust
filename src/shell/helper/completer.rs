@@ -102,7 +102,7 @@ impl FilenameCompleter {
             };
 
         let mut matches = Vec::new();
-        if start == 0 && !path.contains("/") {
+        if start == 0 && !path.contains('/') {
             matches.extend(command_complete(&path));
         }
         matches.extend(filename_complete(&path, esc_char, break_chars, quote));

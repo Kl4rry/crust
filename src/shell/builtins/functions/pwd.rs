@@ -7,6 +7,7 @@ use crate::{
         current_dir_str,
         frame::Frame,
         stream::{OutputStream, ValueStream},
+        value::SpannedValue,
         Shell, Value,
     },
 };
@@ -20,11 +21,11 @@ static APP: Lazy<App> = Lazy::new(|| {
 pub fn pwd(
     _: &mut Shell,
     _: &mut Frame,
-    args: Vec<Value>,
+    args: Vec<SpannedValue>,
     _: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    let matches = match APP.parse(args.into_iter()) {
+    let matches = match APP.parse(args.into_iter().map(|v| v.into())) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
             output.push(info);

@@ -29,7 +29,7 @@ pub struct CommandPart {
 impl CommandPart {
     pub fn eval(&self, ctx: &mut Context) -> Result<String, ShellErrorKind> {
         match &self.kind {
-            CommandPartKind::Variable(var) => Ok(var.eval(ctx)?.to_string()),
+            CommandPartKind::Variable(var) => Ok(var.eval(ctx)?.try_into_string()?),
             CommandPartKind::Expand(expand) => Ok(expand.eval(ctx)?),
             CommandPartKind::String(string) => Ok(string.clone()),
         }

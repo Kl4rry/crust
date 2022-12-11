@@ -66,7 +66,7 @@ impl Ast {
             match compound {
                 Compound::Expr(expr) => {
                     let value = expr.eval(&mut ctx)?;
-                    output.push(value);
+                    output.push(value.into());
                 }
                 Compound::Statement(statement) => statement.eval(&mut ctx)?,
             };
@@ -124,7 +124,7 @@ impl Block {
             match compound {
                 Compound::Expr(expr) => {
                     let value = expr.eval(ctx)?;
-                    ctx.output.push(value);
+                    ctx.output.push(value.into());
                 }
                 Compound::Statement(statement) => statement.eval(ctx)?,
             };

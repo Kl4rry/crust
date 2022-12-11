@@ -7,7 +7,7 @@ use crate::{
         shell_error::ShellErrorKind,
         syntax_error::SyntaxErrorKind,
     },
-    shell::{builtins::variables, value::Value},
+    shell::{builtins::variables, value::SpannedValue},
 };
 
 #[derive(Debug, Clone)]
@@ -17,14 +17,14 @@ pub struct Variable {
 }
 
 impl Variable {
-    pub fn eval(&self, ctx: &mut Context) -> Result<Value, ShellErrorKind> {
+    pub fn eval(&self, ctx: &mut Context) -> Result<SpannedValue, ShellErrorKind> {
         if let Some(value) = variables::get_var(ctx.shell, &self.name) {
-            return Ok(value);
+            return Ok(value.spanned(self.span));
         }
 
         for frame in ctx.frame.clone() {
             if let Some(value) = frame.get_var(&self.name) {
-                return Ok(value);
+                return Ok(value.spanned(self.span));
             }
         }
         Err(ShellErrorKind::VariableNotFound(self.name.clone()))

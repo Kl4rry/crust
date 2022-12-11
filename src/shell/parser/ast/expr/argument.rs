@@ -5,7 +5,7 @@ use crate::{
         ast::context::Context, lexer::token::span::Span, shell_error::ShellErrorKind, Expr,
         Variable,
     },
-    shell::value::Value,
+    shell::value::{SpannedValue, Value},
 };
 
 #[derive(Debug, Clone)]
@@ -15,16 +15,19 @@ pub struct ArgumentPart {
 }
 
 impl ArgumentPart {
-    pub fn eval(&self, ctx: &mut Context) -> Result<Value, ShellErrorKind> {
-        match &self.kind {
+    pub fn eval(&self, ctx: &mut Context) -> Result<SpannedValue, ShellErrorKind> {
+        let Self { kind, span } = self;
+        match kind {
             ArgumentPartKind::Variable(var) => Ok(var.eval(ctx)?),
-            ArgumentPartKind::Expand(expand) => Ok(Value::from(expand.eval(ctx)?)),
-            ArgumentPartKind::Bare(value) => Ok(Value::from(value.to_string())),
-            ArgumentPartKind::Quoted(string) => Ok(Value::from(string.clone())),
+            ArgumentPartKind::Expand(expand) => Ok(Value::from(expand.eval(ctx)?).spanned(*span)),
+            ArgumentPartKind::Bare(value) => Ok(Value::from(value.to_string()).spanned(*span)),
+            ArgumentPartKind::Quoted(string) => Ok(Value::from(string.clone()).spanned(*span)),
             ArgumentPartKind::Expr(expr) => Ok(expr.eval(ctx)?),
-            ArgumentPartKind::Float(number) => Ok(Value::Float(number.to_f64().unwrap())),
+            ArgumentPartKind::Float(number) => {
+                Ok(Value::Float(number.to_f64().unwrap()).spanned(*span))
+            }
             ArgumentPartKind::Int(number) => match number.to_i64() {
-                Some(number) => Ok(Value::Int(number)),
+                Some(number) => Ok(Value::Int(number).spanned(*span)),
                 None => Err(ShellErrorKind::IntegerOverFlow),
             },
         }
@@ -81,11 +84,14 @@ pub struct Argument {
 }
 
 impl Argument {
-    pub fn eval(&self, ctx: &mut Context) -> Result<Value, ShellErrorKind> {
-        let mut parts = Vec::new();
+    pub fn eval(&self, ctx: &mut Context) -> Result<SpannedValue, ShellErrorKind> {
+        let mut parts: Vec<(SpannedValue, bool)> = Vec::new();
         let mut glob = false;
+        let total_span = self.parts.first().unwrap().span + self.parts.last().unwrap().span;
         for part in self.parts.iter() {
-            let (value, escape) = match &part.kind {
+            let kind = &part.kind;
+            let span = part.span;
+            let (value, escape) = match kind {
                 ArgumentPartKind::Bare(value) => {
                     let mut string = value.to_string();
                     if string.contains('*') {
@@ -101,18 +107,18 @@ impl Argument {
                             string.replace('~', &ctx.shell.home_dir().to_string_lossy())
                         }
                     }
-                    (Value::from(string), false)
+                    (Value::from(string).spanned(span), false)
                 }
                 _ => (part.eval(ctx)?, true),
             };
-            parts.push((escape, value));
+            parts.push((value, escape));
         }
 
         if glob {
             let mut pattern = String::new();
-            for (escape, value) in parts {
+            for (value, escape) in parts {
                 pattern.push_str(&if escape {
-                    glob::Pattern::escape(&value.unwrap_string())
+                    glob::Pattern::escape(&value.value.unwrap_string())
                 } else {
                     value.try_into_string()?
                 });
@@ -124,19 +130,19 @@ impl Argument {
             }
 
             if !entries.is_empty() {
-                Ok(Value::from(entries))
+                Ok(Value::from(entries).spanned(total_span))
             } else {
-                Err(ShellErrorKind::NoMatch(pattern))
+                Err(ShellErrorKind::NoMatch(pattern, total_span))
             }
         } else {
             Ok(if parts.len() > 1 {
                 let mut string = String::new();
-                for (_, value) in parts {
+                for (value, _) in parts {
                     string.push_str(&value.try_into_string()?);
                 }
-                Value::from(string)
+                Value::from(string).spanned(total_span)
             } else {
-                parts.pop().unwrap().1
+                parts.pop().unwrap().0
             })
         }
     }

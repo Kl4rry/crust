@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc, sync::atomic::Ordering};
 
 use crate::{
     parser::{
-        ast::{expr::Expr, Block, Variable},
+        ast::{expr::Expr, statement::assign_op::AssignOpKind, Block, Variable},
         lexer::token::span::Span,
         shell_error::ShellErrorKind,
     },
@@ -56,7 +56,7 @@ impl Statement {
                 }
 
                 let value = expr.eval(ctx)?;
-                if let Some(value) = ctx.frame.update_var(&var.name, value)? {
+                if let Some(value) = ctx.frame.update_var(&var.name, value.into())? {
                     ctx.frame.add_var(var.name.clone(), value);
                 }
                 Ok(())
@@ -67,7 +67,7 @@ impl Statement {
                 }
 
                 let value = expr.eval(ctx)?;
-                ctx.frame.add_var(var.name.clone(), value);
+                ctx.frame.add_var(var.name.clone(), value.into());
 
                 Ok(())
             }
@@ -77,16 +77,16 @@ impl Statement {
                 }
 
                 let current = var.eval(ctx)?;
-                let res = match op {
-                    AssignOp::Expo => current.try_expo(expr.eval(ctx)?),
-                    AssignOp::Add => current.try_add(expr.eval(ctx)?),
-                    AssignOp::Sub => current.try_sub(expr.eval(ctx)?),
-                    AssignOp::Mul => current.try_mul(expr.eval(ctx)?),
-                    AssignOp::Div => current.try_div(expr.eval(ctx)?),
-                    AssignOp::Mod => current.try_mod(expr.eval(ctx)?),
+                let res = match op.kind {
+                    AssignOpKind::Expo => current.try_expo(expr.eval(ctx)?, op.span),
+                    AssignOpKind::Add => current.try_add(expr.eval(ctx)?, op.span),
+                    AssignOpKind::Sub => current.try_sub(expr.eval(ctx)?, op.span),
+                    AssignOpKind::Mul => current.try_mul(expr.eval(ctx)?, op.span),
+                    AssignOpKind::Div => current.try_div(expr.eval(ctx)?, op.span),
+                    AssignOpKind::Mod => current.try_mod(expr.eval(ctx)?, op.span),
                 }?;
 
-                ctx.frame.update_var(&var.name, res)?;
+                ctx.frame.update_var(&var.name, res.value)?;
                 Ok(())
             }
             StatementKind::Export(var, expr) => {
@@ -96,18 +96,18 @@ impl Statement {
 
                 let value = expr.eval(ctx)?;
                 if !matches!(
-                    &value,
+                    &value.value,
                     Value::Bool(_) | Value::Int(_) | Value::Float(_) | Value::String(_)
                 ) {
-                    return Err(ShellErrorKind::InvalidEnvVar(value.to_type()));
+                    return Err(ShellErrorKind::InvalidEnvVar(value.value.to_type()));
                 }
 
-                ctx.frame.add_env_var(var.name.clone(), value);
+                ctx.frame.add_env_var(var.name.clone(), value.into());
                 Ok(())
             }
             StatementKind::If(expr, block, else_clause) => {
                 let value = expr.eval(ctx)?;
-                if value.truthy() {
+                if value.value.truthy() {
                     block.eval(ctx, None, None)?
                 } else if let Some(statement) = else_clause {
                     match &statement.kind {
@@ -130,7 +130,7 @@ impl Statement {
                 }
             },
             StatementKind::While(condition, block) => {
-                while condition.eval(ctx)?.truthy() {
+                while condition.eval(ctx)?.value.truthy() {
                     if ctx.shell.interrupt.load(Ordering::SeqCst) {
                         return Err(ShellErrorKind::Interrupt);
                     }
@@ -171,7 +171,7 @@ impl Statement {
                     Ok(())
                 }
 
-                match value {
+                match value.value {
                     Value::List(list) => for_loop(ctx, list.iter().cloned(), &name, block),
                     Value::String(string) => for_loop(
                         ctx,
@@ -199,7 +199,7 @@ impl Statement {
                     Value::Table(table) => {
                         for_loop(ctx, table.iter().map(Value::from), &name, block)
                     }
-                    _ => Err(ShellErrorKind::InvalidIterator(value.to_type())),
+                    _ => Err(ShellErrorKind::InvalidIterator(value.value.to_type())),
                 }
             }
             StatementKind::Fn(name, func) => {

@@ -15,13 +15,14 @@ use thiserror::Error;
 
 use super::{
     ast::expr::{binop::BinOp, unop::UnOp},
+    lexer::token::span::Span,
     source::Source,
 };
 use crate::{
     argparse::ParseError,
     shell::{
         levenshtein::levenshtein_stripped,
-        value::{Type, Value},
+        value::{SpannedValue, Type},
     },
     P,
 };
@@ -59,7 +60,7 @@ pub enum ShellErrorKind {
     // this is a not so nice hack but it works
     Exit,
     Break,
-    Return(Option<Value>),
+    Return(Option<SpannedValue>),
     Continue,
 
     // Interrupt indicates that the user has pressed ctrl-c
@@ -68,22 +69,24 @@ pub enum ShellErrorKind {
     // real errors
     Basic(&'static str, String),
     DivisionByZero,
-    NoMatch(String),
+    NoMatch(String, Span),
     MaxRecursion(usize),
     IndexOutOfBounds {
         len: i128,
         index: i128,
+        span: Span,
     },
     ColumnNotFound(String),
     InvalidConversion {
         from: Type,
         to: Type,
+        span: Span,
     },
     NoColumns(Type),
-    NotIndexable(Type),
+    NotIndexable(Type, Span),
     VariableNotFound(String),
-    InvalidBinaryOperand(BinOp, Type, Type),
-    InvalidUnaryOperand(UnOp, Type),
+    InvalidBinaryOperand(BinOp, Type, Type, Span, Span),
+    InvalidUnaryOperand(UnOp, Type, Span),
     InvalidIterator(Type),
     InvalidEnvVar(Type),
     ReadOnlyVar(String),
@@ -131,7 +134,7 @@ impl fmt::Display for ShellErrorKind {
             CommandPermissionDenied(name) => {
                 write!(f, "Cannot run '{name}' permission denied")
             }
-            NoMatch(pattern) => write!(f, "No match found for pattern '{pattern}'"),
+            NoMatch(pattern, ..) => write!(f, "No match found for pattern '{pattern}'"),
             VariableNotFound(name) => write!(f, "Variable with name '{name}' not found"),
             IntegerOverFlow => write!(f, "Integer literal too large"),
             Interrupt => write!(f, "^C"),
@@ -149,21 +152,21 @@ impl fmt::Display for ShellErrorKind {
                 write!(f, "{name} expected {expected} arguments, recived {recived}")
             }
             NoColumns(t) => write!(f, "{t} does not have columns"),
-            NotIndexable(t) => write!(f, "Cannot index into {t}"),
-            InvalidBinaryOperand(binop, lhs, rhs) => {
+            NotIndexable(t, ..) => write!(f, "Cannot index into {t}"),
+            InvalidBinaryOperand(binop, lhs, rhs, ..) => {
                 write!(f, "'{binop}' not supported between {lhs} and {rhs}",)
             }
-            InvalidUnaryOperand(unop, value) => {
+            InvalidUnaryOperand(unop, value, ..) => {
                 write!(f, "'{unop}' not supported for {value}")
             }
             InvalidIterator(value) => {
                 write!(f, "Cannot iterate over type {value}")
             }
-            InvalidConversion { from, to } => {
+            InvalidConversion { from, to, .. } => {
                 write!(f, "Cannot convert {from} to {to}")
             }
             MaxRecursion(limit) => write!(f, "Max recursion limit of {limit} reached"),
-            IndexOutOfBounds { len, index } => write!(
+            IndexOutOfBounds { len, index, .. } => write!(
                 f,
                 "Index is out of bounds, length is {len} but the index is {index}"
             ),
@@ -195,7 +198,31 @@ impl fmt::Display for ShellErrorKind {
 
 impl Diagnostic for ShellError {
     fn labels(&self) -> Option<P<dyn Iterator<Item = LabeledSpan> + '_>> {
-        None
+        match self.error {
+            ShellErrorKind::NotIndexable(ty, span) => Some(P::new(
+                [LabeledSpan::new_with_span(Some(ty.to_string()), span)].into_iter(),
+            )),
+            ShellErrorKind::IndexOutOfBounds { span, .. } => Some(P::new(
+                [LabeledSpan::new_with_span(
+                    Some(String::from("Index is out of bounds")),
+                    span,
+                )]
+                .into_iter(),
+            )),
+            ShellErrorKind::InvalidConversion { span, from, .. } => Some(P::new(
+                [LabeledSpan::new_with_span(Some(from.to_string()), span)].into_iter(),
+            )),
+            ShellErrorKind::InvalidBinaryOperand(binop, lhs, rhs, lhs_span, rhs_span) => {
+                let lhs = LabeledSpan::new_with_span(Some(lhs.to_string()), lhs_span);
+                let binop = LabeledSpan::new_with_span(
+                    Some(String::from("Not supported for these types")),
+                    binop.span,
+                );
+                let rhs = LabeledSpan::new_with_span(Some(rhs.to_string()), rhs_span);
+                Some(P::new([lhs, binop, rhs].into_iter()))
+            }
+            _ => None,
+        }
     }
 
     fn code<'a>(&'a self) -> Option<P<dyn fmt::Display + 'a>> {

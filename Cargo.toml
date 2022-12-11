@@ -43,4 +43,4 @@ yansi = "0.5.0"
 winapi = "0.3.9"
 
 [target.'cfg(unix)'.dependencies]
-nix = "0.25.0"
+nix = "0.26.1"

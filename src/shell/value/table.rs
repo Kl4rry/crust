@@ -11,7 +11,7 @@ use yansi::Paint;
 
 use super::{
     format::{bar, center_pad, fmt_horizontal, left_pad, right_pad, ConfigChars},
-    Value,
+    SpannedValue, Value,
 };
 use crate::parser::shell_error::ShellErrorKind;
 
@@ -56,18 +56,11 @@ impl Table {
         }
     }
 
-    pub fn row(&self, index: usize) -> Result<IndexMap<String, Value>, ShellErrorKind> {
+    pub fn row(&self, index: SpannedValue) -> Result<IndexMap<String, Value>, ShellErrorKind> {
+        let index = index.try_as_index(self.rows.len())?;
         let mut map = IndexMap::new();
 
-        let row = match self.rows.get(index) {
-            Some(row) => row,
-            None => {
-                return Err(ShellErrorKind::IndexOutOfBounds {
-                    len: self.rows.len() as i128,
-                    index: index as i128,
-                })
-            }
-        };
+        let row = self.rows.get(index).unwrap();
 
         for (k, v) in self.headers.iter().zip(row) {
             map.insert(k.clone(), v.clone());

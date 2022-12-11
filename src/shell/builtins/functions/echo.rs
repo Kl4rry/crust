@@ -3,7 +3,7 @@ use crate::{
     shell::{
         frame::Frame,
         stream::{OutputStream, ValueStream},
-        value::Value,
+        value::SpannedValue,
         Shell,
     },
 };
@@ -11,12 +11,12 @@ use crate::{
 pub fn echo(
     _: &mut Shell,
     _: &mut Frame,
-    args: Vec<Value>,
+    args: Vec<SpannedValue>,
     _: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
     for arg in args {
-        output.push(arg);
+        output.push(arg.into());
     }
     Ok(())
 }

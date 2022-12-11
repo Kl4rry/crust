@@ -3,7 +3,7 @@ use crate::{
     shell::{
         frame::Frame,
         stream::{OutputStream, ValueStream},
-        value::Value,
+        value::{SpannedValue, Value},
         Shell,
     },
 };
@@ -11,7 +11,7 @@ use crate::{
 pub fn help(
     _: &mut Shell,
     _: &mut Frame,
-    _: Vec<Value>,
+    _: Vec<SpannedValue>,
     _: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {

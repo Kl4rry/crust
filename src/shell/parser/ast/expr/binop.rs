@@ -2,12 +2,13 @@ use std::{convert::TryFrom, fmt};
 
 use crate::parser::{
     ast::{Direction, Precedence},
+    lexer::token::span::Span,
     syntax_error::SyntaxErrorKind,
     Token, TokenType,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum BinOp {
+pub enum BinOpKind {
     Expo,
     Add,
     Sub,
@@ -35,26 +36,39 @@ pub enum BinOp {
     NotMatch,
 }
 
+impl BinOpKind {
+    pub fn spanned(self, span: Span) -> BinOp {
+        BinOp { kind: self, span }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct BinOp {
+    pub kind: BinOpKind,
+    pub span: Span,
+}
+
 impl AsRef<str> for BinOp {
     fn as_ref(&self) -> &str {
-        match self {
-            Self::Expo => "**",
-            Self::Add => "+",
-            Self::Sub => "-",
-            Self::Mul => "*",
-            Self::Div => "/",
-            Self::Mod => "%",
-            Self::Eq => "==",
-            Self::Ne => "!=",
-            Self::Lt => "<",
-            Self::Le => "<=",
-            Self::Ge => ">",
-            Self::Gt => ">=",
-            Self::And => "&&",
-            Self::Or => "||",
-            Self::Range => "..",
-            Self::Match => "=~",
-            Self::NotMatch => "!~",
+        use BinOpKind::*;
+        match self.kind {
+            Expo => "**",
+            Add => "+",
+            Sub => "-",
+            Mul => "*",
+            Div => "/",
+            Mod => "%",
+            Eq => "==",
+            Ne => "!=",
+            Lt => "<",
+            Le => "<=",
+            Ge => ">",
+            Gt => ">=",
+            And => "&&",
+            Or => "||",
+            Range => "..",
+            Match => "=~",
+            NotMatch => "!~",
         }
     }
 }
@@ -67,10 +81,8 @@ impl fmt::Display for BinOp {
 
 impl BinOp {
     pub fn is_comparison(&self) -> bool {
-        matches!(
-            *self,
-            Self::Eq | Self::Lt | Self::Le | Self::Ne | Self::Ge | Self::Gt
-        )
+        use BinOpKind::*;
+        matches!(self.kind, Eq | Lt | Le | Ne | Ge | Gt)
     }
 }
 
@@ -78,21 +90,21 @@ impl TryFrom<Token> for BinOp {
     type Error = SyntaxErrorKind;
     fn try_from(token: Token) -> Result<Self, Self::Error> {
         match token.token_type {
-            TokenType::Add => Ok(BinOp::Add),
-            TokenType::Sub => Ok(BinOp::Sub),
-            TokenType::Mul => Ok(BinOp::Mul),
-            TokenType::Div => Ok(BinOp::Div),
-            TokenType::Expo => Ok(BinOp::Expo),
-            TokenType::Mod => Ok(BinOp::Mod),
-            TokenType::Eq => Ok(BinOp::Eq),
-            TokenType::Lt => Ok(BinOp::Lt),
-            TokenType::Le => Ok(BinOp::Le),
-            TokenType::Ne => Ok(BinOp::Ne),
-            TokenType::Ge => Ok(BinOp::Ge),
-            TokenType::Gt => Ok(BinOp::Gt),
-            TokenType::And => Ok(BinOp::And),
-            TokenType::Or => Ok(BinOp::Or),
-            TokenType::Range => Ok(BinOp::Range),
+            TokenType::Add => Ok(BinOpKind::Add.spanned(token.span)),
+            TokenType::Sub => Ok(BinOpKind::Sub.spanned(token.span)),
+            TokenType::Mul => Ok(BinOpKind::Mul.spanned(token.span)),
+            TokenType::Div => Ok(BinOpKind::Div.spanned(token.span)),
+            TokenType::Expo => Ok(BinOpKind::Expo.spanned(token.span)),
+            TokenType::Mod => Ok(BinOpKind::Mod.spanned(token.span)),
+            TokenType::Eq => Ok(BinOpKind::Eq.spanned(token.span)),
+            TokenType::Lt => Ok(BinOpKind::Lt.spanned(token.span)),
+            TokenType::Le => Ok(BinOpKind::Le.spanned(token.span)),
+            TokenType::Ne => Ok(BinOpKind::Ne.spanned(token.span)),
+            TokenType::Ge => Ok(BinOpKind::Ge.spanned(token.span)),
+            TokenType::Gt => Ok(BinOpKind::Gt.spanned(token.span)),
+            TokenType::And => Ok(BinOpKind::And.spanned(token.span)),
+            TokenType::Or => Ok(BinOpKind::Or.spanned(token.span)),
+            TokenType::Range => Ok(BinOpKind::Range.spanned(token.span)),
             _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
         }
     }
@@ -100,29 +112,30 @@ impl TryFrom<Token> for BinOp {
 
 impl Precedence for BinOp {
     fn precedence(&self) -> (u8, Direction) {
-        match self {
-            Self::Expo => (10, Direction::Right),
+        use BinOpKind::*;
+        match self.kind {
+            Expo => (10, Direction::Right),
 
-            Self::Match => (9, Direction::Left),
-            Self::NotMatch => (9, Direction::Left),
+            Match => (9, Direction::Left),
+            NotMatch => (9, Direction::Left),
 
-            Self::Mul => (8, Direction::Left),
-            Self::Div => (8, Direction::Left),
-            Self::Mod => (8, Direction::Left),
-            Self::Sub => (7, Direction::Left),
-            Self::Add => (7, Direction::Left),
-            Self::Range => (6, Direction::Left),
+            Mul => (8, Direction::Left),
+            Div => (8, Direction::Left),
+            Mod => (8, Direction::Left),
+            Sub => (7, Direction::Left),
+            Add => (7, Direction::Left),
+            Range => (6, Direction::Left),
 
-            Self::Lt => (5, Direction::Left),
-            Self::Le => (5, Direction::Left),
-            Self::Ge => (5, Direction::Left),
-            Self::Gt => (5, Direction::Left),
+            Lt => (5, Direction::Left),
+            Le => (5, Direction::Left),
+            Ge => (5, Direction::Left),
+            Gt => (5, Direction::Left),
 
-            Self::Eq => (4, Direction::Left),
-            Self::Ne => (4, Direction::Left),
+            Eq => (4, Direction::Left),
+            Ne => (4, Direction::Left),
 
-            Self::And => (3, Direction::Left),
-            Self::Or => (2, Direction::Left),
+            And => (3, Direction::Left),
+            Or => (2, Direction::Left),
         }
     }
 }

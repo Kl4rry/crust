@@ -16,7 +16,7 @@ use crate::{
     shell::{
         builtins::{self, functions::BulitinFn},
         stream::{OutputStream, ValueStream},
-        value::{Type, Value},
+        value::{SpannedValue, Type, Value},
     },
     P,
 };
@@ -33,57 +33,71 @@ use command::CommandPart;
 pub mod argument;
 use argument::Argument;
 
-use self::unop::UnOpKind;
+use self::{binop::BinOpKind, unop::UnOpKind};
 use super::{context::Context, statement::function::Function};
 
 // used to implement comparison operators without duplciating code
 macro_rules! compare_impl {
     ($arg_lhs:expr, $arg_rhs:expr, $arg_binop:expr, $op:tt) => {{
         #[inline(always)]
-        fn compare_impl_fn(lhs: Value, rhs: Value, binop: BinOp) -> Result<Value, ShellErrorKind> {
+        fn compare_impl_fn(lhs: SpannedValue, rhs: SpannedValue, binop: BinOp) -> Result<SpannedValue, ShellErrorKind> {
+            let (lhs, lhs_span) = lhs.into();
+            let (rhs, rhs_span) = rhs.into();
+            let span = lhs_span + rhs_span;
+
             match &lhs {
                 Value::Int(number) => match &rhs {
-                    Value::Int(rhs) => Ok(Value::Bool(number $op rhs)),
-                    Value::Float(rhs) => Ok(Value::Bool((*number as f64) $op *rhs)),
-                    Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as i64)),
+                    Value::Int(rhs) => Ok(Value::Bool(number $op rhs).spanned(span)),
+                    Value::Float(rhs) => Ok(Value::Bool((*number as f64) $op *rhs).spanned(span)),
+                    Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as i64).spanned(span)),
                     _ => Err(ShellErrorKind::InvalidBinaryOperand(
                         binop,
                         lhs.to_type(),
                         rhs.to_type(),
+                        lhs_span,
+                        rhs_span,
                     )),
                 },
                 Value::Float(number) => match &rhs {
-                    Value::Int(rhs) => Ok(Value::Bool(*number $op *rhs as f64)),
-                    Value::Float(rhs) => Ok(Value::Bool(number $op rhs)),
-                    Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as u8 as f64)),
+                    Value::Int(rhs) => Ok(Value::Bool(*number $op *rhs as f64).spanned(span)),
+                    Value::Float(rhs) => Ok(Value::Bool(number $op rhs).spanned(span)),
+                    Value::Bool(rhs) => Ok(Value::Bool(*number $op *rhs as u8 as f64).spanned(span)),
                     _ => Err(ShellErrorKind::InvalidBinaryOperand(
                         binop,
                         lhs.to_type(),
                         rhs.to_type(),
+                        lhs_span,
+                        rhs_span,
                     )),
                 },
                 Value::Bool(boolean) => match &rhs {
-                    Value::Int(rhs) => Ok(Value::Bool((*boolean as i64) $op *rhs)),
-                    Value::Float(rhs) => Ok(Value::Bool((*boolean as u8 as f64) $op *rhs)),
-                    Value::Bool(rhs) => Ok(Value::Bool(*boolean $op *rhs)),
+                    Value::Int(rhs) => Ok(Value::Bool((*boolean as i64) $op *rhs).spanned(span)),
+                    Value::Float(rhs) => Ok(Value::Bool((*boolean as u8 as f64) $op *rhs).spanned(span)),
+                    Value::Bool(rhs) => Ok(Value::Bool(*boolean $op *rhs).spanned(span)),
                     _ => Err(ShellErrorKind::InvalidBinaryOperand(
                         binop,
                         lhs.to_type(),
                         rhs.to_type(),
+                        lhs_span,
+                        rhs_span,
                     )),
                 },
                 Value::String(string) => match &rhs {
-                    Value::String(rhs) => Ok(Value::Bool(string $op rhs)),
+                    Value::String(rhs) => Ok(Value::Bool(string $op rhs).spanned(span)),
                     _ => Err(ShellErrorKind::InvalidBinaryOperand(
                         binop,
                         lhs.to_type(),
                         rhs.to_type(),
+                        lhs_span,
+                        rhs_span,
                     )),
                 },
                 _ => Err(ShellErrorKind::InvalidBinaryOperand(
                     binop,
-                    lhs.to_type(),
-                    rhs.to_type(),
+                        lhs.to_type(),
+                        rhs.to_type(),
+                        lhs_span,
+                        rhs_span,
                 )),
             }
         }
@@ -125,78 +139,91 @@ impl Expr {
         }
     }
 
-    pub fn eval(&self, ctx: &mut Context) -> Result<Value, ShellErrorKind> {
+    pub fn eval(&self, ctx: &mut Context) -> Result<SpannedValue, ShellErrorKind> {
         match &self.kind {
             ExprKind::Call(_, _) => {
                 unreachable!("calls must always be in a pipeline, bare calls are not allowed")
             }
             ExprKind::Column(expr, col) => {
-                let value = expr.eval(ctx)?;
+                let (value, span) = expr.eval(ctx)?.into();
                 match value {
                     Value::Map(map) => match map.get(col) {
-                        Some(value) => Ok(value.clone()),
+                        Some(value) => Ok(value.clone().spanned(span)),
                         None => Err(ShellErrorKind::ColumnNotFound(col.to_string())),
                     },
-                    Value::Table(table) => Ok(Value::from(table.column(col)?)),
+                    Value::Table(table) => Ok(Value::from(table.column(col)?).spanned(span)),
                     _ => Err(ShellErrorKind::NoColumns(value.to_type())),
                 }
             }
             ExprKind::Index { expr, index } => {
-                let value = expr.eval(ctx)?;
+                let (value, span) = expr.eval(ctx)?.into();
                 let index = index.eval(ctx)?;
+                let total_span = span + index.span;
                 // TODO use cow here and just clone once
                 match value {
-                    Value::List(list) => {
-                        Ok(list.get(index.try_as_index(list.len())?).unwrap().clone())
-                    }
-                    Value::Table(table) => {
-                        Ok(Value::from(table.row(index.try_as_index(table.len())?)?))
-                    }
+                    Value::List(list) => Ok(list
+                        .get(index.try_as_index(list.len())?)
+                        .unwrap()
+                        .clone()
+                        .spanned(total_span)),
+                    Value::Table(table) => Ok(Value::from(table.row(index)?).spanned(total_span)),
                     Value::String(string) => {
                         let chars: Vec<char> = string.chars().collect();
                         let c = chars[index.try_as_index(chars.len())?];
-                        Ok(Value::from(String::from(c)))
+                        Ok(Value::from(String::from(c)).spanned(total_span))
                     }
-                    _ => Err(ShellErrorKind::NotIndexable(value.to_type())),
+                    _ => Err(ShellErrorKind::NotIndexable(value.to_type(), span)),
                 }
             }
             ExprKind::Literal(literal) => literal.eval(ctx),
             ExprKind::Variable(variable) => variable.eval(ctx),
             ExprKind::Unary(unop, expr) => {
-                let value = expr.eval(ctx)?;
+                let (value, span) = expr.eval(ctx)?.into();
+                let span = unop.span + span;
                 match unop.kind {
                     UnOpKind::Neg => match &value {
-                        Value::Int(int) => Ok(Value::Int(-*int)),
-                        Value::Float(float) => Ok(Value::Float(-*float)),
-                        Value::Bool(boolean) => Ok(Value::Int(-(*boolean as i64))),
-                        _ => Err(ShellErrorKind::InvalidUnaryOperand(*unop, value.to_type())),
+                        Value::Int(int) => Ok(Value::Int(-*int).spanned(span)),
+                        Value::Float(float) => Ok(Value::Float(-*float).spanned(span)),
+                        Value::Bool(boolean) => Ok(Value::Int(-(*boolean as i64)).spanned(span)),
+                        _ => Err(ShellErrorKind::InvalidUnaryOperand(
+                            *unop,
+                            value.to_type(),
+                            unop.span,
+                        )),
                     },
-                    UnOpKind::Not => Ok(Value::Bool(!value.truthy())),
+                    UnOpKind::Not => Ok(Value::Bool(!value.truthy()).spanned(span)),
                 }
             }
-            ExprKind::Binary(binop, lhs, rhs) => match binop {
-                BinOp::Match => {
+            ExprKind::Binary(binop, lhs, rhs) => match binop.kind {
+                BinOpKind::Match => {
                     let lhs = lhs.eval(ctx)?;
                     let rhs = rhs.eval(ctx)?;
-                    Ok(Value::Bool(lhs.try_match(rhs)?))
+                    let span = lhs.span + rhs.span;
+                    Ok(Value::Bool(lhs.try_match(rhs, binop.span)?).spanned(span))
                 }
-                BinOp::NotMatch => {
+                BinOpKind::NotMatch => {
                     let lhs = lhs.eval(ctx)?;
                     let rhs = rhs.eval(ctx)?;
-                    Ok(Value::Bool(!lhs.try_match(rhs)?))
+                    let span = lhs.span + rhs.span;
+                    Ok(Value::Bool(!lhs.try_match(rhs, binop.span)?).spanned(span))
                 }
-                BinOp::Range => {
+                BinOpKind::Range => {
                     let lhs_value = lhs.eval(ctx)?;
                     let rhs_value = rhs.eval(ctx)?;
 
-                    let lhs = lhs_value.try_as_int();
-                    let rhs = rhs_value.try_as_int();
+                    let lhs_span = lhs_value.span;
+                    let rhs_span = rhs_value.span;
+
+                    let lhs = lhs_value.value.try_as_int();
+                    let rhs = rhs_value.value.try_as_int();
 
                     if lhs.is_none() || rhs.is_none() {
                         return Err(ShellErrorKind::InvalidBinaryOperand(
-                            BinOp::Range,
-                            lhs_value.to_type(),
-                            rhs_value.to_type(),
+                            BinOpKind::Range.spanned(binop.span),
+                            lhs_value.value.to_type(),
+                            rhs_value.value.to_type(),
+                            lhs_span,
+                            rhs_span,
                         ));
                     }
 
@@ -205,91 +232,98 @@ impl Expr {
                     unsafe {
                         let lhs = lhs.unwrap_unchecked();
                         let rhs = rhs.unwrap_unchecked();
-                        Ok(Value::from(lhs..rhs))
+                        Ok(Value::from(lhs..rhs).spanned(lhs_span + rhs_span))
                     }
                 }
-                BinOp::Add => {
+                BinOpKind::Add => {
                     let lhs = lhs.eval(ctx)?;
                     let rhs = rhs.eval(ctx)?;
-                    lhs.try_add(rhs)
+                    lhs.try_add(rhs, binop.span)
                 }
-                BinOp::Sub => {
+                BinOpKind::Sub => {
                     let lhs = lhs.eval(ctx)?;
                     let rhs = rhs.eval(ctx)?;
-                    lhs.try_sub(rhs)
+                    lhs.try_sub(rhs, binop.span)
                 }
-                BinOp::Mul => {
+                BinOpKind::Mul => {
                     let lhs = lhs.eval(ctx)?;
                     let rhs = rhs.eval(ctx)?;
-                    lhs.try_mul(rhs)
+                    lhs.try_mul(rhs, binop.span)
                 }
-                BinOp::Div => {
+                BinOpKind::Div => {
                     let lhs = lhs.eval(ctx)?;
                     let rhs = rhs.eval(ctx)?;
-                    lhs.try_div(rhs)
+                    lhs.try_div(rhs, binop.span)
                 }
-                BinOp::Expo => {
+                BinOpKind::Expo => {
                     let lhs = lhs.eval(ctx)?;
                     let rhs = rhs.eval(ctx)?;
-                    lhs.try_expo(rhs)
+                    lhs.try_expo(rhs, binop.span)
                 }
-                BinOp::Mod => {
+                BinOpKind::Mod => {
                     let lhs = lhs.eval(ctx)?;
                     let rhs = rhs.eval(ctx)?;
-                    lhs.try_mod(rhs)
+                    lhs.try_mod(rhs, binop.span)
                 }
                 // The == operator (equality)
-                BinOp::Eq => {
+                BinOpKind::Eq => {
                     let lhs = lhs.eval(ctx)?;
                     let rhs = rhs.eval(ctx)?;
-                    Ok(Value::Bool(lhs == rhs))
+                    Ok(Value::Bool(lhs.value == rhs.value).spanned(binop.span))
                 }
                 // The != operator (not equal to)
-                BinOp::Ne => {
+                BinOpKind::Ne => {
                     let lhs = lhs.eval(ctx)?;
                     let rhs = rhs.eval(ctx)?;
-                    Ok(Value::Bool(lhs != rhs))
+                    Ok(Value::Bool(lhs.value != rhs.value).spanned(binop.span))
                 }
 
                 // all the ordering operators are the same except for the operator
                 // the this is why the macro is used
 
                 // The < operator (less than)
-                BinOp::Lt => {
+                BinOpKind::Lt => {
                     let lhs = lhs.eval(ctx)?;
                     let rhs = rhs.eval(ctx)?;
                     compare_impl!(lhs, rhs, *binop, <)
                 }
                 // The <= operator (less than or equal to)
-                BinOp::Le => {
+                BinOpKind::Le => {
                     let lhs = lhs.eval(ctx)?;
                     let rhs = rhs.eval(ctx)?;
                     compare_impl!(lhs, rhs, *binop, <=)
                 }
                 // The >= operator (greater than or equal to)
-                BinOp::Ge => {
+                BinOpKind::Ge => {
                     let lhs = lhs.eval(ctx)?;
                     let rhs = rhs.eval(ctx)?;
                     compare_impl!(lhs, rhs, *binop, >=)
                 }
                 // The > operator (greater than)
-                BinOp::Gt => {
+                BinOpKind::Gt => {
                     let lhs = lhs.eval(ctx)?;
                     let rhs = rhs.eval(ctx)?;
                     compare_impl!(lhs, rhs, *binop, >)
                 }
-                BinOp::And => Ok(Value::Bool(
-                    lhs.eval(ctx)?.truthy() && rhs.eval(ctx)?.truthy(),
-                )),
-                BinOp::Or => Ok(Value::Bool(
-                    lhs.eval(ctx)?.truthy() || rhs.eval(ctx)?.truthy(),
-                )),
+                BinOpKind::And => {
+                    let (lhs, lhs_span) = lhs.eval(ctx)?.into();
+                    let (rhs, rhs_span) = rhs.eval(ctx)?.into();
+                    let span = lhs_span + rhs_span;
+                    Ok(Value::Bool(lhs.truthy() && rhs.truthy()).spanned(span))
+                }
+                BinOpKind::Or => {
+                    let (lhs, lhs_span) = lhs.eval(ctx)?.into();
+                    let (rhs, rhs_span) = rhs.eval(ctx)?.into();
+                    let span = lhs_span + rhs_span;
+                    Ok(Value::Bool(lhs.truthy() || rhs.truthy()).spanned(span))
+                }
             },
             ExprKind::Pipe(calls) => {
+                let pipe_span = calls.first().unwrap().span + calls.last().unwrap().span;
                 let mut calls = calls.iter().peekable();
                 let mut capture_output = OutputStream::new_capture();
                 if !matches!(calls.peek().unwrap().kind, ExprKind::Call(..)) {
-                    capture_output.push(calls.next().unwrap().eval(ctx)?);
+                    capture_output.push(calls.next().unwrap().eval(ctx)?.into());
                 }
 
                 let mut expanded_calls = VecDeque::new();
@@ -367,7 +401,8 @@ impl Expr {
                             for (i, var) in parameters.iter().enumerate() {
                                 match args.get(i) {
                                     Some(arg) => {
-                                        input_vars.insert(var.name.clone(), (false, arg.clone()));
+                                        input_vars
+                                            .insert(var.name.clone(), (false, arg.clone().value));
                                     }
                                     None => {
                                         return Err(ShellErrorKind::ToFewArguments {
@@ -409,7 +444,7 @@ impl Expr {
                     }
                 }
 
-                Ok(Value::Null)
+                Ok(Value::Null.spanned(pipe_span))
             }
             ExprKind::SubExpr(expr) => {
                 if matches!(expr.kind, ExprKind::Call { .. } | ExprKind::Pipe { .. }) {
@@ -420,8 +455,9 @@ impl Expr {
                         output: &mut capture,
                         src: ctx.src.clone(),
                     };
+                    let span = expr.span;
                     expr.eval(ctx)?;
-                    Ok(capture.into_value_stream().unpack())
+                    Ok(capture.into_value_stream().unpack().spanned(span))
                 } else {
                     expr.eval(ctx)
                 }
@@ -531,7 +567,7 @@ fn run_pipeline(
 fn get_call_type(
     ctx: &mut Context,
     cmd: String,
-    args: Vec<Value>,
+    args: Vec<SpannedValue>,
 ) -> Result<CallType, ShellErrorKind> {
     if let Some(builtin) = builtins::functions::get_builtin(&cmd) {
         return Ok(CallType::Builtin(builtin, args));
@@ -563,12 +599,13 @@ fn expand_call(
     ctx: &mut Context,
     commandparts: &[CommandPart],
     args: &[Argument],
-) -> Result<(String, Vec<Value>), ShellErrorKind> {
+) -> Result<(String, Vec<SpannedValue>), ShellErrorKind> {
     let mut expanded_args = Vec::new();
     for arg in args {
         expanded_args.push(arg.eval(ctx)?);
     }
 
+    let cmd_span = commandparts.first().unwrap().span + commandparts.last().unwrap().span;
     let mut command = String::new();
     for part in commandparts.iter() {
         command.push_str(&part.eval(ctx)?);
@@ -577,7 +614,9 @@ fn expand_call(
     if let Some(alias) = ctx.shell.aliases.get(&command) {
         let mut split = alias.split_whitespace();
         command = split.next().unwrap().to_string();
-        let mut args: Vec<_> = split.map(|s| Value::from(s.to_string())).collect();
+        let mut args: Vec<_> = split
+            .map(|s| Value::from(s.to_string()).spanned(cmd_span))
+            .collect();
         args.extend(expanded_args.into_iter());
         expanded_args = args;
     }
@@ -585,8 +624,8 @@ fn expand_call(
 }
 
 pub enum CallType {
-    Builtin(BulitinFn, Vec<Value>),
-    Internal(Rc<Function>, Vec<Value>),
+    Builtin(BulitinFn, Vec<SpannedValue>),
+    Internal(Rc<Function>, Vec<SpannedValue>),
     External(P<Exec>, String),
 }
 

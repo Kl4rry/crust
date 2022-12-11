@@ -11,7 +11,7 @@ use crate::{
     shell::{
         frame::Frame,
         stream::{OutputStream, ValueStream},
-        value::Value,
+        value::SpannedValue,
         Shell,
     },
 };
@@ -34,7 +34,7 @@ mod unalias;
 pub type BulitinFn = fn(
     &mut Shell,
     &mut Frame,
-    Vec<Value>,
+    Vec<SpannedValue>,
     ValueStream,
     &mut OutputStream,
 ) -> Result<(), ShellErrorKind>;

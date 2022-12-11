@@ -9,11 +9,11 @@ use crate::parser::{
     ast::{
         expr::{
             argument::{ArgumentPart, ArgumentPartKind},
-            binop::BinOp,
+            binop::{BinOp, BinOpKind},
             ExprKind,
         },
         literal::LiteralKind,
-        statement::assign_op::AssignOp,
+        statement::assign_op::{AssignOp, AssignOpKind},
     },
     syntax_error::SyntaxErrorKind,
     Result,
@@ -297,36 +297,37 @@ impl Token {
     pub fn to_binop(&self) -> BinOp {
         use TokenType::*;
         match self.token_type {
-            Add => BinOp::Add,
-            Sub => BinOp::Sub,
-            Mul => BinOp::Mul,
-            Div => BinOp::Div,
-            Expo => BinOp::Expo,
-            Mod => BinOp::Mod,
-            Eq => BinOp::Eq,
-            Lt => BinOp::Lt,
-            Le => BinOp::Le,
-            Ne => BinOp::Ne,
-            Ge => BinOp::Ge,
-            Gt => BinOp::Gt,
-            And => BinOp::And,
-            Or => BinOp::Or,
-            Range => BinOp::Range,
-            Match => BinOp::Match,
-            NotMatch => BinOp::NotMatch,
+            Add => BinOpKind::Add,
+            Sub => BinOpKind::Sub,
+            Mul => BinOpKind::Mul,
+            Div => BinOpKind::Div,
+            Expo => BinOpKind::Expo,
+            Mod => BinOpKind::Mod,
+            Eq => BinOpKind::Eq,
+            Lt => BinOpKind::Lt,
+            Le => BinOpKind::Le,
+            Ne => BinOpKind::Ne,
+            Ge => BinOpKind::Ge,
+            Gt => BinOpKind::Gt,
+            And => BinOpKind::And,
+            Or => BinOpKind::Or,
+            Range => BinOpKind::Range,
+            Match => BinOpKind::Match,
+            NotMatch => BinOpKind::NotMatch,
             _ => panic!("could not convert token {:?} to binop", self),
         }
+        .spanned(self.span)
     }
 
     /// Get assign op from token. Will panic if token is not valid assign op.
     pub fn to_assign_op(&self) -> AssignOp {
         match self.token_type {
-            TokenType::AddAssign => AssignOp::Add,
-            TokenType::SubAssign => AssignOp::Sub,
-            TokenType::MulAssign => AssignOp::Mul,
-            TokenType::DivAssign => AssignOp::Div,
-            TokenType::ExpoAssign => AssignOp::Expo,
-            TokenType::ModAssign => AssignOp::Mod,
+            TokenType::AddAssign => AssignOpKind::Add.spanned(self.span),
+            TokenType::SubAssign => AssignOpKind::Sub.spanned(self.span),
+            TokenType::MulAssign => AssignOpKind::Mul.spanned(self.span),
+            TokenType::DivAssign => AssignOpKind::Div.spanned(self.span),
+            TokenType::ExpoAssign => AssignOpKind::Expo.spanned(self.span),
+            TokenType::ModAssign => AssignOpKind::Mod.spanned(self.span),
             _ => panic!("could not convert token {:?} to assign op", self),
         }
     }

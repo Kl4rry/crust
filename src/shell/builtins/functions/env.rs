@@ -7,7 +7,7 @@ use crate::{
     shell::{
         frame::Frame,
         stream::{OutputStream, ValueStream},
-        value::{table::Table, Value},
+        value::{table::Table, SpannedValue, Value},
         Shell,
     },
 };
@@ -17,11 +17,11 @@ static APP: Lazy<App> = Lazy::new(|| App::new("env").about("List all environment
 pub fn env(
     _: &mut Shell,
     frame: &mut Frame,
-    args: Vec<Value>,
+    args: Vec<SpannedValue>,
     _: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    let _ = match APP.parse(args.into_iter()) {
+    let _ = match APP.parse(args.into_iter().map(|v| v.into())) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
             output.push(info);

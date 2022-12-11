@@ -9,7 +9,7 @@ use crate::{
     shell::{
         frame::Frame,
         stream::{OutputStream, ValueStream},
-        value::{Type, Value},
+        value::{SpannedValue, Type},
         Shell,
     },
 };
@@ -27,11 +27,11 @@ static APP: Lazy<App> = Lazy::new(|| {
 pub fn import(
     shell: &mut Shell,
     _: &mut Frame,
-    args: Vec<Value>,
+    args: Vec<SpannedValue>,
     _: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    let mut matches = match APP.parse(args.into_iter()) {
+    let mut matches = match APP.parse(args.into_iter().map(|v| v.into())) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
             output.push(info);
