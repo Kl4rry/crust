@@ -73,9 +73,6 @@ import https://raw.githubusercontent.com/Kl4rry/crust/main/libs/starship.crust
 ## Todo
 Columns and indexing when passing arguments.  
 Allow column with number name.  
-Allow comments in strings.  
-Update string literal be like format string.  
-Add span info to ast.  
 Add builtins and functions to help when calling unknown command.  
 Rework defing functions to use cli parser.  
 Add sub commands to cli parser.  
