@@ -2,11 +2,9 @@ use std::{
     fmt, io,
     num::{ParseFloatError, ParseIntError},
     path::PathBuf,
-    rc::Rc,
     sync::Arc,
 };
 
-use executable_finder::Executable;
 use glob::{GlobError, PatternError};
 use miette::{Diagnostic, LabeledSpan, SourceCode};
 use rayon::prelude::*;
@@ -31,16 +29,11 @@ use crate::{
 pub struct ShellError {
     pub error: ShellErrorKind,
     pub src: Arc<Source>,
-    pub executables: Rc<Vec<Executable>>,
 }
 
 impl ShellError {
-    pub fn new(error: ShellErrorKind, src: Arc<Source>, executables: Rc<Vec<Executable>>) -> Self {
-        ShellError {
-            error,
-            src,
-            executables,
-        }
+    pub fn new(error: ShellErrorKind, src: Arc<Source>) -> Self {
+        ShellError { error, src }
     }
 
     pub fn is_exit(&self) -> bool {
@@ -264,8 +257,9 @@ impl Diagnostic for ShellError {
     fn help<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
         match self.error {
             ShellErrorKind::CommandNotFound(ref cmd) => {
-                let mut options: Vec<_> = self
-                    .executables
+                let exes = executable_finder::executables().ok()?;
+
+                let mut options: Vec<_> = exes
                     .par_iter()
                     .filter_map(|exec| {
                         let distance = levenshtein_stripped(&exec.name, cmd);

@@ -3,7 +3,6 @@ use std::{
     fs::{self, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
-    rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex, MutexGuard,
@@ -12,7 +11,6 @@ use std::{
 
 use console::Term;
 use directories::{ProjectDirs, UserDirs};
-use executable_finder::{executables, Executable};
 use miette::{Diagnostic, GraphicalReportHandler};
 use rustyline::{config::BellStyle, error::ReadlineError, Editor};
 use yansi::Paint;
@@ -47,7 +45,6 @@ pub struct Shell {
     aliases: HashMap<String, String>,
     recursion_limit: usize,
     interrupt: Arc<AtomicBool>,
-    executables: Rc<Vec<Executable>>,
     args: Vec<String>,
     editor: Editor<EditorHelper>,
     interactive: bool,
@@ -77,8 +74,6 @@ impl Shell {
         })
         .unwrap();
 
-        let executables = Rc::new(executables().unwrap());
-
         let project_dirs = ProjectDirs::from("", "", "crust").unwrap();
         let user_dirs = UserDirs::new().unwrap();
 
@@ -102,7 +97,6 @@ impl Shell {
             aliases: HashMap::new(),
             recursion_limit: 1000,
             interrupt,
-            executables,
             args,
             editor,
             interactive: false,
@@ -226,11 +220,7 @@ impl Shell {
 
                 match func.block.eval(&mut ctx, None, None) {
                     Ok(_) => return output.to_string(),
-                    Err(err) => report_error(ShellError::new(
-                        err,
-                        func.src.clone(),
-                        self.executables.clone(),
-                    )),
+                    Err(err) => report_error(ShellError::new(err, func.src.clone())),
                 }
             }
         }
@@ -264,7 +254,7 @@ impl Shell {
     // does this function really need to do a linear search?
     // it could probably use a hashset instead.
     pub fn find_exe(&self, name: &str) -> Option<String> {
-        for exe in self.executables.iter() {
+        for exe in executable_finder::executables().ok()?.iter() {
             if name.contains('.') || !exe.name.contains('.') {
                 if name == exe.name {
                     return Some(name.to_string());
