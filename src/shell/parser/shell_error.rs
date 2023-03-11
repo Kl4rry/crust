@@ -108,10 +108,16 @@ pub enum ShellErrorKind {
     Popen(#[from] PopenError),
     Communicate(#[from] CommunicateError),
     Open(#[from] opener::OpenError),
-    Ureq(#[from] ureq::Error),
+    Ureq(Box<ureq::Error>),
     Json(#[from] serde_json::Error),
     TomlDe(#[from] toml::de::Error),
     TomlSer(#[from] toml::ser::Error),
+}
+
+impl From<ureq::Error> for ShellErrorKind {
+    fn from(value: ureq::Error) -> Self {
+        Self::Ureq(Box::new(value))
+    }
 }
 
 impl fmt::Display for ShellErrorKind {
