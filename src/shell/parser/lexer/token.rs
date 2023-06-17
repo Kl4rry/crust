@@ -50,6 +50,7 @@ pub enum TokenType {
     Colon,
     SemiColon,
     Dot,
+    QuestionMark,
 
     // Binary operators
     /// The x..y operator (range)

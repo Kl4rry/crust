@@ -1,0 +1,6 @@
+
+ls
+assert ($? == 0)
+
+ls dirthatdoesnotexist
+assert ($? == 0)

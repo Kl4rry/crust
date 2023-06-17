@@ -149,6 +149,7 @@ impl Shell {
             Ok(ast) => {
                 let res = ast.eval(self, output);
                 if let Err(error) = res {
+                    // TODO set status here
                     if !error.is_exit() {
                         report_error(error)
                     }

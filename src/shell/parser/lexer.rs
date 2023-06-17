@@ -208,6 +208,7 @@ impl Iterator for Lexer {
                 b'\\' => self.advance_with(TokenType::Symbol(String::from("\\")), 1),
                 b'#' => self.advance_with(TokenType::Symbol(String::from("#")), 1),
                 b'$' => self.advance_with(TokenType::Dollar, 1),
+                b'?' => self.advance_with(TokenType::QuestionMark, 1),
                 b'.' => {
                     if self.index + 1 < self.src().len() && self.peek(1) == b'.' {
                         self.advance_with(TokenType::Range, 2)

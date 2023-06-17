@@ -454,12 +454,17 @@ impl Parser {
         }
 
         let token = self.eat()?;
-        if token.token_type == TokenType::LeftBrace {
-            let var = Variable::try_from(self.eat()?)?;
-            self.eat()?.expect(TokenType::RightBrace)?;
-            Ok(var)
-        } else {
-            Variable::try_from(token)
+        match token.token_type {
+            TokenType::LeftBrace => {
+                let var = Variable::try_from(self.eat()?)?;
+                self.eat()?.expect(TokenType::RightBrace)?;
+                Ok(var)
+            }
+            TokenType::QuestionMark if require_prefix => Ok(Variable {
+                name: "?".into(),
+                span: token.span,
+            }),
+            _ => Variable::try_from(token),
         }
     }
 

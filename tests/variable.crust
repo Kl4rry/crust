@@ -1,0 +1,15 @@
+
+export var1 = 10
+assert ($var1 == 10)
+
+export $var2 = 10
+assert ($var2 == 10)
+
+let var3 = 10
+assert ($var3 == 10)
+
+let $var4 = 10
+assert ($var4 == 10)
+
+$var5 = 10
+assert ($var5 == 10)
