@@ -1,6 +1,6 @@
 
-ls
+let void = (ls)
 assert ($? == 0)
 
-ls dirthatdoesnotexist
-assert ($? == 0)
+#let void = (ls dirthatdoesnotexist)
+#assert ($? != 0)

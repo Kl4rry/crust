@@ -18,6 +18,7 @@ use crate::{
 
 mod alias;
 mod assert;
+mod back;
 mod cd;
 mod clear;
 mod echo;
@@ -44,6 +45,7 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "pwd" => pwd::pwd,
     "exit" => exit::exit,
     "cd" => cd::cd,
+    "back" => back::back,
     "echo" => echo::echo,
     "import" => import::import,
     "alias" => alias::alias,

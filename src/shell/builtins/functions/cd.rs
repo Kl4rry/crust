@@ -1,4 +1,4 @@
-use std::{path::Path, rc::Rc};
+use std::rc::Rc;
 
 use once_cell::sync::Lazy;
 
@@ -21,7 +21,7 @@ static APP: Lazy<App> = Lazy::new(|| {
 
 pub fn cd(
     shell: &mut Shell,
-    _: &mut Frame,
+    frame: &mut Frame,
     args: Vec<SpannedValue>,
     _: ValueStream,
     output: &mut OutputStream,
@@ -40,7 +40,5 @@ pub fn cd(
         None => Rc::new(shell.home_dir().to_string_lossy().to_string()),
     };
 
-    let new_dir = Path::new(&*dir);
-    std::env::set_current_dir(new_dir).map_err(|err| ShellErrorKind::Io(None, err))?;
-    Ok(())
+    frame.change_dir(&*dir)
 }

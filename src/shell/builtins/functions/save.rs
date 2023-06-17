@@ -106,6 +106,10 @@ pub fn save(
                     };
                     save_file(path, data.as_bytes(), append)?;
                 }
+                "txt" => {
+                    // TODO handle txt
+                    todo!()
+                }
                 _ => return Err(ShellErrorKind::UnknownFileType(ext)),
             }
         }

@@ -16,6 +16,7 @@ use rustyline::{config::BellStyle, error::ReadlineError, Editor};
 use yansi::Paint;
 
 pub mod builtins;
+pub mod dir_history;
 pub mod parser;
 pub mod stream;
 pub mod value;
