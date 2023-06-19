@@ -88,6 +88,18 @@ impl Compound {
     }
 }
 
+impl From<Expr> for Compound {
+    fn from(value: Expr) -> Self {
+        Compound::Expr(value)
+    }
+}
+
+impl From<Statement> for Compound {
+    fn from(value: Statement) -> Self {
+        Compound::Statement(value)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Block {
     pub sequence: Vec<Compound>,
@@ -104,7 +116,6 @@ impl Block {
         if ctx.frame.index() == ctx.shell.recursion_limit {
             return Err(ShellErrorKind::MaxRecursion(ctx.shell.recursion_limit));
         }
-        let pre_block_dir = std::env::current_dir().map_err(|err| ShellErrorKind::Io(None, err))?;
         let frame = ctx.frame.clone().push(
             variables.unwrap_or_default(),
             HashMap::new(),
@@ -128,7 +139,7 @@ impl Block {
                 Compound::Statement(statement) => statement.eval(ctx)?,
             };
         }
-        std::env::set_current_dir(pre_block_dir).map_err(|err| ShellErrorKind::Io(None, err))
+        Ok(())
     }
 }
 

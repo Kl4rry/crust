@@ -28,6 +28,7 @@ use frame::Frame;
 mod hello;
 
 use self::{
+    dir_history::DirHistory,
     helper::EditorHelper,
     parser::{ast::context::Context, shell_error::ShellError},
     stream::OutputStream,
@@ -49,6 +50,7 @@ pub struct Shell {
     args: Vec<String>,
     editor: Editor<EditorHelper>,
     interactive: bool,
+    pub dir_history: DirHistory,
 }
 
 impl Shell {
@@ -101,6 +103,7 @@ impl Shell {
             args,
             editor,
             interactive: false,
+            dir_history: DirHistory::new(),
         }
     }
 

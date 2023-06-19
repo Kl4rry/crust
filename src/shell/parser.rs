@@ -252,9 +252,7 @@ impl Parser {
             TokenType::LeftBrace => {
                 let block = self.parse_block()?;
                 let span = block.span;
-                Ok(Compound::Statement(
-                    StatementKind::Block(block).spanned(span),
-                ))
+                Ok(StatementKind::Block(block).spanned(span).into())
             }
             TokenType::Dollar => {
                 let var: Variable = self.parse_variable(true)?;
@@ -262,14 +260,14 @@ impl Parser {
                 if let Ok(token) = self.peek() {
                     match token.token_type {
                         TokenType::Dot => {
-                            return Ok(Compound::Expr(
-                                self.parse_column(ExprKind::Variable(var).spanned(var_span))?,
-                            ))
+                            return Ok(self
+                                .parse_column(ExprKind::Variable(var).spanned(var_span))?
+                                .into())
                         }
                         TokenType::LeftBracket => {
-                            return Ok(Compound::Expr(
-                                self.parse_index(ExprKind::Variable(var).spanned(var_span))?,
-                            ))
+                            return Ok(self
+                                .parse_index(ExprKind::Variable(var).spanned(var_span))?
+                                .into())
                         }
                         _ => (),
                     }
@@ -282,33 +280,42 @@ impl Parser {
                             self.skip_optional_space();
                             let expr = self.parse_expr(None)?;
                             let expr_span = expr.span;
-                            return Ok(Compound::Statement(
-                                StatementKind::Assign(var, expr).spanned(var_span + expr_span),
-                            ));
+                            return Ok(StatementKind::Assign(var, expr)
+                                .spanned(var_span + expr_span)
+                                .into());
                         }
                         TokenType::Space => drop(self.eat()?),
+                        TokenType::Pipe => {
+                            return Ok(self
+                                .parse_pipe(Some(Expr {
+                                    kind: ExprKind::Variable(var),
+                                    span: var_span,
+                                }))?
+                                .into());
+                        }
                         ref token_type => {
                             if token_type.is_assign_op() {
                                 let op = self.eat()?.to_assign_op();
                                 self.skip_optional_space();
                                 let expr = self.parse_expr(None)?;
                                 let expr_span = expr.span;
-                                return Ok(Compound::Statement(
-                                    StatementKind::AssignOp(var, op, expr)
-                                        .spanned(var_span + expr_span),
-                                ));
+                                return Ok(StatementKind::AssignOp(var, op, expr)
+                                    .spanned(var_span + expr_span)
+                                    .into());
                             } else if token_type.is_binop() {
-                                return Ok(Compound::Expr(self.parse_expr_part(
-                                    Some(ExprKind::Variable(var).spanned(var_span)),
-                                    0,
-                                )?));
+                                return Ok(self
+                                    .parse_expr_part(
+                                        Some(ExprKind::Variable(var).spanned(var_span)),
+                                        0,
+                                    )?
+                                    .into());
                             } else {
                                 return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?));
                             }
                         }
                     }
                 }
-                Ok(Compound::Expr(ExprKind::Variable(var).spanned(var_span)))
+                Ok(ExprKind::Variable(var).spanned(var_span).into())
             }
             TokenType::Fn => {
                 let start = self.eat()?.span;
@@ -350,18 +357,16 @@ impl Parser {
                     src: self.named_source(),
                 };
 
-                Ok(Compound::Statement(
-                    StatementKind::Fn(name, Rc::new(func)).spanned(start + end),
-                ))
+                Ok(StatementKind::Fn(name, Rc::new(func))
+                    .spanned(start + end)
+                    .into())
             }
             TokenType::Loop => {
                 let start = self.eat()?.span;
                 self.skip_whitespace();
                 let block = self.parse_block()?;
                 let end = block.span;
-                Ok(Compound::Statement(
-                    StatementKind::Loop(block).spanned(start + end),
-                ))
+                Ok(StatementKind::Loop(block).spanned(start + end).into())
             }
             TokenType::For => {
                 let start = self.eat()?.span;
@@ -375,9 +380,9 @@ impl Parser {
                 let block = self.parse_block()?;
                 let end = block.span;
 
-                Ok(Compound::Statement(
-                    StatementKind::For(var, expr, block).spanned(start + end),
-                ))
+                Ok(StatementKind::For(var, expr, block)
+                    .spanned(start + end)
+                    .into())
             }
             TokenType::While => {
                 let start = self.eat()?.span;
@@ -386,18 +391,18 @@ impl Parser {
                 self.skip_whitespace();
                 let block = self.parse_block()?;
                 let end = block.span;
-                Ok(Compound::Statement(
-                    StatementKind::While(expr, block).spanned(start + end),
-                ))
+                Ok(StatementKind::While(expr, block)
+                    .spanned(start + end)
+                    .into())
             }
-            TokenType::If => Ok(Compound::Statement(self.parse_if()?)),
+            TokenType::If => Ok(self.parse_if()?.into()),
             TokenType::Break => {
                 let span = self.eat()?.span;
-                Ok(Compound::Statement(StatementKind::Break.spanned(span)))
+                Ok(StatementKind::Break.spanned(span).into())
             }
             TokenType::Continue => {
                 let span = self.eat()?.span;
-                Ok(Compound::Statement(StatementKind::Continue.spanned(span)))
+                Ok(StatementKind::Continue.spanned(span).into())
             }
             TokenType::Return => {
                 let start = self.eat()?.span;
@@ -406,26 +411,22 @@ impl Parser {
                     Ok(token) => match token.token_type {
                         TokenType::NewLine | TokenType::SemiColon => {
                             self.eat()?;
-                            Ok(Compound::Statement(
-                                StatementKind::Return(None).spanned(start),
-                            ))
+                            Ok(StatementKind::Return(None).spanned(start).into())
                         }
                         _ => {
                             let expr = self.parse_expr(None)?;
                             let end = expr.span;
-                            Ok(Compound::Statement(
-                                StatementKind::Return(Some(expr)).spanned(start + end),
-                            ))
+                            Ok(StatementKind::Return(Some(expr))
+                                .spanned(start + end)
+                                .into())
                         }
                     },
-                    Err(_) => Ok(Compound::Statement(
-                        StatementKind::Return(None).spanned(start),
-                    )),
+                    Err(_) => Ok(StatementKind::Return(None).spanned(start).into()),
                 }
             }
-            TokenType::Let => Ok(Compound::Statement(self.parse_declaration(false)?)),
-            TokenType::Export => Ok(Compound::Statement(self.parse_declaration(true)?)),
-            TokenType::Symbol(_) => Ok(Compound::Expr(self.parse_expr(None)?)),
+            TokenType::Let => Ok(self.parse_declaration(false)?.into()),
+            TokenType::Export => Ok(self.parse_declaration(true)?.into()),
+            TokenType::Symbol(_) => Ok(self.parse_expr(None)?.into()),
             TokenType::Exec
             | TokenType::Dot
             | TokenType::Div
@@ -439,7 +440,7 @@ impl Parser {
             | TokenType::True
             | TokenType::False
             | TokenType::LeftBracket
-            | TokenType::Not => Ok(Compound::Expr(self.parse_expr(None)?)),
+            | TokenType::Not => Ok(self.parse_expr(None)?.into()),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         }
     }
@@ -811,12 +812,17 @@ impl Parser {
     }
 
     fn parse_expr_part(&mut self, lhs: Option<Expr>, min_precedence: u8) -> Result<Expr> {
-        let mut lhs = if let Some(expr) = lhs {
-            expr
-        } else {
-            self.parse_primary(None)?
+        let mut lhs = match lhs {
+            Some(expr) => expr,
+            None => self.parse_primary(None)?,
         };
         self.skip_optional_space();
+
+        if let Ok(token) = self.peek() {
+            if token.token_type == TokenType::Pipe {
+                lhs = self.parse_pipe(Some(lhs))?;
+            }
+        }
 
         let mut lookahead: Option<BinOp> = match self.peek() {
             Ok(token) => {
@@ -851,10 +857,6 @@ impl Parser {
 
             lookahead = match self.peek() {
                 Ok(token) => {
-                    if token.token_type == TokenType::Pipe {
-                        return self.parse_pipe(Some(lhs));
-                    }
-
                     if token.is_binop() {
                         Some(token.to_binop())
                     } else {

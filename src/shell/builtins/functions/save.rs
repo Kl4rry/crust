@@ -112,6 +112,11 @@ pub fn save(
                 }
                 _ => return Err(ShellErrorKind::UnknownFileType(ext)),
             }
+        } else {
+            return Err(ShellErrorKind::Basic(
+                "Serialization Error",
+                "Cannot serialize without a format".into(),
+            ));
         }
     }
 

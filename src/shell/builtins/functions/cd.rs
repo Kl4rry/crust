@@ -21,7 +21,7 @@ static APP: Lazy<App> = Lazy::new(|| {
 
 pub fn cd(
     shell: &mut Shell,
-    frame: &mut Frame,
+    _: &mut Frame,
     args: Vec<SpannedValue>,
     _: ValueStream,
     output: &mut OutputStream,
@@ -40,5 +40,5 @@ pub fn cd(
         None => Rc::new(shell.home_dir().to_string_lossy().to_string()),
     };
 
-    frame.change_dir(&*dir)
+    shell.dir_history.change_dir(&*dir)
 }

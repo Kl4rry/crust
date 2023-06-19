@@ -15,8 +15,8 @@ static APP: Lazy<App> =
     Lazy::new(|| App::new("back").about("Go back to the last working directory"));
 
 pub fn back(
-    _: &mut Shell,
-    frame: &mut Frame,
+    shell: &mut Shell,
+    _: &mut Frame,
     args: Vec<SpannedValue>,
     _: ValueStream,
     output: &mut OutputStream,
@@ -30,5 +30,5 @@ pub fn back(
         Err(e) => return Err(e.into()),
     };
 
-    frame.back()
+    shell.dir_history.back()
 }

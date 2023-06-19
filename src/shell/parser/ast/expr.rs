@@ -322,6 +322,7 @@ impl Expr {
                 let pipe_span = calls.first().unwrap().span + calls.last().unwrap().span;
                 let mut calls = calls.iter().peekable();
                 let mut capture_output = OutputStream::new_capture();
+                // If the first thing in the pipeline is not a command we eval it first
                 if !matches!(calls.peek().unwrap().kind, ExprKind::Call(..)) {
                     capture_output.push(calls.next().unwrap().eval(ctx)?.into());
                 }
@@ -539,7 +540,7 @@ fn run_pipeline(
             } else {
                 Redirection::None
             });
-        let mut children = pipeline.popen()?;
+        let mut children: Vec<subprocess::Popen> = pipeline.popen()?;
         children
             .first_mut()
             .unwrap()

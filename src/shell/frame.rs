@@ -1,6 +1,6 @@
-use std::{collections::HashMap, path::Path, rc::Rc};
+use std::{collections::HashMap, rc::Rc};
 
-use super::{dir_history::DirHistory, stream::ValueStream};
+use super::stream::ValueStream;
 use crate::{
     parser::{ast::statement::function::Function, shell_error::ShellErrorKind},
     shell::value::Value,
@@ -14,7 +14,6 @@ struct Inner {
     input: ValueStream,
     parent: Option<Frame>,
     index: usize,
-    dir_history: DirHistory,
 }
 
 #[derive(Default)]
@@ -32,7 +31,6 @@ impl Frame {
             input,
             parent: None,
             index: 0,
-            dir_history: DirHistory::new(),
         }))
     }
 
@@ -48,7 +46,6 @@ impl Frame {
             input,
             parent: Some(self),
             index: 0,
-            dir_history: DirHistory::new(),
         }))
     }
 
@@ -133,20 +130,6 @@ impl Frame {
             }
         }
         vars.into_iter().collect()
-    }
-
-    pub fn change_dir(&mut self, dir: impl AsRef<Path>) -> Result<(), ShellErrorKind> {
-        unsafe {
-            let inner = Rc::get_mut_unchecked(&mut self.0);
-            inner.dir_history.change_dir(dir)
-        }
-    }
-
-    pub fn back(&mut self) -> Result<(), ShellErrorKind> {
-        unsafe {
-            let inner = Rc::get_mut_unchecked(&mut self.0);
-            inner.dir_history.back()
-        }
     }
 }
 
