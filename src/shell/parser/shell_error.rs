@@ -18,12 +18,15 @@ use super::{
 };
 use crate::{
     argparse::ParseError,
+    parser::shell_error::exit_status::ExitStatusExt,
     shell::{
         levenshtein::levenshtein_stripped,
         value::{SpannedValue, Type},
     },
     P,
 };
+
+mod exit_status;
 
 #[derive(Debug, Error)]
 pub struct ShellError {
@@ -99,6 +102,7 @@ pub enum ShellErrorKind {
     },
     AssertionFailed,
     UnknownFileType(String),
+    ExternalExitCode(subprocess::ExitStatus),
     ArgParse(#[from] ParseError),
     Io(Option<PathBuf>, io::Error),
     Glob(#[from] GlobError),
@@ -114,6 +118,15 @@ pub enum ShellErrorKind {
     TomlSer(#[from] toml::ser::Error),
 }
 
+impl ShellErrorKind {
+    pub fn exit_status(&self) -> i64 {
+        match self {
+            Self::ExternalExitCode(code) => code.code(),
+            _ => 1,
+        }
+    }
+}
+
 impl From<ureq::Error> for ShellErrorKind {
     fn from(value: ureq::Error) -> Self {
         Self::Ureq(Box::new(value))
@@ -127,14 +140,14 @@ impl fmt::Display for ShellErrorKind {
             Basic(_, e) => write!(f, "{e}"),
             DivisionByZero => write!(f, "Division by zero."),
             ArgParse(e) => write!(f, "{e}"),
-            FileNotFound(path) => write!(f, "Cannot open '{path}' file not found"),
-            FilePermissionDenied(path) => write!(f, "Cannot open '{path}' permission denied"),
-            CommandNotFound(name) => write!(f, "Command '{name}' not found"),
+            FileNotFound(path) => write!(f, "Cannot open `{path}` file not found"),
+            FilePermissionDenied(path) => write!(f, "Cannot open `{path}` permission denied"),
+            CommandNotFound(name) => write!(f, "Command `{name}` not found"),
             CommandPermissionDenied(name) => {
-                write!(f, "Cannot run '{name}' permission denied")
+                write!(f, "Cannot run `{name}` permission denied")
             }
-            NoMatch(pattern, ..) => write!(f, "No match found for pattern '{pattern}'"),
-            VariableNotFound(name) => write!(f, "Variable with name '{name}' not found"),
+            NoMatch(pattern, ..) => write!(f, "No match found for pattern `{pattern}`"),
+            VariableNotFound(name) => write!(f, "Variable with name `{name}` not found"),
             IntegerOverFlow => write!(f, "Integer literal too large"),
             Interrupt => write!(f, "^C"),
             InvalidPipelineInput { expected, recived } => {
@@ -142,7 +155,7 @@ impl fmt::Display for ShellErrorKind {
             }
             AssertionFailed => write!(f, "Assertion failed"),
             InvalidEnvVar(t) => write!(f, "Cannot assign type {t} to an environment variable"),
-            ReadOnlyVar(name) => write!(f, "Cannot write to read only variable '{name}'"),
+            ReadOnlyVar(name) => write!(f, "Cannot write to read only variable `{name}`"),
             ToFewArguments {
                 name,
                 expected,
@@ -153,10 +166,10 @@ impl fmt::Display for ShellErrorKind {
             NoColumns(t) => write!(f, "{t} does not have columns"),
             NotIndexable(t, ..) => write!(f, "Cannot index into {t}"),
             InvalidBinaryOperand(binop, lhs, rhs, ..) => {
-                write!(f, "'{binop}' not supported between {lhs} and {rhs}",)
+                write!(f, "`{binop}` not supported between {lhs} and {rhs}",)
             }
             InvalidUnaryOperand(unop, value, ..) => {
-                write!(f, "'{unop}' not supported for {value}")
+                write!(f, "`{unop}` not supported for {value}")
             }
             InvalidIterator(value) => {
                 write!(f, "Cannot iterate over type {value}")
@@ -169,8 +182,13 @@ impl fmt::Display for ShellErrorKind {
                 f,
                 "Index is out of bounds, length is {len} but the index is {index}"
             ),
-            ColumnNotFound(column) => write!(f, "Column '{column}' not found"),
+            ColumnNotFound(column) => write!(f, "Column `{column}` not found"),
             UnknownFileType(ext) => write!(f, "Unkown file type `.{ext}`"),
+            ExternalExitCode(exit_status) => write!(
+                f,
+                "Subprocess exit with code: `{}`",
+                exit_status.to_string(),
+            ),
             Io(path, error) => match path {
                 Some(path) => write!(f, "{} {}", error, path.to_string_lossy()),
                 None => write!(f, "{}", error),

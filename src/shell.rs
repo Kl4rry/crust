@@ -153,8 +153,8 @@ impl Shell {
             Ok(ast) => {
                 let res = ast.eval(self, output);
                 if let Err(error) = res {
-                    // TODO set status here
                     if !error.is_exit() {
+                        self.exit_status = error.error.exit_status();
                         report_error(error)
                     }
                 }
@@ -223,8 +223,13 @@ impl Shell {
                     src: func.src.clone(),
                 };
 
+                let status = ctx.shell.status();
                 match func.block.eval(&mut ctx, None, None) {
-                    Ok(_) => return output.to_string(),
+                    Ok(_) => {
+                        // Prompt should not have any effect on the status variable so we reset it
+                        ctx.shell.exit_status = status;
+                        return output.to_string();
+                    }
                     Err(err) => report_error(ShellError::new(err, func.src.clone())),
                 }
             }

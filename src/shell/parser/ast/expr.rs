@@ -5,7 +5,7 @@ use std::{
     thread,
 };
 
-use subprocess::{CommunicateError, Exec, Pipeline, PopenError, Redirection};
+use subprocess::{CommunicateError, Exec, ExitStatus, Pipeline, PopenError, Redirection};
 
 use crate::{
     parser::{
@@ -373,6 +373,7 @@ impl Expr {
                                 &mut capture_output
                             };
                             builtin(ctx.shell, &mut ctx.frame, args, stream, temp_output_cap)?;
+                            ctx.shell.set_status(ExitStatus::Exited(0));
                         }
                         CallType::Internal(func, args) => {
                             let stream = if execs.is_empty() {
@@ -429,6 +430,7 @@ impl Expr {
                                 src: ctx.src.clone(),
                             };
                             block.eval(ctx, Some(input_vars), Some(stream))?;
+                            ctx.shell.set_status(ExitStatus::Exited(0));
                         }
                     }
                 }
@@ -519,11 +521,20 @@ fn run_pipeline(
                 Ok(out)
             });
 
-            ctx.shell.set_status(child.wait()?);
-            Ok(t.join().unwrap()?)
+            let status = child.wait()?;
+            let output = t.join().unwrap()?;
+            if !status.success() {
+                return Err(ShellErrorKind::ExternalExitCode(status));
+            }
+            ctx.shell.set_status(status);
+            Ok(output)
         } else {
             let _ = child.communicate_start(input_data);
-            ctx.shell.set_status(child.wait()?);
+            let status = child.wait()?;
+            if !status.success() {
+                return Err(ShellErrorKind::ExternalExitCode(status));
+            }
+            ctx.shell.set_status(status);
             Ok(None)
         };
         ctx.shell.set_child(None);
@@ -554,12 +565,20 @@ fn run_pipeline(
                 let (out, _) = com.read_string()?;
                 Ok(out)
             });
-            ctx.shell.set_status(children.last_mut().unwrap().wait()?);
+            let status = children.last_mut().unwrap().wait()?;
             ctx.shell.set_child(None);
+            if !status.success() {
+                return Err(ShellErrorKind::ExternalExitCode(status));
+            }
+            ctx.shell.set_status(status);
             Ok(t.join().unwrap()?)
         } else {
-            ctx.shell.set_status(children.last_mut().unwrap().wait()?);
+            let status = children.last_mut().unwrap().wait()?;
             ctx.shell.set_child(None);
+            if !status.success() {
+                return Err(ShellErrorKind::ExternalExitCode(status));
+            }
+            ctx.shell.set_status(status);
             Ok(None)
         }
     }
