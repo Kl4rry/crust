@@ -63,6 +63,7 @@ impl SpannedValue {
             Value::Int(number) => Ok(number.to_string()),
             Value::Float(number) => Ok(number.to_string()),
             Value::String(string) => Ok(string.to_string()),
+            Value::Bool(boolean) => Ok(boolean.to_string()),
             _ => Err(ShellErrorKind::InvalidConversion {
                 from: value.to_type(),
                 to: Type::STRING,

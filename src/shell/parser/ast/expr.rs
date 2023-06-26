@@ -115,6 +115,7 @@ pub enum ExprKind {
     Literal(Literal),
     SubExpr(P<Expr>),
     Column(P<Expr>, String),
+    ErrorCheck(P<Expr>),
     Index { expr: P<Expr>, index: P<Expr> },
 }
 
@@ -142,8 +143,19 @@ impl Expr {
     pub fn eval(&self, ctx: &mut Context) -> Result<SpannedValue, ShellErrorKind> {
         match &self.kind {
             ExprKind::Call(_, _) => {
-                unreachable!("calls must always be in a pipeline, bare calls are not allowed")
+                unreachable!("calls must always be in a pipeline, bare calls are a bug")
             }
+            ExprKind::ErrorCheck(expr) => match expr.eval(ctx) {
+                Ok(_) => Ok(Value::Bool(true).spanned(expr.span)),
+                Err(err) => {
+                    if err.is_error() {
+                        let code = err.exit_status();
+                        Ok(Value::Bool(code == 0).spanned(expr.span))
+                    } else {
+                        Err(err)
+                    }
+                }
+            },
             ExprKind::Column(expr, col) => {
                 let (value, span) = expr.eval(ctx)?.into();
                 match value {

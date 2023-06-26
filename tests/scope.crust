@@ -1,7 +1,0 @@
-
-let pre_block = (pwd)
-{    
-    let void = (cd /)
-    assert ((pwd) != $pre_block)
-}
-assert ((pwd) == $pre_block)

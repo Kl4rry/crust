@@ -179,16 +179,12 @@ impl Statement {
                         &name,
                         block,
                     ),
-                    Value::Range(range) =>
-                    {
-                        #[allow(clippy::redundant_closure)]
-                        for_loop(
-                            ctx,
-                            Rc::unwrap_or_clone(range).map(|i| Value::Int(i)),
-                            &name,
-                            block,
-                        )
-                    }
+                    Value::Range(range) => for_loop(
+                        ctx,
+                        Rc::unwrap_or_clone(range).map(Value::Int),
+                        &name,
+                        block,
+                    ),
                     Value::Map(map) => for_loop(
                         ctx,
                         map.iter()

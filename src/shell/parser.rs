@@ -428,6 +428,7 @@ impl Parser {
             TokenType::Export => Ok(self.parse_declaration(true)?.into()),
             TokenType::Symbol(_) => Ok(self.parse_expr(None)?.into()),
             TokenType::Exec
+            | TokenType::QuestionMark
             | TokenType::Dot
             | TokenType::Div
             | TokenType::At
@@ -693,6 +694,16 @@ impl Parser {
         )
     }
 
+    fn parse_error_check(&mut self) -> Result<Expr> {
+        let start = self.eat()?.expect(TokenType::QuestionMark)?.span;
+        self.eat()?.expect(TokenType::LeftParen)?;
+        self.skip_whitespace();
+        let expr = self.parse_expr(None)?;
+        self.skip_whitespace();
+        let end = self.eat()?.expect(TokenType::RightParen)?.span;
+        Ok(ExprKind::ErrorCheck(P::new(expr)).spanned(start + end))
+    }
+
     fn parse_sub_expr(&mut self) -> Result<Expr> {
         let start = self.eat()?.expect(TokenType::LeftParen)?.span;
         self.skip_whitespace();
@@ -742,6 +753,7 @@ impl Parser {
             }
             TokenType::LeftBracket => self.parse_list()?,
             TokenType::At => self.parse_regex_or_map()?,
+            TokenType::QuestionMark => self.parse_error_check()?,
             _ => return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         };
 
@@ -967,6 +979,11 @@ impl Parser {
             }
             TokenType::LeftParen => {
                 let expr = self.parse_sub_expr()?;
+                let span = expr.span;
+                (ArgumentPartKind::Expr(expr).spanned(span), true)
+            }
+            TokenType::QuestionMark => {
+                let expr = self.parse_error_check()?;
                 let span = expr.span;
                 (ArgumentPartKind::Expr(expr).spanned(span), true)
             }

@@ -125,6 +125,13 @@ impl ShellErrorKind {
             _ => 1,
         }
     }
+
+    pub fn is_error(&self) -> bool {
+        !matches!(
+            self,
+            Self::Exit | Self::Break | Self::Return(_) | Self::Continue | Self::Interrupt
+        )
+    }
 }
 
 impl From<ureq::Error> for ShellErrorKind {

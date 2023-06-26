@@ -164,6 +164,7 @@ impl TokenType {
         matches!(
             *self,
             Dollar
+                | QuestionMark
                 | Dot
                 | At
                 | LeftBracket
