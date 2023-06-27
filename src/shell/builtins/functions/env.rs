@@ -34,8 +34,8 @@ pub fn env(
 
     for (name, value) in frame.env() {
         let map = IndexMap::from([
-            (String::from("Name"), Value::from(name)),
-            (String::from("Value"), Value::from(value)),
+            ("Name".into(), Value::from(name)),
+            ("Value".into(), Value::from(value)),
         ]);
         table.insert_map(map);
     }

@@ -158,8 +158,8 @@ impl<'de> Deserialize<'de> for Value {
                 V: MapAccess<'de>,
             {
                 let mut values = IndexMap::new();
-                while let Some((key, value)) = visitor.next_entry()? {
-                    values.insert(key, value);
+                while let Some((key, value)) = visitor.next_entry::<String, _>()? {
+                    values.insert(key.into(), value);
                 }
 
                 Ok(Value::from(values))

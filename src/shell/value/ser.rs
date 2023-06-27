@@ -1,4 +1,8 @@
-use serde::{ser::SerializeSeq, Serialize};
+use indexmap::IndexMap;
+use serde::{
+    ser::{SerializeMap, SerializeSeq},
+    Serialize,
+};
 
 use super::Value;
 
@@ -14,10 +18,18 @@ impl Serialize for Value {
             Value::Bool(boolean) => boolean.serialize(serializer),
             Value::String(string) => string.serialize(serializer),
             Value::List(list) => list.serialize(serializer),
-            Value::Map(map) => map.serialize(serializer),
+            Value::Map(map) => {
+                let mut ser_map = serializer.serialize_map(Some(map.len()))?;
+                for (k, v) in map.iter() {
+                    ser_map.serialize_entry(&**k, v)?;
+                }
+                ser_map.end()
+            }
             Value::Table(table) => {
                 let mut seq = serializer.serialize_seq(Some(table.len()))?;
                 for row in table.iter() {
+                    // TODO optimize this
+                    let row: IndexMap<&str, &Value> = row.iter().map(|(k, v)| (&**k, v)).collect();
                     seq.serialize_element(&row)?;
                 }
                 seq.end()

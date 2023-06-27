@@ -1,6 +1,7 @@
 use std::{
     cmp::{self, PartialEq},
     fmt::{self},
+    rc::Rc,
 };
 
 use indexmap::IndexMap;
@@ -17,7 +18,7 @@ use crate::parser::shell_error::ShellErrorKind;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Table {
-    headers: Vec<String>,
+    headers: Vec<Rc<str>>,
     rows: Vec<Vec<Value>>,
 }
 
@@ -34,7 +35,7 @@ impl Table {
         self.rows.len()
     }
 
-    pub fn insert_map(&mut self, map: IndexMap<String, Value>) {
+    pub fn insert_map(&mut self, map: IndexMap<Rc<str>, Value>) {
         let mut row = vec![Value::Null; self.headers.len()];
         'outer: for (k, v) in map {
             for (index, header) in self.headers.iter().enumerate() {
@@ -49,14 +50,14 @@ impl Table {
         self.rows.push(row);
     }
 
-    fn add_column(&mut self, name: String) {
+    fn add_column(&mut self, name: Rc<str>) {
         self.headers.push(name);
         for row in &mut self.rows {
             row.push(Value::Null);
         }
     }
 
-    pub fn row(&self, index: SpannedValue) -> Result<IndexMap<String, Value>, ShellErrorKind> {
+    pub fn row(&self, index: SpannedValue) -> Result<IndexMap<Rc<str>, Value>, ShellErrorKind> {
         let index = index.try_as_index(self.rows.len())?;
         let mut map = IndexMap::new();
 
@@ -69,7 +70,7 @@ impl Table {
     }
 
     pub fn column(&self, name: &str) -> Result<Vec<Value>, ShellErrorKind> {
-        let index = match self.headers.iter().position(|h| h == name) {
+        let index = match self.headers.iter().position(|h| &**h == name) {
             Some(index) => index,
             None => return Err(ShellErrorKind::ColumnNotFound(name.to_string())),
         };
@@ -81,16 +82,16 @@ impl Table {
     }
 
     pub fn has_column(&self, name: &str) -> bool {
-        self.headers.iter().any(|h| h == name)
+        self.headers.iter().any(|h| &**h == name)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = IndexMap<String, Value>> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = IndexMap<Rc<str>, Value>> + '_ {
         self.rows.iter().map(|row| {
             self.headers
                 .iter()
                 .cloned()
                 .zip(row.iter().cloned())
-                .collect::<IndexMap<String, Value>>()
+                .collect::<IndexMap<Rc<str>, Value>>()
         })
     }
 }

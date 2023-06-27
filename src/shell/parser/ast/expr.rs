@@ -159,7 +159,7 @@ impl Expr {
             ExprKind::Column(expr, col) => {
                 let (value, span) = expr.eval(ctx)?.into();
                 match value {
-                    Value::Map(map) => match map.get(col) {
+                    Value::Map(map) => match map.get(col.as_str()) {
                         Some(value) => Ok(value.clone().spanned(span)),
                         None => Err(ShellErrorKind::ColumnNotFound(col.to_string())),
                     },

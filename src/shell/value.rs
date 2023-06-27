@@ -505,7 +505,7 @@ impl SpannedValue {
             },
             Value::List(list) => Ok(list.contains(&rhs)),
             Value::Map(map) => match &rhs {
-                Value::String(key) => Ok(map.contains_key(&**key)),
+                Value::String(key) => Ok(map.contains_key(key.as_str())),
                 _ => Err(ShellErrorKind::InvalidBinaryOperand(
                     BinOpKind::Match.spanned(binop),
                     lhs.to_type(),
@@ -559,7 +559,6 @@ impl Value {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum Value {
     Null,
@@ -568,7 +567,7 @@ pub enum Value {
     Bool(bool),
     String(Rc<String>),
     List(Rc<Vec<Value>>),
-    Map(Rc<IndexMap<String, Value>>),
+    Map(Rc<IndexMap<Rc<str>, Value>>),
     Table(Rc<Table>),
     Range(Rc<Range<i64>>),
     Regex(Rc<(Regex, String)>),
@@ -784,7 +783,7 @@ impl Value {
         }
     }
 
-    pub fn unwrap_map(self) -> Rc<IndexMap<String, Value>> {
+    pub fn unwrap_map(self) -> Rc<IndexMap<Rc<str>, Value>> {
         match self {
             Self::Map(s) => s,
             _ => panic!(
@@ -825,8 +824,8 @@ impl From<String> for Value {
     }
 }
 
-impl From<IndexMap<String, Value>> for Value {
-    fn from(value: IndexMap<String, Value>) -> Self {
+impl From<IndexMap<Rc<str>, Value>> for Value {
+    fn from(value: IndexMap<Rc<str>, Value>) -> Self {
         Value::Map(Rc::new(value))
     }
 }

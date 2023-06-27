@@ -87,7 +87,7 @@ impl Literal {
                 for (key, value) in exprs {
                     let key = key.eval(ctx)?.try_into_string()?;
                     let value = value.eval(ctx)?.into();
-                    map.insert(key, value);
+                    map.insert(key.into(), value);
                 }
                 Ok(Value::Map(Rc::new(map)).spanned(span))
             }

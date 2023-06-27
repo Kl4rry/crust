@@ -1,5 +1,4 @@
 #![allow(unused)]
-#![allow(clippy::needless_borrow)]
 use std::{
     cmp,
     collections::{HashMap, VecDeque},
@@ -7,7 +6,6 @@ use std::{
     fmt,
     fmt::Write,
     iter::Peekable,
-    rc::Rc,
 };
 
 use crossterm::style::Stylize;
@@ -617,7 +615,7 @@ where
 
                     if option.multiple {
                         arg_match.values.push_back(self.args.next().unwrap());
-                        self.parse_option(&option)?;
+                        self.parse_option(option)?;
                     } else {
                         arg_match.values.push_back(self.args.next().unwrap());
                         arg_match.occurs += 1;
@@ -663,7 +661,7 @@ where
                     arg_match.values.push_back(self.args.next().unwrap())
                 }
                 Value::String(_) => (),
-                value => arg_match.values.push_back(self.args.next().unwrap()),
+                _ => arg_match.values.push_back(self.args.next().unwrap()),
             }
         }
 
