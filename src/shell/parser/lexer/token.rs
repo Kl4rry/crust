@@ -336,10 +336,13 @@ impl Token {
 }
 
 pub fn is_valid_identifier(ident: &str) -> bool {
-    if let Some(c) = ident.chars().next() {
-        if !c.is_ascii_alphabetic() || c != '_' {
-            return false;
+    match ident.chars().next() {
+        Some(c) => {
+            if c != '_' && !c.is_ascii_alphabetic() {
+                return false;
+            }
         }
+        None => return false,
     }
     ident.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }

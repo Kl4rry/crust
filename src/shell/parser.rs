@@ -36,7 +36,7 @@ use self::{
         literal::{Literal, LiteralKind},
         statement::{function::Function, Statement},
     },
-    lexer::token::span::Spanned,
+    lexer::token::{is_valid_identifier, span::Spanned},
     source::Source,
 };
 
@@ -323,7 +323,13 @@ impl Parser {
 
                 let token = self.eat()?;
                 let name = match token.token_type {
-                    TokenType::Symbol(name) => name,
+                    TokenType::Symbol(name) => {
+                        if !is_valid_identifier(&name) {
+                            return Err(SyntaxErrorKind::InvalidIdentifier(token.span));
+                        } else {
+                            name
+                        }
+                    }
                     _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
                 };
 

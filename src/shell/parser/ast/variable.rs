@@ -36,7 +36,7 @@ impl TryFrom<Token> for Variable {
     fn try_from(token: Token) -> Result<Self, Self::Error> {
         match token.token_type {
             TokenType::Symbol(name) => {
-                if is_valid_identifier(&name) {
+                if !is_valid_identifier(&name) {
                     Err(SyntaxErrorKind::InvalidIdentifier(token.span))
                 } else {
                     Ok(Self {
