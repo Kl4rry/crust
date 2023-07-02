@@ -278,7 +278,7 @@ impl Parser {
                         TokenType::Assignment => {
                             self.eat()?.expect(TokenType::Assignment)?;
                             self.skip_optional_space();
-                            let expr = self.parse_expr(None)?;
+                            let expr = self.parse_expr(None, false)?;
                             let expr_span = expr.span;
                             return Ok(StatementKind::Assign(var, expr)
                                 .spanned(var_span + expr_span)
@@ -297,7 +297,7 @@ impl Parser {
                             if token_type.is_assign_op() {
                                 let op = self.eat()?.to_assign_op();
                                 self.skip_optional_space();
-                                let expr = self.parse_expr(None)?;
+                                let expr = self.parse_expr(None, false)?;
                                 let expr_span = expr.span;
                                 return Ok(StatementKind::AssignOp(var, op, expr)
                                     .spanned(var_span + expr_span)
@@ -381,7 +381,7 @@ impl Parser {
                 self.skip_whitespace();
                 self.eat()?.expect(TokenType::In)?;
                 self.skip_whitespace();
-                let expr = self.parse_expr(None)?;
+                let expr = self.parse_expr(None, false)?;
                 self.skip_whitespace();
                 let block = self.parse_block()?;
                 let end = block.span;
@@ -393,7 +393,7 @@ impl Parser {
             TokenType::While => {
                 let start = self.eat()?.span;
                 self.skip_whitespace();
-                let expr = self.parse_expr(None)?;
+                let expr = self.parse_expr(None, false)?;
                 self.skip_whitespace();
                 let block = self.parse_block()?;
                 let end = block.span;
@@ -420,7 +420,7 @@ impl Parser {
                             Ok(StatementKind::Return(None).spanned(start).into())
                         }
                         _ => {
-                            let expr = self.parse_expr(None)?;
+                            let expr = self.parse_expr(None, false)?;
                             let end = expr.span;
                             Ok(StatementKind::Return(Some(expr))
                                 .spanned(start + end)
@@ -432,7 +432,7 @@ impl Parser {
             }
             TokenType::Let => Ok(self.parse_declaration(false)?.into()),
             TokenType::Export => Ok(self.parse_declaration(true)?.into()),
-            TokenType::Symbol(_) => Ok(self.parse_expr(None)?.into()),
+            TokenType::Symbol(_) => Ok(self.parse_expr(None, true)?.into()),
             TokenType::Exec
             | TokenType::QuestionMark
             | TokenType::Dot
@@ -447,7 +447,7 @@ impl Parser {
             | TokenType::True
             | TokenType::False
             | TokenType::LeftBracket
-            | TokenType::Not => Ok(self.parse_expr(None)?.into()),
+            | TokenType::Not => Ok(self.parse_expr(None, true)?.into()),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         }
     }
@@ -552,7 +552,7 @@ impl Parser {
     fn parse_if(&mut self) -> Result<Statement> {
         let start = self.eat()?.expect(TokenType::If)?.span;
         self.skip_optional_space();
-        let expr = self.parse_expr(None)?;
+        let expr = self.parse_expr(None, false)?;
         self.skip_optional_space();
         let block = self.parse_block()?;
         self.skip_optional_space();
@@ -597,7 +597,7 @@ impl Parser {
         match token.token_type {
             TokenType::Assignment => {
                 self.skip_optional_space();
-                let expr = self.parse_expr(None)?;
+                let expr = self.parse_expr(None, false)?;
                 let end = expr.span;
                 if export {
                     Ok(StatementKind::Export(variable, expr).spanned(start + end))
@@ -630,7 +630,7 @@ impl Parser {
                 }
                 _ => {
                     last_was_comma = false;
-                    let expr = self.parse_expr(None)?;
+                    let expr = self.parse_expr(None, false)?;
                     span += expr.span;
                     list.push(expr);
                 }
@@ -669,11 +669,11 @@ impl Parser {
                 }
                 _ => {
                     last_was_comma = false;
-                    let key = self.parse_expr(None)?;
+                    let key = self.parse_expr(None, false)?;
                     self.skip_whitespace();
                     self.eat()?.expect(TokenType::Colon)?;
                     self.skip_whitespace();
-                    let value = self.parse_expr(None)?;
+                    let value = self.parse_expr(None, false)?;
                     exprs.push((key, value));
                 }
             }
@@ -700,11 +700,22 @@ impl Parser {
         )
     }
 
+    fn parse_bare_word(&mut self) -> Result<Expr> {
+        let token = self.eat()?;
+        match token.token_type {
+            TokenType::Symbol(text) => Ok(ExprKind::Literal(
+                LiteralKind::String(text.into()).spanned(token.span),
+            )
+            .spanned(token.span)),
+            _ => Err(SyntaxErrorKind::UnexpectedToken(token)),
+        }
+    }
+
     fn parse_error_check(&mut self) -> Result<Expr> {
         let start = self.eat()?.expect(TokenType::QuestionMark)?.span;
         self.eat()?.expect(TokenType::LeftParen)?;
         self.skip_whitespace();
-        let expr = self.parse_expr(None)?;
+        let expr = self.parse_expr(None, true)?;
         self.skip_whitespace();
         let end = self.eat()?.expect(TokenType::RightParen)?.span;
         Ok(ExprKind::ErrorCheck(P::new(expr)).spanned(start + end))
@@ -713,22 +724,28 @@ impl Parser {
     fn parse_sub_expr(&mut self) -> Result<Expr> {
         let start = self.eat()?.expect(TokenType::LeftParen)?.span;
         self.skip_whitespace();
-        let expr = self.parse_expr(None)?;
+        let expr = self.parse_expr(None, true)?;
         self.skip_whitespace();
         let end = self.eat()?.expect(TokenType::RightParen)?.span;
         Ok(ExprKind::SubExpr(P::new(expr)).spanned(start + end))
     }
 
-    fn parse_primary(&mut self, unop: Option<UnOp>) -> Result<Expr> {
+    fn parse_primary(&mut self, unop: Option<UnOp>, parse_cmd: bool) -> Result<Expr> {
         let expr = match self.peek()?.token_type {
             TokenType::True | TokenType::False => {
                 let token = self.eat()?;
                 let span = token.span;
                 ExprKind::Literal(token.try_into()?).spanned(span)
             }
-            TokenType::Symbol(_) | TokenType::Exec | TokenType::Dot | TokenType::Div => {
-                self.parse_pipe(None)?
+            TokenType::Symbol(_) => {
+                if parse_cmd {
+                    self.parse_pipe(None)?
+                } else {
+                    self.parse_bare_word()?
+                }
             }
+            TokenType::Dot | TokenType::Div if parse_cmd => self.parse_pipe(None)?,
+            TokenType::Exec => self.parse_pipe(None)?,
             TokenType::LeftParen => self.parse_sub_expr()?,
             TokenType::Dollar => {
                 let var = self.parse_variable(true)?;
@@ -755,7 +772,8 @@ impl Parser {
             TokenType::Sub | TokenType::Not => {
                 let inner = self.eat()?.try_into()?;
                 self.skip_optional_space();
-                self.parse_primary(Some(inner))?
+                // TODO figure out if this should be parse_cmd or false
+                self.parse_primary(Some(inner), parse_cmd)?
             }
             TokenType::LeftBracket => self.parse_list()?,
             TokenType::At => self.parse_regex_or_map()?,
@@ -801,7 +819,7 @@ impl Parser {
     fn parse_index(&mut self, expr: Expr) -> Result<Expr> {
         let left = self.eat()?.expect(TokenType::LeftBracket)?.span;
         self.skip_whitespace();
-        let index = self.parse_expr(None)?;
+        let index = self.parse_expr(None, false)?;
         self.skip_whitespace();
         let right = self.eat()?.expect(TokenType::RightBracket)?.span;
         let expr = ExprKind::Index {
@@ -823,8 +841,8 @@ impl Parser {
         }
     }
 
-    fn parse_expr(&mut self, unop: Option<UnOp>) -> Result<Expr> {
-        let primary = self.parse_primary(unop)?;
+    fn parse_expr(&mut self, unop: Option<UnOp>, parse_cmd: bool) -> Result<Expr> {
+        let primary = self.parse_primary(unop, parse_cmd)?;
         self.skip_optional_space();
         self.parse_expr_part(Some(primary), 0)
     }
@@ -832,7 +850,7 @@ impl Parser {
     fn parse_expr_part(&mut self, lhs: Option<Expr>, min_precedence: u8) -> Result<Expr> {
         let mut lhs = match lhs {
             Some(expr) => expr,
-            None => self.parse_primary(None)?,
+            None => self.parse_primary(None, false)?,
         };
         self.skip_optional_space();
 

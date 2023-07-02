@@ -34,6 +34,7 @@ pub enum TokenType {
     Quote,
     NewLine,
     Space,
+    /// &
     Exec,
     Assignment,
     Pipe,
