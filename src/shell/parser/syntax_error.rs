@@ -12,6 +12,7 @@ pub enum SyntaxErrorKind {
     ExpectedToken,
     Regex(regex::Error, Span),
     InvalidIdentifier(Span),
+    InvalidHexEscape(Span),
 }
 
 impl fmt::Display for SyntaxErrorKind {
@@ -21,6 +22,7 @@ impl fmt::Display for SyntaxErrorKind {
             Self::ExpectedToken => write!(f, "expected token"),
             Self::Regex(e, _) => e.fmt(f),
             Self::InvalidIdentifier(_) => write!(f, "invalid identifier"),
+            Self::InvalidHexEscape(_) => write!(f, "invalid hex esacpe"),
         }
     }
 }
@@ -48,6 +50,9 @@ impl Diagnostic for SyntaxError {
             ),
             InvalidIdentifier(span) => {
                 LabeledSpan::new_with_span(Some(String::from("Identifiers can only contain numbers, letters and underscores and must not start with a number")), *span)
+            }
+            InvalidHexEscape(span) => {
+                LabeledSpan::new_with_span(Some(String::from("Hex esacpe must only use 0 to F and be 127 or below")), *span)
             }
         };
         Some(P::new(vec![label].into_iter()))
@@ -83,6 +88,7 @@ impl fmt::Display for SyntaxError {
             SyntaxErrorKind::ExpectedToken => f.write_str("Expected token"),
             SyntaxErrorKind::Regex(_, _) => write!(f, "Regex error"),
             SyntaxErrorKind::InvalidIdentifier(_) => write!(f, "Invalid identifier"),
+            SyntaxErrorKind::InvalidHexEscape(_) => write!(f, "Invalid hex escape"),
         }
     }
 }

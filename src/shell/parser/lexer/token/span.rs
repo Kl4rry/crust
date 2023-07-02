@@ -29,8 +29,18 @@ impl Span {
     }
 
     #[inline(always)]
-    pub fn length(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.len
+    }
+
+    #[inline(always)]
+    pub fn set_len(&mut self, len: usize) {
+        self.len = len;
+    }
+
+    #[inline(always)]
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
     }
 }
 

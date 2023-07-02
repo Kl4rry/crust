@@ -529,9 +529,37 @@ impl Parser {
                                 new.as_bytes_mut()[0] = escaped;
                             },
                             None => {
-                                let chars = b"(\"$";
-                                if memchr(new.as_bytes()[0], chars).is_none() {
-                                    new.insert(0, '\\')
+                                if new.as_bytes()[0] == b'x' {
+                                    let bytes = new.as_bytes();
+                                    if new.len() >= 3 {
+                                        if (bytes[1] as char).is_ascii_hexdigit()
+                                            && (bytes[2] as char).is_ascii_hexdigit()
+                                        {
+                                            let hex = u8::from_str_radix(&new[1..3], 16).unwrap();
+                                            if hex > 127 {
+                                                let mut span = token.span;
+                                                span.set_len(3);
+                                                return Err(SyntaxErrorKind::InvalidHexEscape(
+                                                    span,
+                                                ));
+                                            }
+                                            // safe because we know hex is an ascii char
+                                            new.replace_range(0..3, unsafe {
+                                                std::str::from_utf8_unchecked(&[hex])
+                                            });
+                                        } else {
+                                            let mut span = token.span;
+                                            span.set_len(3);
+                                            return Err(SyntaxErrorKind::InvalidHexEscape(span));
+                                        }
+                                    } else {
+                                        return Err(SyntaxErrorKind::InvalidHexEscape(token.span));
+                                    }
+                                } else {
+                                    let chars = b"(\"$";
+                                    if memchr(new.as_bytes()[0], chars).is_none() {
+                                        new.insert(0, '\\')
+                                    }
                                 }
                             }
                         }
