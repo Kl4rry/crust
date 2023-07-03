@@ -13,6 +13,9 @@ pub enum SyntaxErrorKind {
     Regex(regex::Error, Span),
     InvalidIdentifier(Span),
     InvalidHexEscape(Span),
+    ContinueOutsideLoop(Span),
+    BreakOutsideLoop(Span),
+    ReturnOutsideFunction(Span),
 }
 
 impl fmt::Display for SyntaxErrorKind {
@@ -23,6 +26,9 @@ impl fmt::Display for SyntaxErrorKind {
             Self::Regex(e, _) => e.fmt(f),
             Self::InvalidIdentifier(_) => write!(f, "invalid identifier"),
             Self::InvalidHexEscape(_) => write!(f, "invalid hex esacpe"),
+            Self::ContinueOutsideLoop(_) => write!(f, "continue outside of loop"),
+            Self::BreakOutsideLoop(_) => write!(f, "break outside of loop"),
+            Self::ReturnOutsideFunction(_) => write!(f, "return outside of function"),
         }
     }
 }
@@ -53,6 +59,15 @@ impl Diagnostic for SyntaxError {
             }
             InvalidHexEscape(span) => {
                 LabeledSpan::new_with_span(Some(String::from("Hex esacpe must only use 0 to F and be 127 or below")), *span)
+            }
+            ContinueOutsideLoop(span) => {
+                LabeledSpan::new_with_span(Some(String::from("Continue must be used inside a loop")), *span)
+            }
+            BreakOutsideLoop(span) => {
+                LabeledSpan::new_with_span(Some(String::from("Break must be used inside a loop")), *span)
+            }
+            ReturnOutsideFunction(span) => {
+                LabeledSpan::new_with_span(Some(String::from("Return must be used inside a function")), *span)
             }
         };
         Some(P::new(vec![label].into_iter()))
@@ -89,6 +104,9 @@ impl fmt::Display for SyntaxError {
             SyntaxErrorKind::Regex(_, _) => write!(f, "Regex error"),
             SyntaxErrorKind::InvalidIdentifier(_) => write!(f, "Invalid identifier"),
             SyntaxErrorKind::InvalidHexEscape(_) => write!(f, "Invalid hex escape"),
+            SyntaxErrorKind::ContinueOutsideLoop(_) => write!(f, "Continue outside of loop"),
+            SyntaxErrorKind::BreakOutsideLoop(_) => write!(f, "Break outside of loop"),
+            SyntaxErrorKind::ReturnOutsideFunction(_) => write!(f, "Return outside of function"),
         }
     }
 }

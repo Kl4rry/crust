@@ -53,6 +53,15 @@ pub fn escape_char(c: u8) -> Option<u8> {
     memchr(c, ESCAPES).map(|i| REPLACEMENTS[i])
 }
 
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    struct ParserContext: u8 {
+        const NOTHING = 0;
+        const INSIDE_LOOP = 0b00000001;
+        const INSIDE_FUNCTION = 0b00000010;
+    }
+}
+
 pub struct Parser {
     token: Option<Token>,
     lexer: Lexer,
@@ -192,7 +201,7 @@ impl Parser {
     }
 
     pub fn parse(mut self) -> std::result::Result<Ast, P<SyntaxError>> {
-        match self.parse_sequence(false) {
+        match self.parse_sequence(false, ParserContext::NOTHING) {
             Ok(sequence) => Ok(Ast::new(sequence, self.named_source())),
             Err(error) => Err(P::new(SyntaxError::new(
                 error,
@@ -202,7 +211,7 @@ impl Parser {
         }
     }
 
-    fn parse_sequence(&mut self, block: bool) -> Result<Vec<Compound>> {
+    fn parse_sequence(&mut self, block: bool, ctx: ParserContext) -> Result<Vec<Compound>> {
         let mut sequence = Vec::new();
 
         loop {
@@ -214,7 +223,7 @@ impl Parser {
 
             match token.token_type {
                 TokenType::RightBrace if block => return Ok(sequence),
-                _ => sequence.push(self.parse_compound()?),
+                _ => sequence.push(self.parse_compound(ctx)?),
             };
             self.skip_optional_space();
 
@@ -235,9 +244,9 @@ impl Parser {
         }
     }
 
-    fn parse_block(&mut self) -> Result<Block> {
+    fn parse_block(&mut self, ctx: ParserContext) -> Result<Block> {
         let start = self.eat()?.expect(TokenType::LeftBrace)?.span;
-        let sequence = self.parse_sequence(true)?;
+        let sequence = self.parse_sequence(true, ctx)?;
         let end = self.eat()?.expect(TokenType::RightBrace)?.span;
         Ok(Block {
             sequence,
@@ -245,12 +254,12 @@ impl Parser {
         })
     }
 
-    fn parse_compound(&mut self) -> Result<Compound> {
+    fn parse_compound(&mut self, ctx: ParserContext) -> Result<Compound> {
         let token_type = &self.peek()?.token_type;
 
         match token_type {
             TokenType::LeftBrace => {
-                let block = self.parse_block()?;
+                let block = self.parse_block(ctx)?;
                 let span = block.span;
                 Ok(StatementKind::Block(block).spanned(span).into())
             }
@@ -354,7 +363,7 @@ impl Parser {
                     }
                 }
                 self.skip_whitespace();
-                let block = self.parse_block()?;
+                let block = self.parse_block(ctx | ParserContext::INSIDE_FUNCTION)?;
                 let end = block.span;
 
                 let func = Function {
@@ -370,7 +379,7 @@ impl Parser {
             TokenType::Loop => {
                 let start = self.eat()?.span;
                 self.skip_whitespace();
-                let block = self.parse_block()?;
+                let block = self.parse_block(ctx | ParserContext::INSIDE_LOOP)?;
                 let end = block.span;
                 Ok(StatementKind::Loop(block).spanned(start + end).into())
             }
@@ -383,7 +392,7 @@ impl Parser {
                 self.skip_whitespace();
                 let expr = self.parse_expr(None, false)?;
                 self.skip_whitespace();
-                let block = self.parse_block()?;
+                let block = self.parse_block(ctx | ParserContext::INSIDE_LOOP)?;
                 let end = block.span;
 
                 Ok(StatementKind::For(var, expr, block)
@@ -395,23 +404,32 @@ impl Parser {
                 self.skip_whitespace();
                 let expr = self.parse_expr(None, false)?;
                 self.skip_whitespace();
-                let block = self.parse_block()?;
+                let block = self.parse_block(ctx | ParserContext::INSIDE_LOOP)?;
                 let end = block.span;
                 Ok(StatementKind::While(expr, block)
                     .spanned(start + end)
                     .into())
             }
-            TokenType::If => Ok(self.parse_if()?.into()),
+            TokenType::If => Ok(self.parse_if(ctx)?.into()),
             TokenType::Break => {
                 let span = self.eat()?.span;
+                if !ctx.contains(ParserContext::INSIDE_LOOP) {
+                    return Err(SyntaxErrorKind::BreakOutsideLoop(span));
+                }
                 Ok(StatementKind::Break.spanned(span).into())
             }
             TokenType::Continue => {
                 let span = self.eat()?.span;
+                if !ctx.contains(ParserContext::INSIDE_LOOP) {
+                    return Err(SyntaxErrorKind::BreakOutsideLoop(span));
+                }
                 Ok(StatementKind::Continue.spanned(span).into())
             }
             TokenType::Return => {
                 let start = self.eat()?.span;
+                if !ctx.contains(ParserContext::INSIDE_FUNCTION) {
+                    return Err(SyntaxErrorKind::ReturnOutsideFunction(start));
+                }
                 self.skip_optional_space();
                 match self.peek() {
                     Ok(token) => match token.token_type {
@@ -577,12 +595,12 @@ impl Parser {
         Ok(Expand { content, span })
     }
 
-    fn parse_if(&mut self) -> Result<Statement> {
+    fn parse_if(&mut self, ctx: ParserContext) -> Result<Statement> {
         let start = self.eat()?.expect(TokenType::If)?.span;
         self.skip_optional_space();
         let expr = self.parse_expr(None, false)?;
         self.skip_optional_space();
-        let block = self.parse_block()?;
+        let block = self.parse_block(ctx)?;
         self.skip_optional_space();
 
         let statement = match self.peek() {
@@ -591,9 +609,9 @@ impl Parser {
                     self.eat()?;
                     self.skip_optional_space();
                     match self.peek()?.token_type {
-                        TokenType::If => Some(P::new(self.parse_if()?)),
+                        TokenType::If => Some(P::new(self.parse_if(ctx)?)),
                         TokenType::LeftBrace => {
-                            let block = self.parse_block()?;
+                            let block = self.parse_block(ctx)?;
                             let block_span = block.span;
                             Some(P::new(StatementKind::Block(block).spanned(block_span)))
                         }

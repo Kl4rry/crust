@@ -1,9 +1,8 @@
 use std::fmt;
 
-use bitflags::bitflags;
-
-bitflags! {
+bitflags::bitflags! {
     #[rustfmt::skip]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct Type: u16 {
         const NULL =        0b0000000001;
         const INT =         0b0000000010;

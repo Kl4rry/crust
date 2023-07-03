@@ -211,10 +211,10 @@ impl fmt::Display for ShellErrorKind {
             TomlDe(error) => error.fmt(f),
             TomlSer(error) => error.fmt(f),
             Open(error) => error.fmt(f),
-            Break => write!(f, "break must be used in loop"),
-            Return(_) => write!(f, "return must be used in function"),
-            Continue => write!(f, "continue must be used in loop"),
-            // exit should always be handled and should therefore never be displayed
+            // these are not real errors and should always be handled and should therefore never be displayed
+            Break => unreachable!("break should never be printed as an error"),
+            Return(_) => unreachable!("return should never be printed as an error"),
+            Continue => unreachable!("continue should never be printed as an error"),
             Exit => unreachable!("exit should never be printed as an error"),
         }
     }
@@ -266,7 +266,6 @@ impl Diagnostic for ShellError {
             Glob(..) | Pattern(..) | NoMatch(..) => P::new("Glob Error"),
             InvalidConversion { .. } => P::new("Coercion Error"),
             Ureq(..) => P::new("Http Error"),
-            Break | Return(..) | Continue => P::new("Syntax Error"),
             Interrupt => P::new("Interrupt"),
             MaxRecursion(..) => P::new("Recursion Error"),
             CommandNotFound(..) | CommandPermissionDenied(..) => P::new("Command Error"),

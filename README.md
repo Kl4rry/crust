@@ -36,7 +36,7 @@ This readme contains notes to myself.
 | Assign and modify += *= etc     | ✅       | ✅    |
 | Run command as background job   | ❌       | ❌    |
 | Escapes sequences               | ✅       | ✅    |
-| Lambda functions                | ❌       | ❌    |
+| Closures                        | ❌       | ❌    |
 
 ## TODO
 * Add span info to ast.
@@ -52,7 +52,7 @@ This readme contains notes to myself.
 | pwd        | ✅                           | Print working directory       |
 | import     | ✅ (Not locking / integrity) | Import code from file or URL  |
 | open       | ✅                           | Open url with default program |
-| read/input | ❌                           | Read user input from stdin    |
+| read/input | ✅                           | Read user input from stdin    |
 | load       | ✅                           | Read data from file           |
 | save       | ✅                           | Save data to file             |
 
@@ -92,7 +92,6 @@ Fish-like selector for completer.
 ## Bugs
 A bunch of places convert values to string where it should throw an hard error instead.  
 Comparison operator chaining is currently permitted but should not be.  
-Using command in map as key returns weird error. It should just be treated as a bare word.  
 
 ## Questions to be answered
 Should lists expand to multiple arguments when passed to a function. Should this depend on if it is an internal or external command?  

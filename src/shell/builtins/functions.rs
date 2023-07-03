@@ -26,6 +26,7 @@ mod env;
 mod exit;
 mod help;
 mod import;
+mod input;
 mod load;
 mod open;
 mod pwd;
@@ -56,6 +57,7 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "save" => save::save,
     "help" => help::help,
     "assert" => assert::assert,
+    "input" => input::input,
 };
 
 pub fn get_builtin(command: &str) -> Option<BulitinFn> {
