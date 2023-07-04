@@ -1,0 +1,8 @@
+
+let $keyname = key1
+let $map = @{$keyname: value1, "key2": 'value2', key3: "value3"}
+
+let $y = $map.key1
+assert ($y == value1)
+assert ($map.key2 == "value2")
+assert ($map.key3 == "value3")
