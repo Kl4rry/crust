@@ -363,7 +363,7 @@ impl Parser {
                     }
                 }
                 self.skip_whitespace();
-                let block = self.parse_block(ctx | ParserContext::INSIDE_FUNCTION)?;
+                let block = self.parse_block(ParserContext::INSIDE_FUNCTION)?;
                 let end = block.span;
 
                 let func = Function {
