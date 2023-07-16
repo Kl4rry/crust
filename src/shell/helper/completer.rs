@@ -174,7 +174,7 @@ fn filename_complete(
     #[cfg(windows)]
     let sep = '\\';
 
-    let mut path = path.to_string();
+    let path = path.to_string();
     #[cfg(windows)]
     unsafe {
         // safe because one ascii char is replacing another ascii char

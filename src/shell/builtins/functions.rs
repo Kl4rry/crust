@@ -31,6 +31,7 @@ mod load;
 mod open;
 mod pwd;
 mod save;
+mod shuffle;
 mod unalias;
 
 pub type BulitinFn = fn(
@@ -58,6 +59,7 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "help" => help::help,
     "assert" => assert::assert,
     "input" => input::input,
+    "shuffle" => shuffle::shuffle,
 };
 
 pub fn get_builtin(command: &str) -> Option<BulitinFn> {
