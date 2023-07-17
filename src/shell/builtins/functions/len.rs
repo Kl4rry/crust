@@ -37,6 +37,7 @@ pub fn len(
         Value::Table(table) => table.len() as i64,
         Value::Range(range) => (range.end - range.start).max(0),
         _ => {
+            // TODO fix type error quoting
             return Err(ShellErrorKind::Basic(
                 "TypeError",
                 format!("Cannot get length of `{}`", input.to_type()),
