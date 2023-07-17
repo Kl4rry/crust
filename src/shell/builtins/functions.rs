@@ -27,6 +27,7 @@ mod exit;
 mod help;
 mod import;
 mod input;
+mod len;
 mod load;
 mod open;
 mod pwd;
@@ -60,6 +61,7 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "assert" => assert::assert,
     "input" => input::input,
     "shuffle" => shuffle::shuffle,
+    "len" => len::len,
 };
 
 pub fn get_builtin(command: &str) -> Option<BulitinFn> {
