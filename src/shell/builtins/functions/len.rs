@@ -41,7 +41,7 @@ pub fn len(
             return Err(ShellErrorKind::Basic(
                 "TypeError",
                 format!("Cannot get length of `{}`", input.to_type()),
-            ))
+            ));
         }
     };
 

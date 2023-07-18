@@ -40,6 +40,14 @@ pub fn shuffle(
             let output = Rc::make_mut(list);
             output.shuffle(&mut rng);
         }
+        Value::String(ref mut string) => {
+            let mut rng = rand::thread_rng();
+            let mut chars: Vec<char> = string.chars().collect();
+            chars.shuffle(&mut rng);
+            let output = Rc::make_mut(string);
+            output.clear();
+            output.extend(chars);
+        }
         _ => {
             return Err(ShellErrorKind::Basic(
                 "TypeError",
