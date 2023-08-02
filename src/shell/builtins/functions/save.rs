@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, rc::Rc};
 
 use once_cell::sync::Lazy;
 
@@ -107,8 +107,20 @@ pub fn save(
                     save_file(path, data.as_bytes(), append)?;
                 }
                 "txt" => {
-                    // TODO handle txt
-                    todo!()
+                    let input = input.unpack();
+                    let data: Rc<String> = match &input {
+                        Value::Int(int) => int.to_string().into(),
+                        Value::Float(float) => float.to_string().into(),
+                        Value::Bool(boolean) => boolean.to_string().into(),
+                        Value::String(string) => string.clone(),
+                        _ => {
+                            return Err(ShellErrorKind::Basic(
+                                "TypeError",
+                                format!("Cannot cast a {} to a `string`", input.to_type()),
+                            ))
+                        }
+                    };
+                    save_file(path, data.as_bytes(), append)?;
                 }
                 _ => return Err(ShellErrorKind::UnknownFileType(ext)),
             }
