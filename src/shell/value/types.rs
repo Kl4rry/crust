@@ -22,7 +22,7 @@ impl fmt::Display for Type {
         let mut is_first = false;
 
         if self.intersects(Self::NULL) {
-            write!(f, "'null'")?;
+            write!(f, "`null`")?;
             is_first = true;
         }
 
@@ -31,7 +31,7 @@ impl fmt::Display for Type {
                 write!(f, " or ")?;
             }
             is_first = true;
-            write!(f, "'int'")?;
+            write!(f, "`int`")?;
         }
 
         if self.intersects(Self::FLOAT) {
@@ -39,7 +39,7 @@ impl fmt::Display for Type {
                 write!(f, " or ")?;
             }
             is_first = true;
-            write!(f, "'float'")?;
+            write!(f, "`float`")?;
         }
 
         if self.intersects(Self::STRING) {
@@ -47,7 +47,7 @@ impl fmt::Display for Type {
                 write!(f, " or ")?;
             }
             is_first = true;
-            write!(f, "'string'")?;
+            write!(f, "`string`")?;
         }
 
         if self.intersects(Self::LIST) {
@@ -55,7 +55,7 @@ impl fmt::Display for Type {
                 write!(f, " or ")?;
             }
             is_first = true;
-            write!(f, "'list'")?;
+            write!(f, "`list`")?;
         }
 
         if self.intersects(Self::MAP) {
@@ -63,7 +63,7 @@ impl fmt::Display for Type {
                 write!(f, " or ")?;
             }
             is_first = true;
-            write!(f, "'map'")?;
+            write!(f, "`map`")?;
         }
 
         if self.intersects(Self::TABLE) {
@@ -71,14 +71,14 @@ impl fmt::Display for Type {
                 write!(f, " or ")?;
             }
             is_first = true;
-            write!(f, "'table'")?;
+            write!(f, "`table`")?;
         }
 
         if self.intersects(Self::RANGE) {
             if is_first {
                 write!(f, " or ")?;
             }
-            write!(f, "'range'")?;
+            write!(f, "`range`")?;
         }
 
         Ok(())

@@ -80,7 +80,7 @@ pub fn save(
             _ => {
                 return Err(ShellErrorKind::Basic(
                     "Serialization Error",
-                    format!("Cannot serialize `{t}` to string"),
+                    format!("Cannot serialize {t} to string"),
                 ))
             }
         };

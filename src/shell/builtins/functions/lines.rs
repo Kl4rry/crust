@@ -52,7 +52,7 @@ pub fn lines(
         _ => {
             return Err(ShellErrorKind::Basic(
                 "TypeError",
-                format!("Cannot split `{}` into lines", input.to_type()),
+                format!("Cannot split {} into lines", input.to_type()),
             ))
         }
     }

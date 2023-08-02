@@ -40,7 +40,7 @@ pub fn len(
             // TODO fix type error quoting
             return Err(ShellErrorKind::Basic(
                 "TypeError",
-                format!("Cannot get length of `{}`", input.to_type()),
+                format!("Cannot get length of {}", input.to_type()),
             ));
         }
     };

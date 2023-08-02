@@ -51,7 +51,7 @@ pub fn shuffle(
         _ => {
             return Err(ShellErrorKind::Basic(
                 "TypeError",
-                format!("Cannot shuffle `{}`", input.to_type()),
+                format!("Cannot shuffle {}", input.to_type()),
             ))
         }
     }
