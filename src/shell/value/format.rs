@@ -1,138 +1,31 @@
-use std::{
-    fmt::{self, Display},
-    iter,
-};
+use std::fmt::{self, Display};
 
-use textwrap::core::display_width;
-use yansi::Paint;
+use comfy_table::{
+    modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Cell, Color, ContentArrangement,
+};
 
 use super::Value;
 
-#[inline(always)]
-pub fn bar() -> Paint<char> {
-    Paint::rgb(171, 178, 191, '│')
-}
-
 pub fn format_columns<T: Display, Item, I: Iterator<Item = (T, Item)>>(
     f: &mut fmt::Formatter<'_>,
-    list: I,
+    iterator: I,
 ) -> fmt::Result
 where
     Item: AsRef<Value>,
 {
-    let mut longest_value = 0;
-    let mut longest_key = 0;
-    let mut values = Vec::new();
-    let mut keys = Vec::new();
-    for (key, value) in list {
-        values.push(value.as_ref().to_compact_string());
-        longest_value = std::cmp::max(
-            longest_value,
-            display_width(unsafe { values.last().unwrap_unchecked() }),
-        );
+    let mut table = comfy_table::Table::new();
+    table
+        .load_preset(UTF8_FULL)
+        .apply_modifier(UTF8_ROUND_CORNERS)
+        .set_content_arrangement(ContentArrangement::Dynamic);
 
-        keys.push(Paint::green(key).to_string());
-        longest_key = std::cmp::max(
-            longest_key,
-            display_width(unsafe { keys.last().unwrap_unchecked() }),
-        );
+    for (k, v) in iterator {
+        let v = v.as_ref();
+        table.add_row(vec![
+            Cell::new(k).fg(Color::Green),
+            Cell::new(v.to_compact_string()).fg(v.compact_string_color()),
+        ]);
     }
 
-    fmt_horizontal(f, &[longest_key + 2, longest_value + 2], ConfigChars::TOP)?;
-
-    let bar = bar();
-    for (key, value) in keys.into_iter().zip(values) {
-        let key_spacing = longest_key - display_width(&key);
-        let value_spacing = longest_value - display_width(&value);
-        writeln!(
-            f,
-            "{bar} {:key_spacing$}{} {bar} {:value_spacing$}{} {bar}",
-            "", key, "", value
-        )?;
-    }
-
-    fmt_horizontal(f, &[longest_key + 2, longest_value + 2], ConfigChars::BOT)?;
-
-    Ok(())
-}
-
-pub struct ConfigChars {
-    pub left: char,
-    pub middle: char,
-    pub right: char,
-}
-
-impl ConfigChars {
-    pub const fn new(left: char, middle: char, right: char) -> Self {
-        Self {
-            left,
-            middle,
-            right,
-        }
-    }
-
-    pub const TOP: Self = Self::new('╭', '┬', '╮');
-    pub const MID: Self = Self::new('├', '┼', '┤');
-    pub const BOT: Self = Self::new('╰', '┴', '╯');
-}
-
-pub fn fmt_horizontal(
-    f: &mut fmt::Formatter<'_>,
-    cols: &[usize],
-    ConfigChars {
-        left,
-        middle,
-        right,
-    }: ConfigChars,
-) -> fmt::Result {
-    let mut line = String::new();
-    line.push(left);
-    let mut peekable = cols.iter().peekable();
-    while let Some(col) = peekable.next() {
-        for _ in 0..*col {
-            line.push('─');
-        }
-        if peekable.peek().is_some() {
-            line.push(middle);
-        }
-    }
-    line.push(right);
-    line.push('\n');
-    write!(f, "{}", Paint::rgb(171, 178, 191, line))?;
-    Ok(())
-}
-
-pub fn center_pad(content: impl Display, width: usize) -> String {
-    let string = content.to_string();
-    let content_width = display_width(&string);
-    debug_assert!(width >= content_width);
-    let difference = width - content_width;
-    let right = difference / 2;
-    let left = difference - right;
-
-    let mut new = String::new();
-    new.extend(iter::repeat(' ').take(left));
-    new.push_str(&string);
-    new.extend(iter::repeat(' ').take(right));
-    new
-}
-
-pub fn left_pad(content: impl Display, width: usize) -> String {
-    let string = content.to_string();
-    let content_width = display_width(&string);
-    debug_assert!(width >= content_width);
-    let left = width - content_width;
-    let mut new = String::new();
-    new.extend(iter::repeat(' ').take(left));
-    new.push_str(&string);
-    new
-}
-
-pub fn right_pad(content: impl Display, width: usize) -> String {
-    let mut string = content.to_string();
-    let content_width = display_width(&string);
-    debug_assert!(width >= content_width);
-    let right = width - content_width;
-    string.extend(iter::repeat(' ').take(right));
-    string
+    writeln!(f, "{table}")
 }

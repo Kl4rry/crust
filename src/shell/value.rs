@@ -584,7 +584,7 @@ impl fmt::Display for Value {
                     return Ok(());
                 }
 
-                format::format_columns(f, (0..list.len()).map(Paint::green).zip(&**list))
+                format::format_columns(f, (0..list.len()).zip(&**list))
             }
             Self::Map(map) => {
                 if map.is_empty() {
@@ -594,13 +594,9 @@ impl fmt::Display for Value {
                 format::format_columns(f, map.iter())
             }
             Self::Table(table) => table.fmt(f),
-            Self::Range(range) => format::format_columns(
-                f,
-                (**range)
-                    .clone()
-                    .map(Paint::green)
-                    .zip((**range).clone().map(Value::from)),
-            ),
+            Self::Range(range) => {
+                format::format_columns(f, (**range).clone().zip((**range).clone().map(Value::from)))
+            }
             Self::Bool(boolean) => boolean.fmt(f),
             Self::Regex(regex) => Paint::blue(format!("/{}/", &regex.1)).fmt(f),
             _ => Ok(()),
@@ -682,15 +678,24 @@ impl Value {
     pub fn to_compact_string(&self) -> String {
         match self {
             Value::Null => String::new(),
-            Self::Int(number) => Paint::yellow(number).to_string(),
-            Self::Float(number) => Paint::yellow(number).to_string(),
+            Self::Int(number) => number.to_string(),
+            Self::Float(number) => number.to_string(),
             Self::String(string) => string.to_string(),
             Self::List(list) => format!("[list with {} items]", list.len()),
             Self::Map(map) => format!("[map with {} entries]", map.len()),
             Self::Table(table) => format!("[table with {} rows]", table.len()),
             Self::Range(range) => format!("[range from {} to {}]", range.start, range.end),
-            Self::Bool(boolean) => Paint::yellow(boolean).to_string(),
-            Self::Regex(regex) => Paint::blue(&regex.1).to_string(),
+            Self::Bool(boolean) => boolean.to_string(),
+            Self::Regex(regex) => format!("/{}/", regex.1),
+        }
+    }
+
+    pub fn compact_string_color(&self) -> comfy_table::Color {
+        use comfy_table::Color;
+        match self {
+            Self::Int(_) | Self::Float(_) | Self::Bool(_) => Color::Yellow,
+            Self::Regex(_) => Color::Blue,
+            _ => Color::Reset,
         }
     }
 

@@ -1,19 +1,16 @@
 use std::{
-    cmp::{self, PartialEq},
+    cmp::PartialEq,
     fmt::{self},
+    iter,
     rc::Rc,
 };
 
-use indexmap::IndexMap;
-use textwrap::core::display_width;
-use unicode_segmentation::UnicodeSegmentation;
-use unicode_width::UnicodeWidthStr;
-use yansi::Paint;
-
-use super::{
-    format::{bar, center_pad, fmt_horizontal, left_pad, right_pad, ConfigChars},
-    SpannedValue, Value,
+use comfy_table::{
+    modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Cell, Color, ContentArrangement,
 };
+use indexmap::IndexMap;
+
+use super::{SpannedValue, Value};
 use crate::parser::shell_error::ShellErrorKind;
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -102,75 +99,24 @@ impl fmt::Display for Table {
             return Ok(());
         }
 
-        let rows: Vec<Vec<String>> = self
-            .rows
-            .iter()
-            .map(|r| r.iter().map(|c| c.to_compact_string()).collect())
-            .collect();
+        let mut table = comfy_table::Table::new();
+        table
+            .load_preset(UTF8_FULL)
+            .apply_modifier(UTF8_ROUND_CORNERS)
+            .set_content_arrangement(ContentArrangement::Dynamic);
 
-        let mut column_widths = vec![(self.rows.len() - 1).to_string().width_cjk() + 2];
-        column_widths.extend(self.headers.iter().map(|c| c.len() + 2));
+        let headers = iter::once(Cell::new("#").fg(Color::Green))
+            .chain(self.headers.iter().map(|s| Cell::new(s).fg(Color::Green)));
+        table.set_header(headers);
 
-        for row in &rows {
-            for (index, col) in row.iter().enumerate() {
-                let len = &mut column_widths[index + 1];
-                *len = std::cmp::max(*len, display_width(col) + 2);
-            }
+        for (index, row) in self.rows.iter().enumerate() {
+            let row = iter::once(Cell::new(index + 1).fg(Color::Green)).chain(
+                row.iter()
+                    .map(|v| Cell::new(v.to_compact_string()).fg(v.compact_string_color())),
+            );
+            table.add_row(row);
         }
 
-        let (term_width, _) = crossterm::terminal::size().unwrap_or((u16::MAX, u16::MAX));
-        let max_width = term_width as i32 - column_widths.len() as i32 - 1;
-        let mut rest = if max_width <= 0 {
-            u16::MAX as usize
-        } else {
-            max_width as usize
-        };
-
-        let number_cols = column_widths.len();
-        for (i, width) in column_widths.iter_mut().enumerate() {
-            let max_col_width = rest / (number_cols - i);
-            let col_width = cmp::min(*width, max_col_width);
-            rest -= col_width;
-            *width = col_width;
-        }
-
-        fmt_horizontal(f, &column_widths, ConfigChars::TOP)?;
-
-        bar().fmt(f)?;
-        center_pad(Paint::green('#'), column_widths[0]).fmt(f)?;
-        bar().fmt(f)?;
-        for (index, header) in self.headers.iter().enumerate() {
-            center_pad(Paint::green(header), column_widths[index + 1]).fmt(f)?;
-            bar().fmt(f)?;
-        }
-        writeln!(f)?;
-
-        fmt_horizontal(f, &column_widths, ConfigChars::MID)?;
-
-        for (number, row) in rows.iter().enumerate() {
-            bar().fmt(f)?;
-            left_pad(Paint::green(number), column_widths[0] - 1).fmt(f)?;
-            ' '.fmt(f)?;
-            bar().fmt(f)?;
-            for (index, col) in row.iter().enumerate() {
-                let mut ouput_col = "";
-                for (i, grapheme) in col.grapheme_indices(true) {
-                    if display_width(&col[..i + grapheme.len()]) < column_widths[index + 1] - 1 {
-                        ouput_col = &col[..i + grapheme.len()];
-                    } else {
-                        break;
-                    }
-                }
-
-                ' '.fmt(f)?;
-                right_pad(ouput_col, column_widths[index + 1] - 2).fmt(f)?;
-                ' '.fmt(f)?;
-                bar().fmt(f)?;
-            }
-            writeln!(f)?;
-        }
-
-        fmt_horizontal(f, &column_widths, ConfigChars::BOT)?;
-        Ok(())
+        writeln!(f, "{table}")
     }
 }
