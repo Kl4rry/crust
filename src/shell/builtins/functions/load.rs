@@ -70,6 +70,10 @@ pub fn load(
                     let file = read_file(&path)?;
                     output.push(toml::from_str(&file)?);
                 }
+                "txt" => {
+                    let file = read_file(&path)?;
+                    output.push(file.into());
+                }
                 _ => return Err(ShellErrorKind::UnknownFileType(ext)),
             }
         }

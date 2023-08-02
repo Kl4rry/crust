@@ -3,13 +3,13 @@ let failed = 0
 for test in (echo tests/*.crust) {
     crust $test
     if $? != 0 {
-        echo "$test Failed"
+        print "$test Failed"
         $failed += 1 
     }
 }
 
 if $failed == 0 {
-    echo 'Passed all tests'
+    print 'Passed all tests'
 } else {
-    echo "$failed tests failed"
+    print "$failed tests failed"
 }

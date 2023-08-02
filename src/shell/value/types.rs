@@ -14,6 +14,8 @@ bitflags::bitflags! {
         const TABLE =       0b0010000000;
         const RANGE =       0b0100000000;
         const REGEX =       0b1000000000;
+
+        const ANY = Self::NULL.bits() | Self::INT.bits() | Self::FLOAT.bits() | Self::BOOL.bits() | Self::STRING.bits() | Self::LIST.bits() | Self::MAP.bits() | Self::TABLE.bits() | Self::RANGE.bits() | Self::RANGE.bits();
     }
 }
 

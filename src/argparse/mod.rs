@@ -6,6 +6,7 @@ use std::{
     fmt,
     fmt::Write,
     iter::Peekable,
+    mem,
 };
 
 use crossterm::style::Stylize;
@@ -768,6 +769,17 @@ impl Matches {
     pub fn take_value(&mut self, key: &str) -> Option<Value> {
         match self.args.get_mut(key) {
             Some(arg) => arg.values.pop_front(),
+            None => None,
+        }
+    }
+
+    pub fn take_values(&mut self, key: &str) -> Option<VecDeque<Value>> {
+        match self.args.get_mut(key) {
+            Some(arg) => {
+                let mut empty = VecDeque::new();
+                mem::swap(&mut arg.values, &mut empty);
+                Some(empty)
+            }
             None => None,
         }
     }

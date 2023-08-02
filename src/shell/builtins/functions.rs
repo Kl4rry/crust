@@ -31,6 +31,7 @@ mod len;
 mod lines;
 mod load;
 mod open;
+mod print;
 mod pwd;
 mod save;
 mod shuffle;
@@ -64,6 +65,7 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "shuffle" => shuffle::shuffle,
     "len" => len::len,
     "lines" => lines::lines,
+    "print" => print::print,
 };
 
 pub fn get_builtin(command: &str) -> Option<BulitinFn> {
