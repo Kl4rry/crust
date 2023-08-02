@@ -6,7 +6,7 @@ use rustyline::{
     hint::Hinter,
     history::SearchDirection,
     validate::Validator,
-    Helper,
+    Changeset, Helper,
 };
 use yansi::Paint;
 
@@ -44,9 +44,15 @@ impl Completer for EditorHelper {
         self.filename_completer.complete_path(line, pos)
     }
 
-    fn update(&self, line: &mut rustyline::line_buffer::LineBuffer, start: usize, elected: &str) {
+    fn update(
+        &self,
+        line: &mut rustyline::line_buffer::LineBuffer,
+        start: usize,
+        elected: &str,
+        changeset: &mut Changeset,
+    ) {
         let end = line.pos();
-        line.replace(start..end, elected)
+        line.replace(start..end, elected, changeset)
     }
 }
 
@@ -132,9 +138,16 @@ impl Hinter for EditorHelper {
             return None;
         }
 
-        ctx.history()
-            .starts_with(line, ctx.history().len() - 1, SearchDirection::Reverse)
-            .map(|search_result| String::from(&search_result.entry[search_result.pos..]))
+        let search_result =
+            ctx.history()
+                .starts_with(line, ctx.history().len() - 1, SearchDirection::Reverse);
+
+        match search_result {
+            Ok(Some(search_result)) => {
+                Some(String::from(&search_result.entry[search_result.pos..]))
+            }
+            _ => None,
+        }
     }
 }
 

@@ -13,11 +13,7 @@ use crate::shell::{
     builtins::functions::get_builtins, current_dir_path, levenshtein::levenshtein_stripped,
 };
 
-pub struct FilenameCompleter {
-    break_chars: &'static [u8],
-    double_quotes_special_chars: &'static [u8],
-}
-
+pub struct FilenameCompleter;
 const DOUBLE_QUOTES_ESCAPE_CHAR: Option<char> = Some('\\');
 
 // rl_basic_word_break_characters, rl_completer_word_break_characters
@@ -25,10 +21,25 @@ const DEFAULT_BREAK_CHARS: [u8; 18] = [
     b' ', b'\t', b'\n', b'"', b'\'', b'@', b'$', b'>', b'<', b'=', b';', b'|', b'&', b'{', b'(',
     b'\0', b'}', b')',
 ];
+
+fn is_default_break_char(ch: char) -> bool {
+    let Ok(ascii) = ch.try_into() else {
+        return false;
+    };
+    memchr(ascii, &DEFAULT_BREAK_CHARS).is_some()
+}
+
 const ESCAPE_CHAR: Option<char> = Some('\\');
 // In double quotes, not all break_chars need to be escaped
 // https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html
 const DOUBLE_QUOTES_SPECIAL_CHARS: [u8; 3] = [b'"', b'$', b'\\'];
+
+fn is_double_quotes_special_char(ch: char) -> bool {
+    let Ok(ascii) = ch.try_into() else {
+        return false;
+    };
+    memchr(ascii, &DOUBLE_QUOTES_SPECIAL_CHARS).is_some()
+}
 
 // fn replace_escapes(line: &str, pos: usize) -> (String, usize) {
 //     if line.is_empty() {
@@ -62,15 +73,12 @@ const DOUBLE_QUOTES_SPECIAL_CHARS: [u8; 3] = [b'"', b'$', b'\\'];
 
 impl FilenameCompleter {
     pub fn new() -> Self {
-        Self {
-            break_chars: &DEFAULT_BREAK_CHARS,
-            double_quotes_special_chars: &DOUBLE_QUOTES_SPECIAL_CHARS,
-        }
+        Self
     }
 
     pub fn complete_path(&self, line: &str, pos: usize) -> Result<(usize, Vec<Pair>)> {
         //let (line, pos) = replace_escapes(line, pos);
-        let (start, path, esc_char, break_chars, quote) =
+        let (start, path, esc_char, break_chars, quote): (_, _, _, fn(_: char) -> bool, _) =
             if let Some((idx, quote)) = find_unclosed_quote(&line[..pos]) {
                 let start = idx + 1;
                 if quote == Quote::Double {
@@ -78,7 +86,7 @@ impl FilenameCompleter {
                         start,
                         unescape(&line[start..pos], DOUBLE_QUOTES_ESCAPE_CHAR),
                         DOUBLE_QUOTES_ESCAPE_CHAR,
-                        &self.double_quotes_special_chars,
+                        is_double_quotes_special_char,
                         quote,
                     )
                 } else {
@@ -86,17 +94,17 @@ impl FilenameCompleter {
                         start,
                         Cow::Borrowed(&line[start..pos]),
                         None,
-                        &self.break_chars,
+                        is_default_break_char,
                         quote,
                     )
                 }
             } else {
-                let (start, path) = extract_word(line, pos, None, self.break_chars);
+                let (start, path) = extract_word(line, pos, None, is_default_break_char);
                 (
                     start,
                     Cow::Borrowed(path),
                     ESCAPE_CHAR,
-                    &self.break_chars,
+                    is_default_break_char,
                     Quote::None,
                 )
             };
@@ -166,7 +174,7 @@ fn command_complete(start: &str) -> Vec<Pair> {
 fn filename_complete(
     path: &str,
     esc_char: Option<char>,
-    break_chars: &[u8],
+    is_break_char: fn(_: char) -> bool,
     quote: Quote,
 ) -> Vec<Pair> {
     #[cfg(unix)]
@@ -235,14 +243,10 @@ fn filename_complete(
                         }
 
                         let path = match quote {
-                            Quote::Double => escape(path, esc_char, break_chars, Quote::Double),
+                            Quote::Double => escape(path, esc_char, is_break_char, Quote::Double),
                             Quote::Single => path,
                             Quote::None => {
-                                if path
-                                    .as_bytes()
-                                    .iter()
-                                    .any(|c| memchr(*c, break_chars).is_some())
-                                {
+                                if path.as_bytes().iter().any(|c| is_break_char(*c as char)) {
                                     format!("'{path}'")
                                 } else {
                                     path

@@ -12,7 +12,7 @@ use std::{
 use console::Term;
 use directories::{ProjectDirs, UserDirs};
 use miette::{Diagnostic, GraphicalReportHandler};
-use rustyline::{config::BellStyle, error::ReadlineError, Editor};
+use rustyline::{config::BellStyle, error::ReadlineError, history::DefaultHistory, Editor};
 use yansi::Paint;
 
 pub mod builtins;
@@ -48,7 +48,7 @@ pub struct Shell {
     recursion_limit: usize,
     interrupt: Arc<AtomicBool>,
     args: Vec<String>,
-    editor: Editor<EditorHelper>,
+    editor: Editor<EditorHelper, DefaultHistory>,
     interactive: bool,
     pub dir_history: DirHistory,
 }
@@ -82,6 +82,7 @@ impl Shell {
 
         let config = rustyline::Config::builder()
             .max_history_size(5000)
+            .unwrap()
             .color_mode(rustyline::ColorMode::Enabled)
             .bell_style(BellStyle::None)
             .build();
@@ -190,7 +191,7 @@ impl Shell {
                         continue;
                     }
 
-                    self.editor.add_history_entry(&line);
+                    let _ = self.editor.add_history_entry(&line);
                     self.save_history();
                     self.run_src(String::from("shell"), line, &mut output);
                 }
