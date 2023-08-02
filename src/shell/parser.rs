@@ -845,6 +845,7 @@ impl Parser {
         let token = self.eat()?;
         let column = match token.token_type {
             TokenType::Symbol(column) => column,
+            TokenType::Int(column, _) => column.to_string(),
             _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
         };
         let expr = ExprKind::Column(P::new(expr), column).spanned(start + token.span);

@@ -72,15 +72,10 @@ import https://raw.githubusercontent.com/Kl4rry/crust/main/libs/starship.crust
 
 ## Todo
 Columns and indexing when passing arguments.  
-Allow column with number name.  
 Add builtins and functions to help when calling unknown command.  
 Rework defing functions to use cli parser.  
 Add sub commands to cli parser.  
-Add custom ls command.  
 Convert statements into expressions.  
-Allow expressions to be start of pipeline.  
-Test scoped cd.  
-Multi line Table entry.  
 Make it possible to use input from pipeline in user defined function.  
 Better error for unclosed delimiters.  
 
