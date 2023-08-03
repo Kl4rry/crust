@@ -55,6 +55,11 @@ impl Statement {
                     return Err(ShellErrorKind::ReadOnlyVar(var.name.clone()));
                 }
 
+                if var.name == "print_ast" {
+                    ctx.shell.print_ast = expr.eval(ctx)?.value.truthy();
+                    return Ok(());
+                }
+
                 let value = expr.eval(ctx)?;
                 if let Some(value) = ctx.frame.update_var(&var.name, value.into())? {
                     ctx.frame.add_var(var.name.clone(), value);

@@ -51,6 +51,7 @@ pub struct Shell {
     editor: Editor<EditorHelper, DefaultHistory>,
     interactive: bool,
     pub dir_history: DirHistory,
+    print_ast: bool,
 }
 
 impl Shell {
@@ -105,6 +106,7 @@ impl Shell {
             editor,
             interactive: false,
             dir_history: DirHistory::new(),
+            print_ast: false,
         }
     }
 
@@ -152,6 +154,9 @@ impl Shell {
     pub fn run_src(&mut self, name: String, src: String, output: &mut OutputStream) {
         match Parser::new(name, src).parse() {
             Ok(ast) => {
+                if self.print_ast {
+                    println!("{:#?}", ast);
+                }
                 let res = ast.eval(self, output);
                 if let Err(error) = res {
                     if !error.is_exit() {

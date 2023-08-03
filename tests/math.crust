@@ -1,8 +1,24 @@
 
 assert (50 + 25 == 75)
 
+assert (10 + 20 == 20+10)
+
 assert (10 * 5 + 5 == 55)
+
+assert (5**2 * 2 + 5 == 55)
 
 assert (----1 == 1)
 
 assert (---1 == -1)
+
+assert (1e+2 + 1 == 1e+2+1)
+
+assert (1e-2 + 1 == 1e-2+1)
+
+assert (1e+2 == 1E+2)
+
+assert (1e-2 == 1E-2)
+
+assert (1. == 1)
+
+assert (((0..10) | len) == 10)

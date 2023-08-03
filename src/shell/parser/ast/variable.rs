@@ -7,7 +7,10 @@ use crate::{
         shell_error::ShellErrorKind,
         syntax_error::SyntaxErrorKind,
     },
-    shell::{builtins::variables, value::SpannedValue},
+    shell::{
+        builtins::variables,
+        value::{SpannedValue, Value},
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -27,6 +30,11 @@ impl Variable {
                 return Ok(value.spanned(self.span));
             }
         }
+
+        if self.name == "print_ast" {
+            return Ok(Value::from(ctx.shell.print_ast).spanned(self.span));
+        }
+
         Err(ShellErrorKind::VariableNotFound(self.name.clone()))
     }
 }
