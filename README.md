@@ -38,10 +38,6 @@ This readme contains notes to myself.
 | Escapes sequences               | ✅       | ✅    |
 | Closures                        | ❌       | ❌    |
 
-## TODO
-* Add span info to ast.
-* Add serde support to value.
-
 ### Standard functions
 | Name       | Completed                   | About                         |
 | ---------- | --------------------------- | ----------------------------- |
@@ -55,7 +51,6 @@ This readme contains notes to myself.
 | read/input | ✅                           | Read user input from stdin    |
 | load       | ✅                           | Read data from file           |
 | save       | ✅                           | Save data to file             |
-
 
 (More functions to come)
 
@@ -81,12 +76,11 @@ Better error for unclosed delimiters.
 
 ## Low prio todo
 Make command pipelines lazy.  
-Create a better line writer then rustyline.  
+Create a better line writer than rustyline.  
 Fish-like selector for completer.  
 
 ## Bugs
 A bunch of places convert values to string where it should throw an hard error instead.  
-Comparison operator chaining is currently permitted but should not be.  
 
 ## Questions to be answered
 Should lists expand to multiple arguments when passed to a function. Should this depend on if it is an internal or external command?  

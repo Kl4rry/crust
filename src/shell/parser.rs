@@ -934,6 +934,21 @@ impl Parser {
             self.skip_whitespace();
             let rhs = self.parse_expr_part(None, next_min)?;
             self.skip_optional_space();
+
+            if op.kind.is_comparison() {
+                if let ExprKind::Binary(lhs_op, _, _) = lhs.kind {
+                    if lhs_op.is_comparison() {
+                        return Err(SyntaxErrorKind::ComparisonChaining(op.span, lhs_op.span));
+                    }
+                }
+
+                if let ExprKind::Binary(rhs_op, _, _) = rhs.kind {
+                    if rhs_op.is_comparison() {
+                        return Err(SyntaxErrorKind::ComparisonChaining(op.span, rhs_op.span));
+                    }
+                }
+            }
+
             let lhs_span = lhs.span;
             let rhs_span = rhs.span;
             lhs = ExprKind::Binary(op, P::new(lhs), P::new(rhs)).spanned(lhs_span + rhs_span);

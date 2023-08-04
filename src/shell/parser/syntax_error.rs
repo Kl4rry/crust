@@ -16,19 +16,21 @@ pub enum SyntaxErrorKind {
     ContinueOutsideLoop(Span),
     BreakOutsideLoop(Span),
     ReturnOutsideFunction(Span),
+    ComparisonChaining(Span, Span),
 }
 
 impl fmt::Display for SyntaxErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::UnexpectedToken(ref token) => write!(f, "unexpected token: {:?}", token),
-            Self::ExpectedToken => write!(f, "expected token"),
+            Self::UnexpectedToken(_) => write!(f, "Unexpected token"),
+            Self::ExpectedToken => write!(f, "Expected token"),
             Self::Regex(e, _) => e.fmt(f),
-            Self::InvalidIdentifier(_) => write!(f, "invalid identifier"),
-            Self::InvalidHexEscape(_) => write!(f, "invalid hex esacpe"),
-            Self::ContinueOutsideLoop(_) => write!(f, "continue outside of loop"),
-            Self::BreakOutsideLoop(_) => write!(f, "break outside of loop"),
-            Self::ReturnOutsideFunction(_) => write!(f, "return outside of function"),
+            Self::InvalidIdentifier(_) => write!(f, "Invalid identifier"),
+            Self::InvalidHexEscape(_) => write!(f, "Invalid hex esacpe"),
+            Self::ContinueOutsideLoop(_) => write!(f, "`continue` outside of loop"),
+            Self::BreakOutsideLoop(_) => write!(f, "`break` outside of loop"),
+            Self::ReturnOutsideFunction(_) => write!(f, "`return` outside of function"),
+            Self::ComparisonChaining(_, _) => write!(f, "Comparison operators cannot be chained"),
         }
     }
 }
@@ -69,6 +71,9 @@ impl Diagnostic for SyntaxError {
             ReturnOutsideFunction(span) => {
                 LabeledSpan::new_with_span(Some(String::from("Return must be used inside a function")), *span)
             }
+            ComparisonChaining(span1, span2) => {
+                return Some(P::new(vec![LabeledSpan::new_with_span(None, *span1), LabeledSpan::new_with_span(None, *span2)].into_iter()))
+            }
         };
         Some(P::new(vec![label].into_iter()))
     }
@@ -98,15 +103,6 @@ impl SyntaxError {
 
 impl fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        match self.error {
-            SyntaxErrorKind::UnexpectedToken(_) => f.write_str("Unexpected token"),
-            SyntaxErrorKind::ExpectedToken => f.write_str("Expected token"),
-            SyntaxErrorKind::Regex(_, _) => write!(f, "Regex error"),
-            SyntaxErrorKind::InvalidIdentifier(_) => write!(f, "Invalid identifier"),
-            SyntaxErrorKind::InvalidHexEscape(_) => write!(f, "Invalid hex escape"),
-            SyntaxErrorKind::ContinueOutsideLoop(_) => write!(f, "Continue outside of loop"),
-            SyntaxErrorKind::BreakOutsideLoop(_) => write!(f, "Break outside of loop"),
-            SyntaxErrorKind::ReturnOutsideFunction(_) => write!(f, "Return outside of function"),
-        }
+        self.error.fmt(f)
     }
 }

@@ -40,6 +40,13 @@ impl BinOpKind {
     pub fn spanned(self, span: Span) -> BinOp {
         BinOp { kind: self, span }
     }
+
+    pub fn is_comparison(&self) -> bool {
+        matches!(
+            self,
+            Self::Eq | Self::Ne | Self::Lt | Self::Le | Self::Ge | Self::Gt
+        )
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
