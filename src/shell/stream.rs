@@ -123,7 +123,7 @@ impl OutputStream {
 
     pub fn push_value_stream(&mut self, stream: ValueStream) {
         match &mut self.inner {
-            InnerStream::Capture(values) => values.extend(stream.into_iter()),
+            InnerStream::Capture(values) => values.extend(stream),
             InnerStream::Output(outputs) => {
                 *outputs = true;
                 print!("{}", stream);

@@ -22,7 +22,7 @@ pub fn hello() {
         str_color.paint("'help'"),
         crab_color.paint("//("),
         eye_color.paint("00"),
-        crab_color.paint(r#")\"#),
+        crab_color.paint(r")\"),
         ground_color.paint("................."),
     );
 }

@@ -322,7 +322,9 @@ impl App {
 }
 
 pub enum ParseResult {
+    /// Usage info for the command
     Info(Value),
+    /// Actual command parser result
     Matches(Matches),
 }
 
@@ -494,6 +496,7 @@ where
                     continue;
                 }
             }
+
             self.parse_arg()?;
         }
 
@@ -570,7 +573,6 @@ where
 
         for opt in &self.app.options {
             if let Some(m) = self.matches.get(&opt.name) {
-                if m.values.iter().any(|v| v.to_type() != opt.value) {}
                 for v in &m.values {
                     if v.to_type() != opt.value {
                         return Err(ParseErrorKind::WrongType {
@@ -608,11 +610,7 @@ where
                 } else {
                     // do some weridness here to get parse option to work
                     // this is very nasty code duping
-                    let arg_match = self
-                        .matches
-                        .args
-                        .entry(option.name.clone())
-                        .or_insert_with(ArgMatch::default);
+                    let arg_match = self.matches.args.entry(option.name.clone()).or_default();
 
                     if option.multiple {
                         arg_match.values.push_back(self.args.next().unwrap());
@@ -634,11 +632,7 @@ where
     }
 
     fn parse_option(&mut self, option: &Opt) -> Result<(), ParseErrorKind> {
-        let arg_match = self
-            .matches
-            .args
-            .entry(option.name.clone())
-            .or_insert_with(ArgMatch::default);
+        let arg_match = self.matches.args.entry(option.name.clone()).or_default();
 
         if option.multiple {
             while let Some(arg) = self.args.peek() {
@@ -674,15 +668,14 @@ where
     }
 
     fn parse_flag(&mut self, flag: &Flag) {
-        let arg_match = self
-            .matches
-            .args
-            .entry(flag.name.clone())
-            .or_insert_with(ArgMatch::default);
+        let arg_match = self.matches.args.entry(flag.name.clone()).or_default();
         arg_match.occurs += 1;
     }
 
     fn parse_arg(&mut self) -> Result<(), ParseErrorKind> {
+        if self.args.peek().is_none() {
+            return Ok(());
+        }
         let arg = match self.app.args.get(self.arg_index) {
             Some(arg) => arg,
             None => {
@@ -691,11 +684,7 @@ where
                 ))
             }
         };
-        let arg_match = self
-            .matches
-            .args
-            .entry(arg.name.clone())
-            .or_insert_with(ArgMatch::default);
+        let arg_match = self.matches.args.entry(arg.name.clone()).or_default();
         arg_match.values.push_back(self.args.next().unwrap());
         arg_match.occurs += 1;
         self.arg_index += 1;
@@ -711,11 +700,7 @@ where
                 ))
             }
         };
-        let arg_match = self
-            .matches
-            .args
-            .entry(arg.name.clone())
-            .or_insert_with(ArgMatch::default);
+        let arg_match = self.matches.args.entry(arg.name.clone()).or_default();
         for arg in self.args.by_ref() {
             arg_match.values.push_back(arg);
             arg_match.occurs += 1;

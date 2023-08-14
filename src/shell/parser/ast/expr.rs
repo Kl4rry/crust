@@ -649,7 +649,7 @@ fn expand_call(
         let mut args: Vec<_> = split
             .map(|s| Value::from(s.to_string()).spanned(cmd_span))
             .collect();
-        args.extend(expanded_args.into_iter());
+        args.extend(expanded_args);
         expanded_args = args;
     }
     Ok((command, expanded_args))
