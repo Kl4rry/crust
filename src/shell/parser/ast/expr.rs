@@ -618,7 +618,7 @@ fn get_call_type(
 
     let mut str_args = Vec::new();
     for arg in args {
-        str_args.push(arg.try_into_string()?);
+        arg.try_expand_to_strings(&mut str_args)?;
     }
 
     Ok(CallType::External(

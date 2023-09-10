@@ -83,6 +83,5 @@ Fish-like selector for completer.
 A bunch of places convert values to string where it should throw an hard error instead.  
 
 ## Questions to be answered
-Should lists expand to multiple arguments when passed to a function. Should this depend on if it is an internal or external command?  
 Should return take a expr as optional parameter? What does even return mean as functions dont have traditional return values?  
 

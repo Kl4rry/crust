@@ -72,6 +72,30 @@ impl SpannedValue {
         }
     }
 
+    pub fn try_expand_to_strings(self, output: &mut Vec<String>) -> Result<(), ShellErrorKind> {
+        let (value, span) = self.into();
+        match value {
+            Value::Int(number) => output.push(number.to_string()),
+            Value::Float(number) => output.push(number.to_string()),
+            Value::String(string) => output.push(string.to_string()),
+            Value::Bool(boolean) => output.push(boolean.to_string()),
+            Value::List(list) => {
+                let list = Rc::try_unwrap(list).unwrap_or_else(|list| (*list).clone());
+                for value in list {
+                    value.spanned(span).try_expand_to_strings(output)?;
+                }
+            }
+            _ => {
+                return Err(ShellErrorKind::InvalidConversion {
+                    from: value.to_type(),
+                    to: Type::STRING,
+                    span,
+                })
+            }
+        }
+        Ok(())
+    }
+
     pub fn try_add(self, rhs: SpannedValue, binop: Span) -> Result<SpannedValue, ShellErrorKind> {
         let (lhs, lhs_span) = self.into();
         let (rhs, rhs_span) = rhs.into();
