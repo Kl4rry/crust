@@ -78,6 +78,11 @@ pub enum ShellErrorKind {
         to: Type,
         span: Span,
     },
+    InvalidConversionContains {
+        from: Type,
+        to: Type,
+        span: Span,
+    },
     NoColumns(Type),
     NotIndexable(Type, Span),
     VariableNotFound(String),
@@ -184,6 +189,9 @@ impl fmt::Display for ShellErrorKind {
             InvalidConversion { from, to, .. } => {
                 write!(f, "Cannot convert {from} to {to}")
             }
+            InvalidConversionContains { from, to, .. } => {
+                write!(f, "Cannot convert {from} to {to}")
+            }
             MaxRecursion(limit) => write!(f, "Max recursion limit of {limit} reached"),
             IndexOutOfBounds { len, index, .. } => write!(
                 f,
@@ -236,6 +244,13 @@ impl Diagnostic for ShellError {
             ShellErrorKind::InvalidConversion { span, from, .. } => Some(P::new(
                 [LabeledSpan::new_with_span(Some(from.to_string()), span)].into_iter(),
             )),
+            ShellErrorKind::InvalidConversionContains { span, from, .. } => Some(P::new(
+                [LabeledSpan::new_with_span(
+                    Some(format!("Because this contains a {}", from)),
+                    span,
+                )]
+                .into_iter(),
+            )),
             ShellErrorKind::InvalidBinaryOperand(binop, lhs, rhs, lhs_span, rhs_span) => {
                 let lhs = LabeledSpan::new_with_span(Some(lhs.to_string()), lhs_span);
                 let binop = LabeledSpan::new_with_span(
@@ -265,6 +280,7 @@ impl Diagnostic for ShellError {
             IndexOutOfBounds { .. } | ColumnNotFound(..) => P::new("Indexing Error"),
             Glob(..) | Pattern(..) | NoMatch(..) => P::new("Glob Error"),
             InvalidConversion { .. } => P::new("Coercion Error"),
+            InvalidConversionContains { .. } => P::new("Coercion Error"),
             Ureq(..) => P::new("Http Error"),
             Interrupt => P::new("Interrupt"),
             MaxRecursion(..) => P::new("Recursion Error"),

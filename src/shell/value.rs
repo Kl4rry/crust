@@ -86,7 +86,7 @@ impl SpannedValue {
                 }
             }
             _ => {
-                return Err(ShellErrorKind::InvalidConversion {
+                return Err(ShellErrorKind::InvalidConversionContains {
                     from: value.to_type(),
                     to: Type::STRING,
                     span,
