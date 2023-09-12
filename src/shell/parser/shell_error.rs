@@ -72,6 +72,9 @@ pub enum ShellErrorKind {
         index: i128,
         span: Span,
     },
+    NegativeIndex {
+        index: i64,
+    },
     ColumnNotFound(String),
     InvalidConversion {
         from: Type,
@@ -197,6 +200,7 @@ impl fmt::Display for ShellErrorKind {
                 f,
                 "Index is out of bounds, length is {len} but the index is {index}"
             ),
+            NegativeIndex { index } => write!(f, "Index `{index}` is not positive"),
             ColumnNotFound(column) => write!(f, "Column `{column}` not found"),
             UnknownFileType(ext) => write!(f, "Unkown file type `.{ext}`"),
             ExternalExitCode(exit_status) => write!(
@@ -277,7 +281,9 @@ impl Diagnostic for ShellError {
             | NotIndexable(..)
             | InvalidPipelineInput { .. } => P::new("Type Error"),
             AssertionFailed => P::new("Assertion Error"),
-            IndexOutOfBounds { .. } | ColumnNotFound(..) => P::new("Indexing Error"),
+            IndexOutOfBounds { .. } | ColumnNotFound(..) | NegativeIndex { .. } => {
+                P::new("Indexing Error")
+            }
             Glob(..) | Pattern(..) | NoMatch(..) => P::new("Glob Error"),
             InvalidConversion { .. } => P::new("Coercion Error"),
             InvalidConversionContains { .. } => P::new("Coercion Error"),

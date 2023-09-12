@@ -132,6 +132,19 @@ impl OutputStream {
         }
     }
 
+    pub fn extend<T: IntoIterator<Item = Value>>(&mut self, iter: T) {
+        match &mut self.inner {
+            InnerStream::Capture(values) => values.extend(iter),
+            InnerStream::Output(outputs) => {
+                *outputs = true;
+                for value in iter {
+                    print!("{}", value);
+                }
+                stdout().flush().unwrap();
+            }
+        }
+    }
+
     pub fn end(&mut self) {
         match &mut self.inner {
             InnerStream::Capture(_) => panic!("cannot end capture stream"),

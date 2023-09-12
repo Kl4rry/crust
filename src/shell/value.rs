@@ -894,3 +894,9 @@ impl From<bool> for Value {
         Value::Bool(value)
     }
 }
+
+impl From<char> for Value {
+    fn from(value: char) -> Self {
+        Value::String(Rc::new(String::from(value)))
+    }
+}

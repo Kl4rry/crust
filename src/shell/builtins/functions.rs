@@ -24,9 +24,11 @@ mod clear;
 mod echo;
 mod env;
 mod exit;
+mod first;
 mod help;
 mod import;
 mod input;
+mod last;
 mod len;
 mod lines;
 mod load;
@@ -66,6 +68,8 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "len" => len::len,
     "lines" => lines::lines,
     "print" => print::print,
+    "last" => last::last,
+    "first" => first::first,
 };
 
 pub fn get_builtin(command: &str) -> Option<BulitinFn> {

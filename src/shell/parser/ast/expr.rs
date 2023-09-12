@@ -498,7 +498,7 @@ fn run_pipeline(
                 return Err(ShellErrorKind::InvalidPipelineInput {
                     expected: Type::STRING,
                     recived: value.to_type(),
-                })
+                });
             }
         }
     }

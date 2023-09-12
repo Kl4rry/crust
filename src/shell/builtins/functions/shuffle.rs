@@ -48,6 +48,11 @@ pub fn shuffle(
             output.clear();
             output.extend(chars);
         }
+        Value::Table(ref mut table) => {
+            let mut rng = rand::thread_rng();
+            let output = Rc::make_mut(table);
+            output.rows_mut().shuffle(&mut rng);
+        }
         _ => {
             return Err(ShellErrorKind::Basic(
                 "TypeError",

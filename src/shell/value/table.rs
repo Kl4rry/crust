@@ -1,7 +1,8 @@
 use std::{
     cmp::PartialEq,
     fmt::{self},
-    iter,
+    iter, mem,
+    ops::Deref,
     rc::Rc,
 };
 
@@ -12,6 +13,26 @@ use indexmap::IndexMap;
 
 use super::{SpannedValue, Value};
 use crate::parser::shell_error::ShellErrorKind;
+
+#[repr(transparent)]
+pub struct ConstVec<T>(Vec<T>);
+
+impl<T> ConstVec<T>
+where
+    T: Clone,
+{
+    pub fn to_vec(&self) -> Vec<T> {
+        self.0.clone()
+    }
+}
+
+impl<T> Deref for ConstVec<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Table {
@@ -90,6 +111,14 @@ impl Table {
                 .zip(row.iter().cloned())
                 .collect::<IndexMap<Rc<str>, Value>>()
         })
+    }
+
+    pub fn rows_mut(&mut self) -> &mut [ConstVec<Value>] {
+        unsafe { mem::transmute::<_, &mut [ConstVec<Value>]>(&mut *self.rows) }
+    }
+
+    pub fn rows(&self) -> &[Vec<Value>] {
+        &self.rows
     }
 }
 

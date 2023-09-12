@@ -36,9 +36,7 @@ pub fn unalias(
     };
 
     let name = matches.take_value("NAME").unwrap().unwrap_string();
-
-    let r = shell.aliases.remove(&*name);
-    if r.is_none() {
+    if shell.aliases.remove(&*name).is_none() {
         return Err(ShellErrorKind::Basic(
             "Alias Error",
             format!("alias not found\n\n{}", APP.usage()),

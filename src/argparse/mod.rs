@@ -23,7 +23,7 @@ mod flag;
 pub use flag::Flag;
 
 use crate::shell::value::{Type, Value};
-// sub commands does not exist yet
+// TODO sub commands does not exist yet
 #[derive(Debug)]
 pub struct App {
     name: String,
