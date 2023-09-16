@@ -93,7 +93,7 @@ pub enum ShellErrorKind {
     InvalidUnaryOperand(UnOp, Type, Span),
     InvalidIterator(Type),
     InvalidEnvVar(Type),
-    ReadOnlyVar(String),
+    ReadOnlyVar(String, Span),
     CommandNotFound(String),
     CommandPermissionDenied(String),
     FileNotFound(String),
@@ -170,7 +170,7 @@ impl fmt::Display for ShellErrorKind {
             }
             AssertionFailed => write!(f, "Assertion failed"),
             InvalidEnvVar(t) => write!(f, "Cannot assign type {t} to an environment variable"),
-            ReadOnlyVar(name) => write!(f, "Cannot write to read only variable `{name}`"),
+            ReadOnlyVar(name, ..) => write!(f, "Cannot write to read-only variable `{name}`"),
             ToFewArguments {
                 name,
                 expected,
@@ -251,6 +251,13 @@ impl Diagnostic for ShellError {
             ShellErrorKind::InvalidConversionContains { span, from, .. } => Some(P::new(
                 [LabeledSpan::new_with_span(
                     Some(format!("Because this contains a {}", from)),
+                    span,
+                )]
+                .into_iter(),
+            )),
+            ShellErrorKind::ReadOnlyVar(ref name, span) => Some(P::new(
+                [LabeledSpan::new_with_span(
+                    Some(format!("`{name}` is a read only variable")),
                     span,
                 )]
                 .into_iter(),

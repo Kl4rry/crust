@@ -6,7 +6,10 @@ use crate::{
         lexer::token::span::Span,
         shell_error::ShellErrorKind,
     },
-    shell::{builtins::variables::is_builtin, value::Value},
+    shell::{
+        builtins::variables::{is_builtin, set_var, SetResult},
+        value::Value,
+    },
     P,
 };
 
@@ -51,16 +54,13 @@ impl Statement {
     pub fn eval(&self, ctx: &mut Context) -> Result<(), ShellErrorKind> {
         match &self.kind {
             StatementKind::Assign(var, expr) => {
-                if is_builtin(&var.name) {
-                    return Err(ShellErrorKind::ReadOnlyVar(var.name.clone()));
-                }
-
-                if var.name == "print_ast" {
-                    ctx.shell.print_ast = expr.eval(ctx)?.value.truthy();
-                    return Ok(());
-                }
-
                 let value = expr.eval(ctx)?;
+                let value = match set_var(ctx.shell, &var.name, var.span, value) {
+                    SetResult::Success => return Ok(()),
+                    SetResult::NotFound(value) => value,
+                    SetResult::Error(err) => return Err(err),
+                };
+
                 if let Some(value) = ctx.frame.update_var(&var.name, value.into())? {
                     ctx.frame.add_var(var.name.clone(), value);
                 }
@@ -68,7 +68,7 @@ impl Statement {
             }
             StatementKind::Declaration(var, expr) => {
                 if is_builtin(&var.name) {
-                    return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string()));
+                    return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string(), var.span));
                 }
 
                 let value = expr.eval(ctx)?;
@@ -78,7 +78,7 @@ impl Statement {
             }
             StatementKind::AssignOp(var, op, expr) => {
                 if is_builtin(&var.name) {
-                    return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string()));
+                    return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string(), var.span));
                 }
 
                 let current = var.eval(ctx)?;
@@ -96,7 +96,7 @@ impl Statement {
             }
             StatementKind::Export(var, expr) => {
                 if is_builtin(&var.name) {
-                    return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string()));
+                    return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string(), var.span));
                 }
 
                 let value = expr.eval(ctx)?;

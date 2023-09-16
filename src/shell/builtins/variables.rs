@@ -3,44 +3,83 @@ use std::{rc::Rc, time, time::Duration};
 use phf::*;
 use rand::Rng;
 
-use crate::shell::{current_dir_str, value::Value, Shell};
-
-type BulitinVar = fn(&mut Shell) -> Value;
-
-static BUILTIN_VARS: phf::Map<&'static str, BulitinVar> = phf_map! {
-    "pid" => pid,
-    "home" => home,
-    "user" => user,
-    "hostname" => hostname,
-    "os" => os,
-    "family" => family,
-    "arch" => arch,
-    "distro" => distro,
-    "desktop" => desktop,
-    "?" => status,
-    "pwd" => pwd,
-    "version" => version,
-    "random" => random,
-    "lines" => lines,
-    "columns" => columns,
-    "null" => null,
-    "config" => config,
-    "args" => args,
-    "pi" => pi,
-    "tau" => tau,
-    "e" => e,
-    "epoch" => epoch,
-    "path_sep" => path_sep,
-    "interactive" => interactive,
+use crate::{
+    parser::{lexer::token::span::Span, shell_error::ShellErrorKind},
+    shell::{
+        current_dir_str,
+        value::{SpannedValue, Value},
+        Shell,
+    },
 };
 
-#[inline(always)]
-pub fn get_var(shell: &mut Shell, name: &str) -> Option<Value> {
-    BUILTIN_VARS.get(name).map(|var| var(shell))
-}
+pub type GetBuiltin = fn(&mut Shell) -> Value;
+pub type SetBuiltin = fn(&mut Shell, SpannedValue);
+
+pub struct Builtins(GetBuiltin, Option<SetBuiltin>);
+
+static BUILTIN_VARS: phf::Map<&'static str, Builtins> = phf_map! {
+    "pid" => Builtins(pid, None),
+    "home" => Builtins(home, None),
+    "user" => Builtins(user, None),
+    "hostname" => Builtins(hostname, None),
+    "os" => Builtins(os, None),
+    "family" => Builtins(family, None),
+    "arch" => Builtins(arch, None),
+    "distro" => Builtins(distro, None),
+    "desktop" => Builtins(desktop, None),
+    "?" => Builtins(status, None),
+    "pwd" => Builtins(pwd, None),
+    "version" => Builtins(version, None),
+    "random" => Builtins(random, None),
+    "lines" => Builtins(lines, None),
+    "columns" => Builtins(columns, None),
+    "null" => Builtins(null, None),
+    "config" => Builtins(config, None),
+    "args" => Builtins(args, None),
+    "pi" => Builtins(pi, None),
+    "tau" => Builtins(tau, None),
+    "e" => Builtins(e, None),
+    "unix_epoch" => Builtins(epoch, None),
+    "path_sep" => Builtins(path_sep, None),
+    "interactive" => Builtins(interactive, None),
+    "print_ast" => Builtins(get_print_ast, Some(set_print_ast)),
+};
 
 pub fn is_builtin(name: &str) -> bool {
     BUILTIN_VARS.contains_key(name)
+}
+
+#[inline(always)]
+pub fn get_var(shell: &mut Shell, name: &str) -> Option<Value> {
+    BUILTIN_VARS.get(name).map(|var| var.0(shell))
+}
+
+pub enum SetResult {
+    Success,
+    NotFound(SpannedValue),
+    Error(ShellErrorKind),
+}
+
+#[inline(always)]
+pub fn set_var(shell: &mut Shell, name: &str, span: Span, value: SpannedValue) -> SetResult {
+    let Some(builtin) = BUILTIN_VARS.get(name) else {
+        return SetResult::NotFound(value);
+    };
+
+    let Some(set) = builtin.1 else {
+        return SetResult::Error(ShellErrorKind::ReadOnlyVar(name.into(), span));
+    };
+
+    set(shell, value);
+    SetResult::Success
+}
+
+pub fn set_print_ast(shell: &mut Shell, value: SpannedValue) {
+    shell.print_ast = value.value.truthy();
+}
+
+pub fn get_print_ast(shell: &mut Shell) -> Value {
+    shell.print_ast.into()
 }
 
 pub fn args(shell: &mut Shell) -> Value {
