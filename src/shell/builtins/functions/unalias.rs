@@ -26,7 +26,7 @@ pub fn unalias(
     _: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    let mut matches = match APP.parse(args.into_iter().map(|v| v.into())) {
+    let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
             output.push(info);
@@ -35,7 +35,7 @@ pub fn unalias(
         Err(e) => return Err(e.into()),
     };
 
-    let name = matches.take_value("NAME").unwrap().unwrap_string();
+    let name = matches.take_value("NAME").unwrap().value.unwrap_string();
     if shell.aliases.remove(&*name).is_none() {
         return Err(ShellErrorKind::Basic(
             "Alias Error",

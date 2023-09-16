@@ -21,7 +21,7 @@ pub fn back(
     _: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    match APP.parse(args.into_iter().map(|v| v.into())) {
+    match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
             output.push(info);

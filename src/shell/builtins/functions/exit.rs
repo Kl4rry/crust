@@ -24,7 +24,7 @@ pub fn exit(
     _: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    let matches = match APP.parse(args.into_iter().map(|v| v.into())) {
+    let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
             output.push(info);
@@ -33,7 +33,10 @@ pub fn exit(
         Err(e) => return Err(e.into()),
     };
 
-    let status = matches.value("STATUS").unwrap_or(&Value::Int(0));
+    let status = matches
+        .value("STATUS")
+        .map(|value| &value.value)
+        .unwrap_or(&Value::Int(0));
     shell.exit_status = status.unwrap_int();
 
     shell.running = false;

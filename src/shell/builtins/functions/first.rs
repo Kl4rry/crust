@@ -24,7 +24,7 @@ pub fn first(
     input: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    let matches = match APP.parse(args.into_iter().map(|v| v.into())) {
+    let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
             output.push(info);
@@ -33,7 +33,10 @@ pub fn first(
         Err(e) => return Err(e.into()),
     };
 
-    let count = matches.value("COUNT").map(|v| v.unwrap_int()).unwrap_or(1);
+    let count = matches
+        .value("COUNT")
+        .map(|v| v.value.unwrap_int())
+        .unwrap_or(1);
     if count < 0 {
         return Err(ShellErrorKind::NegativeIndex { index: count });
     }

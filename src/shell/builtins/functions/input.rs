@@ -26,7 +26,7 @@ pub fn input(
     _: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    let matches = match APP.parse(args.into_iter().map(|v| v.into())) {
+    let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
             output.push(info);
@@ -36,7 +36,7 @@ pub fn input(
     };
 
     if let Some(prompt) = matches.value("PROMPT") {
-        print!("{}", prompt.unwrap_as_str());
+        print!("{}", prompt.value.unwrap_as_str());
         io::stdout()
             .flush()
             .map_err(|err| ShellErrorKind::Io(None, err))?;

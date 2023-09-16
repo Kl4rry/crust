@@ -108,7 +108,7 @@ pub enum ShellErrorKind {
         expected: Type,
         recived: Type,
     },
-    AssertionFailed,
+    AssertionFailed(Span),
     UnknownFileType(String),
     ExternalExitCode(subprocess::ExitStatus),
     ArgParse(#[from] ParseError),
@@ -168,7 +168,7 @@ impl fmt::Display for ShellErrorKind {
             InvalidPipelineInput { expected, recived } => {
                 write!(f, "Pipeline expected {expected} recived {recived}")
             }
-            AssertionFailed => write!(f, "Assertion failed"),
+            AssertionFailed(..) => write!(f, "Assertion failed"),
             InvalidEnvVar(t) => write!(f, "Cannot assign type {t} to an environment variable"),
             ReadOnlyVar(name, ..) => write!(f, "Cannot write to read-only variable `{name}`"),
             ToFewArguments {
@@ -262,6 +262,13 @@ impl Diagnostic for ShellError {
                 )]
                 .into_iter(),
             )),
+            ShellErrorKind::AssertionFailed(span) => Some(P::new(
+                [LabeledSpan::new_with_span(
+                    Some("Expected this to be true".to_string()),
+                    span,
+                )]
+                .into_iter(),
+            )),
             ShellErrorKind::InvalidBinaryOperand(binop, lhs, rhs, lhs_span, rhs_span) => {
                 let lhs = LabeledSpan::new_with_span(Some(lhs.to_string()), lhs_span);
                 let binop = LabeledSpan::new_with_span(
@@ -287,7 +294,7 @@ impl Diagnostic for ShellError {
             | NoColumns(..)
             | NotIndexable(..)
             | InvalidPipelineInput { .. } => P::new("Type Error"),
-            AssertionFailed => P::new("Assertion Error"),
+            AssertionFailed(..) => P::new("Assertion Error"),
             IndexOutOfBounds { .. } | ColumnNotFound(..) | NegativeIndex { .. } => {
                 P::new("Indexing Error")
             }

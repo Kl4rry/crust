@@ -28,7 +28,7 @@ pub fn assert(
     _: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    let matches = match APP.parse(args.into_iter().map(|v| v.into())) {
+    let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
             output.push(info);
@@ -38,8 +38,8 @@ pub fn assert(
     };
 
     let expr = matches.value("EXPR").unwrap();
-    if !expr.truthy() {
-        return Err(ShellErrorKind::AssertionFailed);
+    if !expr.value.truthy() {
+        return Err(ShellErrorKind::AssertionFailed(expr.span));
     }
 
     Ok(())

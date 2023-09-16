@@ -28,7 +28,7 @@ pub fn open(
     _: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    let mut matches = match APP.parse(args.into_iter().map(|v| v.into())) {
+    let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
             output.push(info);
@@ -40,6 +40,7 @@ pub fn open(
     let path = matches
         .take_value(&String::from("PATH"))
         .unwrap()
+        .value
         .unwrap_string();
 
     opener::open(&*path)?;

@@ -28,7 +28,7 @@ pub fn alias(
     _: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    let mut matches = match APP.parse(args.into_iter().map(|v| v.into())) {
+    let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
             output.push(info);
@@ -37,8 +37,10 @@ pub fn alias(
         Err(e) => return Err(e.into()),
     };
 
-    let name = matches.take_value("NAME").map(|s| s.unwrap_string());
-    let command = matches.take_value("COMMAND").map(|s| s.unwrap_string());
+    let name = matches.take_value("NAME").map(|s| s.value.unwrap_string());
+    let command = matches
+        .take_value("COMMAND")
+        .map(|s| s.value.unwrap_string());
 
     if let Some(name) = name {
         if name.is_empty() {

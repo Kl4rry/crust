@@ -22,7 +22,7 @@ pub use opt::Opt;
 mod flag;
 pub use flag::Flag;
 
-use crate::shell::value::{Type, Value};
+use crate::shell::value::{SpannedValue, Type, Value};
 // TODO sub commands does not exist yet
 #[derive(Debug)]
 pub struct App {
@@ -315,8 +315,11 @@ impl App {
         output
     }
 
-    pub fn parse(&self, args: impl Iterator<Item = Value>) -> Result<ParseResult, ParseError> {
-        let parser = Parser::new(self, args);
+    pub fn parse(
+        &self,
+        args: impl IntoIterator<Item = SpannedValue>,
+    ) -> Result<ParseResult, ParseError> {
+        let parser = Parser::new(self, args.into_iter());
         parser.parse().map_err(|e| ParseError::new(self, e))
     }
 }
@@ -397,7 +400,7 @@ impl fmt::Display for ParseError {
 impl Error for ParseError {}
 
 #[derive(Debug)]
-struct Parser<'a, T: Iterator<Item = Value>> {
+struct Parser<'a, T: Iterator<Item = SpannedValue>> {
     app: &'a App,
     args: Peekable<T>,
     arg_index: usize,
@@ -406,7 +409,7 @@ struct Parser<'a, T: Iterator<Item = Value>> {
 
 impl<'a, T> Parser<'a, T>
 where
-    T: Iterator<Item = Value>,
+    T: Iterator<Item = SpannedValue>,
 {
     fn new(app: &'a App, args: T) -> Self {
         Self {
@@ -419,7 +422,7 @@ where
 
     fn parse(mut self) -> Result<ParseResult, ParseErrorKind> {
         while let Some(arg) = self.args.peek() {
-            if let Value::String(arg) = arg {
+            if let Value::String(arg) = &arg.value {
                 if arg.is_empty() {
                     if let Some(arg) = self.app.args.get(self.arg_index) {
                         if arg.multiple {
@@ -432,7 +435,7 @@ where
                 }
             }
 
-            if let Value::String(arg) = arg {
+            if let Value::String(arg) = &arg.value {
                 let mut arg_iter = arg.bytes();
                 if arg_iter.next().unwrap() == b'-' {
                     match arg_iter.next() {
@@ -560,11 +563,11 @@ where
         for arg in &self.app.args {
             if let Some(m) = self.matches.get(&arg.name) {
                 for v in &m.values {
-                    if !v.to_type().intersects(arg.value) {
+                    if !v.value.to_type().intersects(arg.value) {
                         return Err(ParseErrorKind::WrongType {
                             name: arg.to_string(),
                             expected: arg.value,
-                            recived: v.to_type(),
+                            recived: v.value.to_type(),
                         });
                     }
                 }
@@ -574,11 +577,11 @@ where
         for opt in &self.app.options {
             if let Some(m) = self.matches.get(&opt.name) {
                 for v in &m.values {
-                    if v.to_type() != opt.value {
+                    if v.value.to_type() != opt.value {
                         return Err(ParseErrorKind::WrongType {
                             name: opt.to_string(),
                             expected: opt.value,
-                            recived: v.to_type(),
+                            recived: v.value.to_type(),
                         });
                     }
                 }
@@ -590,7 +593,7 @@ where
     }
 
     fn parse_short(&mut self) -> Result<Option<Value>, ParseErrorKind> {
-        let slice = &self.args.next().unwrap().unwrap_string()[1..];
+        let slice = &self.args.next().unwrap().value.unwrap_string()[1..];
         let mut chars = slice.chars();
         while let Some(c) = chars.next() {
             if c == '-' {
@@ -636,7 +639,7 @@ where
 
         if option.multiple {
             while let Some(arg) = self.args.peek() {
-                if let Value::String(arg) = arg {
+                if let Value::String(arg) = &arg.value {
                     if arg.starts_with('-') {
                         if arg.bytes().all(|i| i == b'-') {
                             if arg.len() == 2 {
@@ -651,7 +654,7 @@ where
                 }
             }
         } else if let Some(arg) = self.args.peek() {
-            match arg {
+            match &arg.value {
                 Value::String(s) if !s.starts_with('-') => {
                     arg_match.values.push_back(self.args.next().unwrap())
                 }
@@ -680,7 +683,7 @@ where
             Some(arg) => arg,
             None => {
                 return Err(ParseErrorKind::InvalidInContext(
-                    self.args.next().unwrap().to_string(),
+                    self.args.next().unwrap().value.to_string(),
                 ))
             }
         };
@@ -696,7 +699,7 @@ where
             Some(arg) => arg,
             None => {
                 return Err(ParseErrorKind::InvalidInContext(
-                    self.args.next().unwrap().to_string(),
+                    self.args.next().unwrap().value.to_string(),
                 ))
             }
         };
@@ -712,12 +715,12 @@ where
 
 #[derive(Default, Debug)]
 pub struct ArgMatch {
-    values: VecDeque<Value>,
+    values: VecDeque<SpannedValue>,
     occurs: usize,
 }
 
 impl ArgMatch {
-    pub fn iter(&self) -> impl Iterator<Item = &Value> {
+    pub fn iter(&self) -> impl Iterator<Item = &SpannedValue> {
         self.values.iter()
     }
 }
@@ -733,7 +736,7 @@ impl Matches {
     }
 
     pub fn get_str(&self, key: &str) -> Option<&str> {
-        match self.value(key)? {
+        match &self.value(key)?.value {
             Value::String(s) => Some(s),
             _ => None,
         }
@@ -743,7 +746,7 @@ impl Matches {
         self.get(key).is_some()
     }
 
-    pub fn value(&self, key: &str) -> Option<&Value> {
+    pub fn value(&self, key: &str) -> Option<&SpannedValue> {
         self.args.get(key).map(|a| &a.values[0])
     }
 
@@ -751,14 +754,14 @@ impl Matches {
         self.args.get(key).map(|a| a.occurs).unwrap_or_default()
     }
 
-    pub fn take_value(&mut self, key: &str) -> Option<Value> {
+    pub fn take_value(&mut self, key: &str) -> Option<SpannedValue> {
         match self.args.get_mut(key) {
             Some(arg) => arg.values.pop_front(),
             None => None,
         }
     }
 
-    pub fn take_values(&mut self, key: &str) -> Option<VecDeque<Value>> {
+    pub fn take_values(&mut self, key: &str) -> Option<VecDeque<SpannedValue>> {
         match self.args.get_mut(key) {
             Some(arg) => {
                 let mut empty = VecDeque::new();

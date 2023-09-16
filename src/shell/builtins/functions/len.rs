@@ -20,7 +20,7 @@ pub fn len(
     input: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    let _ = match APP.parse(args.into_iter().map(|v| v.into())) {
+    let _ = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
             output.push(info);
@@ -37,7 +37,6 @@ pub fn len(
         Value::Table(table) => table.len() as i64,
         Value::Range(range) => (range.end - range.start).max(0),
         _ => {
-            // TODO fix type error quoting
             return Err(ShellErrorKind::Basic(
                 "TypeError",
                 format!("Cannot get length of {}", input.to_type()),

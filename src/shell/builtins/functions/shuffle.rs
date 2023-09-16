@@ -23,7 +23,7 @@ pub fn shuffle(
     input: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    let _ = match APP.parse(args.into_iter().map(|v| v.into())) {
+    let _ = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
             output.push(info);

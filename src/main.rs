@@ -13,7 +13,12 @@ use argparse::{App, Arg, Opt, ParseResult};
 use crate::shell::value::Value;
 mod shell;
 pub use shell::parser;
-use shell::{parser::shell_error::ShellErrorKind, stream::OutputStream, value::Type, Shell};
+use shell::{
+    parser::{lexer::token::span::Span, shell_error::ShellErrorKind},
+    stream::OutputStream,
+    value::Type,
+    Shell,
+};
 mod argparse;
 
 pub type P<T> = Box<T>;
@@ -66,7 +71,7 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
                 .long("path")
                 .help("The working directory the shell will run in"),
         )
-        .parse(args_iter.map(|s| Value::String(Rc::new(s))));
+        .parse(args_iter.map(|s| Value::String(Rc::new(s)).spanned(Span::new(0, 0))));
 
     let matches = match matches {
         Ok(ParseResult::Matches(m)) => m,
@@ -85,7 +90,7 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
     let mut args = Vec::new();
     args.push(env::args().next().unwrap());
     if let Some(a) = matches.get("ARGS") {
-        args.extend(a.iter().map(|s| s.unwrap_as_str().to_string()));
+        args.extend(a.iter().map(|s| s.value.unwrap_as_str().to_string()));
     }
 
     let mut shell = Shell::new(args);
