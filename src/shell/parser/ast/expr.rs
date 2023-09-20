@@ -409,24 +409,27 @@ impl Expr {
                             };
 
                             let Function {
-                                parameters, block, ..
+                                parameters,
+                                block,
+                                name,
+                                src,
+                                arg_span,
+                                ..
                             } = &*func;
+
+                            if parameters.len() != args.len() {
+                                return Err(ShellErrorKind::IncorrectArgumentCount {
+                                    name: name.clone(),
+                                    expected: parameters.len(),
+                                    recived: args.len(),
+                                    arg_span: *arg_span,
+                                    src: src.clone(),
+                                });
+                            }
+
                             let mut input_vars = HashMap::new();
-                            for (i, var) in parameters.iter().enumerate() {
-                                match args.get(i) {
-                                    Some(arg) => {
-                                        input_vars
-                                            .insert(var.name.clone(), (false, arg.clone().value));
-                                    }
-                                    None => {
-                                        return Err(ShellErrorKind::ToFewArguments {
-                                            // TODO this should be function name
-                                            name: String::from("function"),
-                                            expected: parameters.len(),
-                                            recived: args.len(),
-                                        });
-                                    }
-                                }
+                            for (var, arg) in parameters.iter().zip(args.iter()) {
+                                input_vars.insert(var.name.clone(), (false, arg.clone().value));
                             }
 
                             let temp_output_cap = if expanded_calls.is_empty() {

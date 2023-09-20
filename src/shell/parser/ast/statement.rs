@@ -28,7 +28,7 @@ pub enum StatementKind {
     Assign(Variable, Expr),
     AssignOp(Variable, AssignOp, Expr),
     If(Expr, Block, Option<P<Statement>>),
-    Fn(String, Rc<Function>),
+    Fn(Rc<str>, Rc<Function>),
     Return(Option<Expr>),
     For(Variable, Expr, Block),
     While(Expr, Block),

@@ -2,6 +2,7 @@ use std::{
     fmt, io,
     num::{ParseFloatError, ParseIntError},
     path::PathBuf,
+    rc::Rc,
     sync::Arc,
 };
 
@@ -98,10 +99,12 @@ pub enum ShellErrorKind {
     CommandPermissionDenied(String),
     FileNotFound(String),
     FilePermissionDenied(String),
-    ToFewArguments {
-        name: String,
+    IncorrectArgumentCount {
+        name: Rc<str>,
+        arg_span: Span,
         expected: usize,
         recived: usize,
+        src: Arc<Source>,
     },
     IntegerOverFlow,
     InvalidPipelineInput {
@@ -171,10 +174,11 @@ impl fmt::Display for ShellErrorKind {
             AssertionFailed(..) => write!(f, "Assertion failed"),
             InvalidEnvVar(t) => write!(f, "Cannot assign type {t} to an environment variable"),
             ReadOnlyVar(name, ..) => write!(f, "Cannot write to read-only variable `{name}`"),
-            ToFewArguments {
+            IncorrectArgumentCount {
                 name,
                 expected,
                 recived,
+                ..
             } => {
                 write!(f, "{name} expected {expected} arguments, recived {recived}")
             }
@@ -269,6 +273,24 @@ impl Diagnostic for ShellError {
                 )]
                 .into_iter(),
             )),
+            ShellErrorKind::IncorrectArgumentCount {
+                arg_span: args_span,
+                expected,
+                ..
+            } => {
+                let argument = if expected == 1 {
+                    "argument"
+                } else {
+                    "arguments"
+                };
+                Some(P::new(
+                    [LabeledSpan::new_with_span(
+                        Some(format!("This function expects {expected} {argument}")),
+                        args_span,
+                    )]
+                    .into_iter(),
+                ))
+            }
             ShellErrorKind::InvalidBinaryOperand(binop, lhs, rhs, lhs_span, rhs_span) => {
                 let lhs = LabeledSpan::new_with_span(Some(lhs.to_string()), lhs_span);
                 let binop = LabeledSpan::new_with_span(
@@ -301,6 +323,7 @@ impl Diagnostic for ShellError {
             Glob(..) | Pattern(..) | NoMatch(..) => P::new("Glob Error"),
             InvalidConversion { .. } => P::new("Coercion Error"),
             InvalidConversionContains { .. } => P::new("Coercion Error"),
+            IncorrectArgumentCount { .. } => P::new("Argument Error"),
             Ureq(..) => P::new("Http Error"),
             Interrupt => P::new("Interrupt"),
             MaxRecursion(..) => P::new("Recursion Error"),
@@ -317,7 +340,10 @@ impl Diagnostic for ShellError {
     }
 
     fn source_code(&self) -> Option<&dyn miette::SourceCode> {
-        Some(&self.src as &dyn SourceCode)
+        match &self.error {
+            ShellErrorKind::IncorrectArgumentCount { src, .. } => Some(src as &dyn SourceCode),
+            _ => Some(&self.src as &dyn SourceCode),
+        }
     }
 
     fn help<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {

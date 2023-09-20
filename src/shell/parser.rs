@@ -331,31 +331,37 @@ impl Parser {
                 self.skip_whitespace();
 
                 let token = self.eat()?;
-                let name = match token.token_type {
+                let name: Rc<str> = match token.token_type {
                     TokenType::Symbol(name) => {
                         if !is_valid_identifier(&name) {
                             return Err(SyntaxErrorKind::InvalidIdentifier(token.span));
                         } else {
-                            name
+                            name.into()
                         }
                     }
                     _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
                 };
 
                 self.skip_whitespace();
-                self.eat()?.expect(TokenType::LeftParen)?;
+                let mut arg_span = self.eat()?.expect(TokenType::LeftParen)?.span;
                 let mut vars: Vec<Variable> = Vec::new();
                 loop {
                     self.skip_whitespace();
-                    let token = self.eat()?;
+                    let token = self.peek()?;
                     match token.token_type {
-                        TokenType::RightParen => break,
-                        TokenType::Dollar => vars.push(self.parse_variable(false)?),
-                        _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
+                        TokenType::RightParen => {
+                            self.eat()?;
+                            break;
+                        }
+                        TokenType::Dollar | TokenType::Symbol(..) => {
+                            vars.push(self.parse_variable(false)?);
+                        }
+                        _ => return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
                     }
 
                     self.skip_whitespace();
                     let token = self.eat()?;
+                    arg_span += token.span;
                     match token.token_type {
                         TokenType::RightParen => break,
                         TokenType::Comma => (),
@@ -367,8 +373,10 @@ impl Parser {
                 let end = block.span;
 
                 let func = Function {
+                    name: name.clone(),
                     parameters: vars,
                     block,
+                    arg_span,
                     src: self.named_source(),
                 };
 
@@ -471,11 +479,7 @@ impl Parser {
     }
 
     fn parse_variable(&mut self, require_prefix: bool) -> Result<Variable> {
-        if require_prefix {
-            self.eat()?.expect(TokenType::Dollar)?;
-        }
-
-        if self.peek()?.token_type == TokenType::Dollar {
+        if require_prefix || self.peek()?.token_type == TokenType::Dollar {
             self.eat()?.expect(TokenType::Dollar)?;
         }
 

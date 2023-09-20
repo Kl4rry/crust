@@ -1,7 +1,7 @@
 let failed = 0
 
 for test in (echo tests/*.crust) {
-    if !?(import $test) {
+    if !?(crust $test) {
         print "$test Failed"
         $failed += 1 
     }

@@ -1,0 +1,25 @@
+
+{
+    fn fn1(abc) {
+
+    }
+    
+    fn fn2($abc) {
+
+    }
+
+    fn fn1(abc, def) {
+
+    }
+    
+    fn fn2($abc, $def) {
+
+    }
+}
+
+{
+    fn fn1(abc) {}
+    fn fn2($abc) {}
+    fn fn1(abc, def) {}
+    fn fn2($abc, $def) {}
+}

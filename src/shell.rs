@@ -165,7 +165,10 @@ impl Shell {
                     }
                 }
             }
-            Err(error) => report_error(*error),
+            Err(error) => {
+                self.set_status(ExitStatus::Exited(1));
+                report_error(*error)
+            }
         };
     }
 
