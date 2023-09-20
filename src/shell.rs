@@ -112,7 +112,7 @@ impl Shell {
 
     fn load_env(&mut self) {
         for (key, value) in std::env::vars() {
-            self.stack.add_env_var(key, Value::from(value));
+            self.stack.add_env_var(key.into(), Value::from(value));
         }
     }
 

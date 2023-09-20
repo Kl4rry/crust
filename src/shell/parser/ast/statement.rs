@@ -164,8 +164,8 @@ impl Statement {
                             return Err(ShellErrorKind::Interrupt);
                         }
 
-                        let mut variables: HashMap<String, (bool, Value)> = HashMap::new();
-                        variables.insert(name.to_string(), (false, item.to_owned()));
+                        let mut variables: HashMap<Rc<str>, (bool, Value)> = HashMap::new();
+                        variables.insert(name.into(), (false, item.to_owned()));
                         match block.eval(ctx, Some(variables), None) {
                             Ok(()) => (),
                             Err(ShellErrorKind::Break) => break,

@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::{convert::TryFrom, rc::Rc};
 
 use super::context::Context;
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct Variable {
-    pub name: String,
+    pub name: Rc<str>,
     pub span: Span,
 }
 
@@ -41,7 +41,7 @@ impl TryFrom<Token> for Variable {
                     Err(SyntaxErrorKind::InvalidIdentifier(token.span))
                 } else {
                     Ok(Self {
-                        name,
+                        name: name.into(),
                         span: token.span,
                     })
                 }

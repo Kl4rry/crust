@@ -8,7 +8,7 @@ use crate::{
 
 #[derive(Default)]
 struct Inner {
-    variables: HashMap<String, (bool, Value)>,
+    variables: HashMap<Rc<str>, (bool, Value)>,
     functions: HashMap<Rc<str>, Rc<Function>>,
     #[allow(unused)]
     input: ValueStream,
@@ -21,7 +21,7 @@ pub struct Frame(Rc<Inner>);
 
 impl Frame {
     pub fn new(
-        variables: HashMap<String, (bool, Value)>,
+        variables: HashMap<Rc<str>, (bool, Value)>,
         functions: HashMap<Rc<str>, Rc<Function>>,
         input: ValueStream,
     ) -> Self {
@@ -36,7 +36,7 @@ impl Frame {
 
     pub fn push(
         self,
-        variables: HashMap<String, (bool, Value)>,
+        variables: HashMap<Rc<str>, (bool, Value)>,
         functions: HashMap<Rc<str>, Rc<Function>>,
         input: ValueStream,
     ) -> Frame {
@@ -87,12 +87,12 @@ impl Frame {
     }
 
     /// Add new var in this scope
-    pub fn add_var(&mut self, name: String, value: Value) {
+    pub fn add_var(&mut self, name: Rc<str>, value: Value) {
         self.add_var_raw(name, value, false);
     }
 
     /// Add new env var in this scope
-    pub fn add_env_var(&mut self, name: String, value: Value) {
+    pub fn add_env_var(&mut self, name: Rc<str>, value: Value) {
         debug_assert!(matches!(
             &value,
             Value::Bool(_) | Value::Int(_) | Value::Float(_) | Value::String(_)
@@ -101,7 +101,7 @@ impl Frame {
     }
 
     #[inline(always)]
-    fn add_var_raw(&mut self, name: String, value: Value, export: bool) {
+    fn add_var_raw(&mut self, name: Rc<str>, value: Value, export: bool) {
         // safe because we never give out references to variable values
         unsafe {
             let inner = Rc::get_mut_unchecked(&mut self.0);
@@ -124,7 +124,7 @@ impl Frame {
         let mut vars = HashMap::new();
         for frame in self.clone() {
             for (name, (export, var)) in &frame.0.variables {
-                if *export && !vars.contains_key(name) {
+                if *export && !vars.contains_key(&**name) {
                     vars.insert(name.to_string(), var.to_string());
                 }
             }

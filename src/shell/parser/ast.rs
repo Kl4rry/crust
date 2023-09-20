@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    rc::Rc,
     sync::{atomic::Ordering, Arc},
 };
 
@@ -110,7 +111,7 @@ impl Block {
     pub fn eval(
         &self,
         ctx: &mut Context,
-        variables: Option<HashMap<String, (bool, Value)>>,
+        variables: Option<HashMap<Rc<str>, (bool, Value)>>,
         input: Option<ValueStream>,
     ) -> Result<(), ShellErrorKind> {
         if ctx.frame.index() == ctx.shell.recursion_limit {

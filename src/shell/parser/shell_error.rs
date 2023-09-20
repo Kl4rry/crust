@@ -89,7 +89,7 @@ pub enum ShellErrorKind {
     },
     NoColumns(Type),
     NotIndexable(Type, Span),
-    VariableNotFound(String),
+    VariableNotFound(Rc<str>),
     InvalidBinaryOperand(BinOp, Type, Type, Span, Span),
     InvalidUnaryOperand(UnOp, Type, Span),
     InvalidIterator(Type),
