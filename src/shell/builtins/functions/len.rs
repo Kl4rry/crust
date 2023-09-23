@@ -36,6 +36,7 @@ pub fn len(
         Value::Map(map) => map.len() as i64,
         Value::Table(table) => table.len() as i64,
         Value::Range(range) => (range.end - range.start).max(0),
+        Value::Binary(data) => data.len() as i64,
         _ => {
             return Err(ShellErrorKind::Basic(
                 "TypeError",

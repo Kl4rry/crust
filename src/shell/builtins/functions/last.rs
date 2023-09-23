@@ -59,6 +59,11 @@ pub fn last(
             .take(count)
             .map(Value::from)
             .collect(),
+        Value::Binary(ref data) => {
+            vec![Value::from(
+                data.iter().rev().take(count).copied().collect::<Vec<u8>>(),
+            )]
+        }
         _ => {
             return Err(ShellErrorKind::Basic(
                 "TypeError",

@@ -1,5 +1,10 @@
-use std::{fmt, ops::Range, rc::Rc};
+use std::{
+    fmt::{self, Write},
+    ops::Range,
+    rc::Rc,
+};
 
+use crossterm::style::Stylize;
 use indexmap::IndexMap;
 use regex::Regex;
 use yansi::Paint;
@@ -625,12 +630,64 @@ impl fmt::Display for Value {
             Self::Bool(boolean) => boolean.fmt(f),
             Self::Regex(regex) => Paint::blue(format!("/{}/", &regex.1)).fmt(f),
             Self::Binary(bytes) => {
-                // TODO make this formatting nicer
-                f.write_str("[")?;
-                for byte in bytes.iter().copied() {
-                    write!(f, "{byte:02x} ")?;
+                let bytes = bytes.as_slice();
+
+                for line in 0..(bytes.len() / 16 + 1) {
+                    if bytes.len() > 0xFFFF_FFFF {
+                        write!(f, "{}", format!("{:012x}:   ", line * 16).grey())?;
+                    } else if bytes.len() > 0xFFFF {
+                        write!(f, "{}", format!("{:08x}:   ", line * 16).grey())?;
+                    } else {
+                        write!(f, "{}", format!("{:04x}:   ", line * 16).grey())?;
+                    }
+
+                    let slice = &bytes[line * 16..(line * 16 + 16).min(bytes.len())];
+                    for (i, byte) in slice.iter().copied().enumerate() {
+                        let s = format!("{byte:02x}");
+                        if byte == 0 {
+                            write!(f, "{} ", s.dark_grey())?;
+                        } else if byte.is_ascii_graphic() {
+                            write!(f, "{} ", s.cyan())?;
+                        } else if byte.is_ascii_whitespace() {
+                            write!(f, "{} ", s.green())?;
+                        } else if byte.is_ascii() {
+                            write!(f, "{} ", s.red())?;
+                        } else {
+                            write!(f, "{} ", s.yellow())?;
+                        }
+
+                        if (i + 1) % 4 == 0 {
+                            f.write_char(' ')?;
+                        }
+                    }
+
+                    for _ in 0..16 - slice.len() {
+                        f.write_str("   ")?;
+                    }
+
+                    for _ in 0..(16 - slice.len() / 4 + 1) {
+                        f.write_char(' ')?;
+                    }
+
+                    f.write_str("  ")?;
+                    for byte in slice.iter().copied() {
+                        if byte == 0 {
+                            write!(f, "{}", "0".dark_grey())?;
+                        } else if byte.is_ascii_graphic() {
+                            write!(f, "{}", &format!("{}", byte as char).cyan())?;
+                        } else if byte.is_ascii_whitespace() {
+                            write!(f, "{}", " ".green())?;
+                        } else if byte.is_ascii() {
+                            write!(f, "{}", "•".red())?;
+                        } else {
+                            write!(f, "{}", "x".yellow())?;
+                        }
+                    }
+
+                    f.write_char('\n')?;
                 }
-                f.write_str("]")
+
+                Ok(())
             }
             _ => Ok(()),
         }

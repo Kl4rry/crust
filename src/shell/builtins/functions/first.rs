@@ -54,6 +54,9 @@ pub fn first(
                 .map(|v| Value::from(v.to_vec())),
         ),
         Value::Range(ref range) => output.extend((**range).clone().take(count).map(Value::from)),
+        Value::Binary(ref data) => output.push(Value::from(
+            data.iter().copied().take(count).collect::<Vec<u8>>(),
+        )),
         _ => {
             return Err(ShellErrorKind::Basic(
                 "TypeError",
