@@ -191,6 +191,8 @@ impl TokenType {
                 | Le
                 | Ne
                 | Ge
+                | Gt
+                | Lt
                 | Not
                 | Match
                 | NotMatch
@@ -279,6 +281,8 @@ impl Token {
             Expo => Ok("**"),
             Mod => Ok("%"),
             Eq => Ok("=="),
+            Gt => Ok(">"),
+            Lt => Ok("<"),
             Le => Ok("<="),
             Ne => Ok("-"),
             Ge => Ok(">="),

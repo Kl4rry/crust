@@ -114,7 +114,7 @@ impl OutputStream {
                 InnerStream::Capture(values) => values.push(value),
                 InnerStream::Output(outputs) => {
                     *outputs = true;
-                    print!("{}", value);
+                    println!("{}", value);
                     let _ = stdout().flush();
                 }
             },
@@ -126,7 +126,7 @@ impl OutputStream {
             InnerStream::Capture(values) => values.extend(stream),
             InnerStream::Output(outputs) => {
                 *outputs = true;
-                print!("{}", stream);
+                println!("{}", stream);
                 stdout().flush().unwrap();
             }
         }
@@ -138,7 +138,7 @@ impl OutputStream {
             InnerStream::Output(outputs) => {
                 *outputs = true;
                 for value in iter {
-                    print!("{}", value);
+                    println!("{}", value);
                 }
                 stdout().flush().unwrap();
             }

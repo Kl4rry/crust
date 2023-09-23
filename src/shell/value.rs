@@ -4,7 +4,6 @@ use std::{
     rc::Rc,
 };
 
-use crossterm::style::Stylize;
 use indexmap::IndexMap;
 use regex::Regex;
 use yansi::Paint;
@@ -630,30 +629,58 @@ impl fmt::Display for Value {
             Self::Bool(boolean) => boolean.fmt(f),
             Self::Regex(regex) => Paint::blue(format!("/{}/", &regex.1)).fmt(f),
             Self::Binary(bytes) => {
+                struct Hex<T>(T);
+                impl fmt::Display for Hex<u8> {
+                    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                        write!(f, "{:02x}", self.0)
+                    }
+                }
+                impl fmt::Display for Hex<u16> {
+                    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                        write!(f, "{:04x}", self.0)
+                    }
+                }
+                impl fmt::Display for Hex<u32> {
+                    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                        write!(f, "{:08x}", self.0)
+                    }
+                }
+                impl fmt::Display for Hex<usize> {
+                    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                        write!(f, "{:012x}", self.0)
+                    }
+                }
+
                 let bytes = bytes.as_slice();
 
                 for line in 0..(bytes.len() / 16 + 1) {
-                    if bytes.len() > 0xFFFF_FFFF {
-                        write!(f, "{}", format!("{:012x}:   ", line * 16).grey())?;
-                    } else if bytes.len() > 0xFFFF {
-                        write!(f, "{}", format!("{:08x}:   ", line * 16).grey())?;
-                    } else {
-                        write!(f, "{}", format!("{:04x}:   ", line * 16).grey())?;
+                    let slice = &bytes[line * 16..(line * 16 + 16).min(bytes.len())];
+                    if slice.is_empty() {
+                        break;
                     }
 
-                    let slice = &bytes[line * 16..(line * 16 + 16).min(bytes.len())];
+                    if bytes.len() > 0xFFFF_FFFF {
+                        write!(f, "{}:   ", Hex(line * 16))?;
+                    } else if bytes.len() > 0xFFFF {
+                        write!(f, "{}:   ", Hex((line * 16) as u32))?;
+                    } else {
+                        write!(f, "{}:   ", Hex((line * 16) as u16))?;
+                    }
+
+                    const DARK_GREY: u8 = 8;
+                    const CYAN: u8 = 6;
+
                     for (i, byte) in slice.iter().copied().enumerate() {
-                        let s = format!("{byte:02x}");
                         if byte == 0 {
-                            write!(f, "{} ", s.dark_grey())?;
+                            write!(f, "{} ", Paint::fixed(DARK_GREY, Hex(byte)))?;
                         } else if byte.is_ascii_graphic() {
-                            write!(f, "{} ", s.cyan())?;
+                            write!(f, "{} ", Paint::fixed(CYAN, Hex(byte)))?;
                         } else if byte.is_ascii_whitespace() {
-                            write!(f, "{} ", s.green())?;
+                            write!(f, "{} ", Paint::green(Hex(byte)))?;
                         } else if byte.is_ascii() {
-                            write!(f, "{} ", s.red())?;
+                            write!(f, "{} ", Paint::red(Hex(byte)))?;
                         } else {
-                            write!(f, "{} ", s.yellow())?;
+                            write!(f, "{} ", Paint::yellow(Hex(byte)))?;
                         }
 
                         if (i + 1) % 4 == 0 {
@@ -672,15 +699,15 @@ impl fmt::Display for Value {
                     f.write_str("  ")?;
                     for byte in slice.iter().copied() {
                         if byte == 0 {
-                            write!(f, "{}", "0".dark_grey())?;
+                            write!(f, "{}", Paint::fixed(DARK_GREY, '0'))?;
                         } else if byte.is_ascii_graphic() {
-                            write!(f, "{}", &format!("{}", byte as char).cyan())?;
+                            write!(f, "{}", Paint::fixed(CYAN, byte as char))?;
                         } else if byte.is_ascii_whitespace() {
-                            write!(f, "{}", " ".green())?;
+                            write!(f, "{}", Paint::green(" "))?;
                         } else if byte.is_ascii() {
-                            write!(f, "{}", "•".red())?;
+                            write!(f, "{}", Paint::red("•"))?;
                         } else {
-                            write!(f, "{}", "x".yellow())?;
+                            write!(f, "{}", Paint::yellow("x"))?;
                         }
                     }
 

@@ -363,16 +363,13 @@ impl Expr {
                                 mem::swap(&mut capture_output, &mut stream);
                                 stream.into_value_stream()
                             } else {
-                                let value = Value::from(
-                                    run_pipeline(
-                                        ctx,
-                                        execs,
-                                        true,
-                                        capture_output.into_value_stream(),
-                                    )?
-                                    .unwrap()
-                                    .to_string(),
-                                );
+                                let value = run_pipeline(
+                                    ctx,
+                                    execs,
+                                    true,
+                                    capture_output.into_value_stream(),
+                                )?
+                                .unwrap();
                                 capture_output = OutputStream::new_capture();
                                 execs = Vec::new();
                                 ValueStream::from_value(value)
@@ -393,16 +390,13 @@ impl Expr {
                                 mem::swap(&mut capture_output, &mut stream);
                                 stream.into_value_stream()
                             } else {
-                                let value = Value::from(
-                                    run_pipeline(
-                                        ctx,
-                                        execs,
-                                        true,
-                                        capture_output.into_value_stream(),
-                                    )?
-                                    .unwrap()
-                                    .to_string(),
-                                );
+                                let value = run_pipeline(
+                                    ctx,
+                                    execs,
+                                    true,
+                                    capture_output.into_value_stream(),
+                                )?
+                                .unwrap();
                                 capture_output = OutputStream::new_capture();
                                 execs = Vec::new();
                                 ValueStream::from_value(value)

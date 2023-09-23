@@ -1,3 +1,5 @@
+use std::{collections::VecDeque, rc::Rc};
+
 use once_cell::sync::Lazy;
 
 use crate::{
@@ -43,26 +45,46 @@ pub fn last(
     let count = count as usize;
 
     let input = input.unpack();
-    let last: Vec<_> = match input {
-        Value::List(ref list) => list.iter().rev().take(count).cloned().collect(),
-        Value::String(ref string) => string.chars().rev().take(count).map(Value::from).collect(),
-        Value::Table(ref table) => table
-            .rows()
-            .iter()
-            .rev()
-            .take(count)
-            .map(|v| Value::from(v.to_vec()))
-            .collect(),
-        Value::Range(ref range) => (**range)
-            .clone()
-            .rev()
-            .take(count)
-            .map(Value::from)
-            .collect(),
-        Value::Binary(ref data) => {
-            vec![Value::from(
-                data.iter().rev().take(count).copied().collect::<Vec<u8>>(),
-            )]
+    match input {
+        Value::List(mut list) => {
+            {
+                let list = Rc::make_mut(&mut list);
+                let removed = list.len().saturating_sub(count);
+                list.drain(..removed);
+            }
+            output.push(Value::List(list));
+        }
+        Value::String(ref string) => {
+            let mut buffer = VecDeque::new();
+            for ch in string.chars() {
+                buffer.push_back(ch);
+                if buffer.len() > count {
+                    buffer.pop_front();
+                }
+            }
+            output.push(Value::from(buffer.into_iter().collect::<String>()));
+        }
+        Value::Table(mut table) => {
+            Rc::make_mut(&mut table).last(count);
+            output.push(Value::Table(table));
+        }
+        Value::Range(ref range) => {
+            let mut buffer = VecDeque::new();
+            for i in (**range).clone() {
+                buffer.push_back(Value::from(i));
+                if buffer.len() > count {
+                    buffer.pop_front();
+                }
+            }
+            output.push(Value::from(Vec::from(buffer)));
+        }
+        Value::Binary(mut data) => {
+            {
+                let data = Rc::make_mut(&mut data);
+                let removed = data.len().saturating_sub(count);
+                data.drain(..removed);
+            }
+            output.push(Value::Binary(data));
         }
         _ => {
             return Err(ShellErrorKind::Basic(
@@ -70,8 +92,7 @@ pub fn last(
                 format!("Cannot get last of {}", input.to_type()),
             ))
         }
-    };
+    }
 
-    output.extend(last.into_iter().rev());
     Ok(())
 }

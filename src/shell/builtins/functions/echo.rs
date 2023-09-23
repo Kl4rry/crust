@@ -3,7 +3,7 @@ use crate::{
     shell::{
         frame::Frame,
         stream::{OutputStream, ValueStream},
-        value::SpannedValue,
+        value::{SpannedValue, Value},
         Shell,
     },
 };
@@ -15,8 +15,14 @@ pub fn echo(
     _: ValueStream,
     output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
-    for arg in args {
-        output.push(arg.into());
+    if args.len() == 1 {
+        for arg in args {
+            output.push(arg.into());
+        }
+    } else {
+        output.push(Value::from(
+            args.into_iter().map(|v| v.value).collect::<Vec<_>>(),
+        ))
     }
     Ok(())
 }

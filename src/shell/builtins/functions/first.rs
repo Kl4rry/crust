@@ -45,7 +45,9 @@ pub fn first(
     let input = input.unpack();
     match input {
         Value::List(ref list) => output.extend(list.iter().take(count).cloned()),
-        Value::String(ref string) => output.extend(string.chars().take(count).map(Value::from)),
+        Value::String(ref string) => {
+            output.push(string.chars().take(count).collect::<String>().into())
+        }
         Value::Table(ref table) => output.extend(
             table
                 .rows()

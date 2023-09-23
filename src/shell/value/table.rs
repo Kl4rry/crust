@@ -113,6 +113,15 @@ impl Table {
         })
     }
 
+    pub fn first(&mut self, count: usize) {
+        self.rows.shrink_to(count);
+    }
+
+    pub fn last(&mut self, count: usize) {
+        let removed = self.rows.len().saturating_sub(count);
+        self.rows.drain(..removed);
+    }
+
     pub fn rows_mut(&mut self) -> &mut [ConstVec<Value>] {
         unsafe { mem::transmute::<_, &mut [ConstVec<Value>]>(&mut *self.rows) }
     }
