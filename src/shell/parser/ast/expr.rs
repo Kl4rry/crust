@@ -452,10 +452,9 @@ impl Expr {
 
                 if !execs.is_empty() {
                     if ctx.output.is_capture() {
-                        let value = Value::String(Rc::new(
+                        let value =
                             run_pipeline(ctx, execs, true, capture_output.into_value_stream())?
-                                .unwrap(),
-                        ));
+                                .unwrap();
                         ctx.output.push(value);
                     } else {
                         run_pipeline(ctx, execs, false, capture_output.into_value_stream())?;
@@ -484,12 +483,18 @@ impl Expr {
     }
 }
 
+pub fn try_bytes_to_value(bytes: Vec<u8>) -> Value {
+    String::from_utf8(bytes)
+        .map(Value::from)
+        .unwrap_or_else(|e| Value::from(e.into_bytes()))
+}
+
 fn run_pipeline(
     ctx: &mut Context,
     mut execs: Vec<(Exec, String)>,
     capture_output: bool,
     input: ValueStream,
-) -> Result<Option<String>, ShellErrorKind> {
+) -> Result<Option<Value>, ShellErrorKind> {
     let mut input_string = String::new();
     for value in input {
         match value {
@@ -531,13 +536,13 @@ fn run_pipeline(
         ctx.shell.set_child(child.pid());
         let res = if capture_output {
             let mut com = child.communicate_start(input_data);
-            let t = thread::spawn::<_, Result<Option<String>, CommunicateError>>(move || {
-                let (out, _) = com.read_string()?;
+            let t = thread::spawn::<_, Result<Option<Vec<u8>>, CommunicateError>>(move || {
+                let (out, _) = com.read()?;
                 Ok(out)
             });
 
             let status = child.wait()?;
-            let output = t.join().unwrap()?;
+            let output = t.join().unwrap()?.map(try_bytes_to_value);
             if !status.success() {
                 return Err(ShellErrorKind::ExternalExitCode(status));
             }
@@ -576,8 +581,8 @@ fn run_pipeline(
 
         if capture_output {
             let mut com = children.last_mut().unwrap().communicate_start(None);
-            let t = thread::spawn::<_, Result<Option<String>, CommunicateError>>(move || {
-                let (out, _) = com.read_string()?;
+            let t = thread::spawn::<_, Result<Option<Vec<u8>>, CommunicateError>>(move || {
+                let (out, _) = com.read()?;
                 Ok(out)
             });
             let status = children.last_mut().unwrap().wait()?;
@@ -586,7 +591,7 @@ fn run_pipeline(
                 return Err(ShellErrorKind::ExternalExitCode(status));
             }
             ctx.shell.set_status(status);
-            Ok(t.join().unwrap()?)
+            Ok(t.join().unwrap()?.map(try_bytes_to_value))
         } else {
             let status = children.last_mut().unwrap().wait()?;
             ctx.shell.set_child(None);

@@ -1,4 +1,5 @@
 use bigdecimal::{num_bigint::BigInt, BigDecimal, ToPrimitive};
+use memchr::memchr2;
 
 use crate::{
     parser::{
@@ -94,7 +95,7 @@ impl Argument {
             let (value, escape) = match kind {
                 ArgumentPartKind::Bare(value) => {
                     let mut string = value.to_string();
-                    if string.contains('*') {
+                    if memchr2(b'*', b'?', string.as_bytes()).is_some() {
                         glob = true;
                     }
                     if string.starts_with('~') {

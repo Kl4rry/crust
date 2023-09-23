@@ -43,6 +43,7 @@ impl Serialize for Value {
                 seq.end()
             }
             Value::Regex(regex) => regex.1.serialize(serializer),
+            Value::Binary(binary) => binary.serialize(serializer),
         }
     }
 }

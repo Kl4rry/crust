@@ -344,7 +344,7 @@ impl SpannedValue {
                 };
 
                 if list.is_empty() {
-                    return Ok(Value::from(Vec::new()).spanned(span));
+                    return Ok(Value::from(Vec::<Value>::new()).spanned(span));
                 }
 
                 let mut new = Vec::new();
@@ -595,6 +595,7 @@ pub enum Value {
     Table(Rc<Table>),
     Range(Rc<Range<i64>>),
     Regex(Rc<(Regex, String)>),
+    Binary(Rc<Vec<u8>>),
 }
 
 impl fmt::Display for Value {
@@ -623,6 +624,14 @@ impl fmt::Display for Value {
             }
             Self::Bool(boolean) => boolean.fmt(f),
             Self::Regex(regex) => Paint::blue(format!("/{}/", &regex.1)).fmt(f),
+            Self::Binary(bytes) => {
+                // TODO make this formatting nicer
+                f.write_str("[")?;
+                for byte in bytes.iter().copied() {
+                    write!(f, "{byte:02x} ")?;
+                }
+                f.write_str("]")
+            }
             _ => Ok(()),
         }
     }
@@ -658,6 +667,7 @@ impl PartialEq for Value {
                 Value::Map(map) => map.is_empty() != *boolean,
                 Value::Table(table) => table.is_empty() != *boolean,
                 Value::Range(range) => (range.start == 0 && range.end == 0) != *boolean,
+                Value::Binary(_) => false,
                 Value::Null => false,
                 Value::Regex(_) => false,
             },
@@ -686,6 +696,10 @@ impl PartialEq for Value {
                 Value::Bool(rhs) => (range.start == 0 && range.end == 0) != *rhs,
                 _ => false,
             },
+            Value::Binary(data) => match other {
+                Value::Binary(rhs) => data == rhs,
+                _ => false,
+            },
             Value::Null => matches!(other, Value::Null),
             Value::Regex(regex) => match other {
                 Value::Regex(other) => *regex.1 == *other.1,
@@ -711,6 +725,10 @@ impl Value {
             Self::Range(range) => format!("[range from {} to {}]", range.start, range.end),
             Self::Bool(boolean) => boolean.to_string(),
             Self::Regex(regex) => format!("/{}/", regex.1),
+            Self::Binary(data) => format!(
+                "[{} of binary data]",
+                humansize::format_size(data.len(), humansize::BINARY.space_after_value(false))
+            ),
         }
     }
 
@@ -735,6 +753,7 @@ impl Value {
             Self::Range(_) => Type::RANGE,
             Self::Null => Type::NULL,
             Self::Regex(..) => Type::REGEX,
+            Self::Binary(..) => Type::BINARY,
         }
     }
 
@@ -767,6 +786,7 @@ impl Value {
             Self::Map(map) => !map.is_empty(),
             Self::Table(table) => !table.is_empty(),
             Self::Range(range) => range.start != 0 && range.end != 0,
+            Self::Binary(data) => !data.is_empty(),
             Self::Null => false,
             Self::Regex(..) => false,
         }
@@ -898,5 +918,11 @@ impl From<bool> for Value {
 impl From<char> for Value {
     fn from(value: char) -> Self {
         Value::String(Rc::new(String::from(value)))
+    }
+}
+
+impl From<Vec<u8>> for Value {
+    fn from(value: Vec<u8>) -> Self {
+        Value::Binary(Rc::new(value))
     }
 }

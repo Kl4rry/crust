@@ -828,6 +828,7 @@ impl Parser {
             TokenType::LeftBracket => self.parse_list()?,
             TokenType::At => self.parse_regex_or_map()?,
             TokenType::QuestionMark => self.parse_error_check()?,
+            TokenType::LeftBrace => self.parse_map()?,
             _ => return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         };
 
@@ -1069,11 +1070,6 @@ impl Parser {
             }
             TokenType::LeftParen => {
                 let expr = self.parse_sub_expr()?;
-                let span = expr.span;
-                (ArgumentPartKind::Expr(expr).spanned(span), true)
-            }
-            TokenType::QuestionMark => {
-                let expr = self.parse_error_check()?;
                 let span = expr.span;
                 (ArgumentPartKind::Expr(expr).spanned(span), true)
             }

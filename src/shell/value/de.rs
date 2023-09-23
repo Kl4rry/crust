@@ -144,12 +144,19 @@ impl<'de> Deserialize<'de> for Value {
             where
                 V: SeqAccess<'de>,
             {
-                let mut vec = Vec::new();
+                let mut vec: Vec<Value> = Vec::new();
                 while let Some(elem) = visitor.next_element()? {
                     vec.push(elem);
                 }
 
                 Ok(Value::from(vec))
+            }
+
+            fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::from(v.to_vec()))
             }
 
             #[inline]

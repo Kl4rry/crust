@@ -292,6 +292,7 @@ impl Token {
             Export => Ok("export"),
             At => Ok("@"),
             Dot => Ok("."),
+            QuestionMark => Ok("?"),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self)),
         }
     }

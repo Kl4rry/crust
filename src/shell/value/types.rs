@@ -4,18 +4,19 @@ bitflags::bitflags! {
     #[rustfmt::skip]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct Type: u16 {
-        const NULL =        0b0000000001;
-        const INT =         0b0000000010;
-        const FLOAT =       0b0000000100;
-        const BOOL =        0b0000001000;
-        const STRING =      0b0000010000;
-        const LIST =        0b0000100000;
-        const MAP =         0b0001000000;
-        const TABLE =       0b0010000000;
-        const RANGE =       0b0100000000;
-        const REGEX =       0b1000000000;
+        const NULL =        0b00000000001;
+        const INT =         0b00000000010;
+        const FLOAT =       0b00000000100;
+        const BOOL =        0b00000001000;
+        const STRING =      0b00000010000;
+        const LIST =        0b00000100000;
+        const MAP =         0b00001000000;
+        const TABLE =       0b00010000000;
+        const RANGE =       0b00100000000;
+        const REGEX =       0b01000000000;
+        const BINARY =      0b10000000000;
 
-        const ANY = Self::NULL.bits() | Self::INT.bits() | Self::FLOAT.bits() | Self::BOOL.bits() | Self::STRING.bits() | Self::LIST.bits() | Self::MAP.bits() | Self::TABLE.bits() | Self::RANGE.bits() | Self::RANGE.bits();
+        const ANY = Self::NULL.bits() | Self::INT.bits() | Self::FLOAT.bits() | Self::BOOL.bits() | Self::STRING.bits() | Self::LIST.bits() | Self::MAP.bits() | Self::TABLE.bits() | Self::RANGE.bits() | Self::RANGE.bits() | Self::BINARY.bits();
     }
 }
 
@@ -81,6 +82,20 @@ impl fmt::Display for Type {
                 write!(f, " or ")?;
             }
             write!(f, "`range`")?;
+        }
+
+        if self.intersects(Self::REGEX) {
+            if is_first {
+                write!(f, " or ")?;
+            }
+            write!(f, "`regex`")?;
+        }
+
+        if self.intersects(Self::BINARY) {
+            if is_first {
+                write!(f, " or ")?;
+            }
+            write!(f, "`binary`")?;
         }
 
         Ok(())
