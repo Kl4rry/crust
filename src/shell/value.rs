@@ -692,7 +692,7 @@ impl fmt::Display for Value {
                         f.write_str("   ")?;
                     }
 
-                    for _ in 0..(16 - slice.len() / 4 + 1) {
+                    for _ in 0..((16f32 - slice.len() as f32) / 4f32).ceil() as usize {
                         f.write_char(' ')?;
                     }
 

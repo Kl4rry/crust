@@ -86,6 +86,11 @@ pub fn read_file(path: impl AsRef<Path>) -> Result<String, ShellErrorKind> {
         .map_err(|e| file_err_to_shell_err(e, path.to_string_lossy().to_string()))
 }
 
+pub fn read_file_raw(path: impl AsRef<Path>) -> Result<Vec<u8>, ShellErrorKind> {
+    let path = path.as_ref();
+    fs::read(path).map_err(|e| file_err_to_shell_err(e, path.to_string_lossy().to_string()))
+}
+
 pub fn save_file(path: impl AsRef<Path>, data: &[u8], append: bool) -> Result<(), ShellErrorKind> {
     let path = path.as_ref();
     let mut file = fs::OpenOptions::new()

@@ -1,5 +1,6 @@
 use std::{path::PathBuf, rc::Rc};
 
+use num_traits::ToBytes;
 use once_cell::sync::Lazy;
 
 use super::save_file;
@@ -26,7 +27,15 @@ static APP: Lazy<App> = Lazy::new(|| {
             Flag::new("STR")
                 .long("str")
                 .short('s')
-                .help("Save raw text data"),
+                .help("Save raw text data")
+                .conflicts_with("RAW".into()),
+        )
+        .flag(
+            Flag::new("RAW")
+                .long("raw")
+                .short('r')
+                .help("Save raw binary data")
+                .conflicts_with("STR".into()),
         )
         .flag(
             Flag::new("PRETTY")
@@ -70,7 +79,7 @@ pub fn save(
     let pretty = matches.conatins(&String::from("PRETTY"));
     let append = matches.conatins(&String::from("APPEND"));
 
-    if matches.conatins(&String::from("STR")) {
+    if matches.conatins("STR") {
         let value: Value = input.unpack();
         let t = value.to_type();
         let data = match value {
@@ -86,6 +95,35 @@ pub fn save(
             }
         };
         save_file(path, data.as_bytes(), append)?;
+    } else if matches.conatins("RAW") {
+        let value: Value = input.unpack();
+        let t = value.to_type();
+        let data = match value {
+            Value::String(mut string) => {
+                Rc::make_mut(&mut string);
+                Rc::into_inner(string).unwrap().into_bytes()
+            }
+            Value::Int(ref int) => Vec::from(int.to_ne_bytes()),
+            Value::Float(ref float) => Vec::from(float.to_ne_bytes()),
+            Value::Bool(ref boolean) => {
+                if *boolean {
+                    vec![1]
+                } else {
+                    vec![0]
+                }
+            }
+            Value::Binary(mut data) => {
+                Rc::make_mut(&mut data);
+                Rc::into_inner(data).unwrap()
+            }
+            _ => {
+                return Err(ShellErrorKind::Basic(
+                    "Serialization Error",
+                    format!("Cannot write {t} as binary data"),
+                ))
+            }
+        };
+        save_file(path, &data, append)?;
     } else {
         let ext = path.extension();
         if let Some(ext) = ext {
