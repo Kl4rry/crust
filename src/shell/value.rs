@@ -83,6 +83,11 @@ impl SpannedValue {
             Value::Float(number) => output.push(number.to_string()),
             Value::String(string) => output.push(string.to_string()),
             Value::Bool(boolean) => output.push(boolean.to_string()),
+            Value::Range(range) => {
+                for i in (*range).clone() {
+                    output.push(i.to_string());
+                }
+            }
             Value::List(list) => {
                 let list = Rc::try_unwrap(list).unwrap_or_else(|list| (*list).clone());
                 for value in list {

@@ -10,7 +10,7 @@ use subprocess::{CommunicateError, Exec, ExitStatus, Pipeline, PopenError, Redir
 use crate::{
     parser::{
         ast::{Literal, Variable},
-        lexer::token::span::Span,
+        lexer::token::span::{Span, Spanned},
         shell_error::ShellErrorKind,
     },
     shell::{
@@ -333,10 +333,12 @@ impl Expr {
             ExprKind::Pipe(calls) => {
                 let pipe_span = calls.first().unwrap().span + calls.last().unwrap().span;
                 let mut calls = calls.iter().peekable();
-                let mut capture_output = OutputStream::new_capture();
+                let mut capture_output = Spanned::new(OutputStream::new_capture(), Span::new(0, 0));
                 // If the first thing in the pipeline is not a command we eval it first
                 if !matches!(calls.peek().unwrap().kind, ExprKind::Call(..)) {
-                    capture_output.push(calls.next().unwrap().eval(ctx)?.into());
+                    let first = calls.next().unwrap();
+                    capture_output.span = first.span;
+                    capture_output.inner.push(first.eval(ctx)?.into());
                 }
 
                 let mut expanded_calls = VecDeque::new();
@@ -350,27 +352,31 @@ impl Expr {
                     }
                 }
 
-                let mut execs: Vec<(Exec, String)> = Vec::new();
+                let mut execs: Vec<(Exec, String, Span)> = Vec::new();
 
                 while let Some(call_type) = expanded_calls.pop_front() {
                     match call_type {
-                        CallType::External(exec, name) => {
-                            execs.push((*exec, name));
+                        CallType::External(exec, name, span) => {
+                            execs.push((*exec, name, span));
                         }
-                        CallType::Builtin(builtin, args) => {
+                        CallType::Builtin(builtin, args, span) => {
                             let stream = if execs.is_empty() {
                                 let mut stream = OutputStream::new_capture();
-                                mem::swap(&mut capture_output, &mut stream);
+                                mem::swap(&mut capture_output.inner, &mut stream);
                                 stream.into_value_stream()
                             } else {
                                 let value = run_pipeline(
                                     ctx,
                                     execs,
                                     true,
-                                    capture_output.into_value_stream(),
+                                    Spanned::new(
+                                        capture_output.inner.into_value_stream(),
+                                        capture_output.span,
+                                    ),
                                 )?
                                 .unwrap();
-                                capture_output = OutputStream::new_capture();
+                                capture_output.inner = OutputStream::new_capture();
+                                capture_output.span = span;
                                 execs = Vec::new();
                                 ValueStream::from_value(value)
                             };
@@ -378,26 +384,31 @@ impl Expr {
                             let temp_output_cap = if expanded_calls.is_empty() {
                                 &mut *ctx.output
                             } else {
-                                capture_output = OutputStream::new_capture();
-                                &mut capture_output
+                                capture_output.inner = OutputStream::new_capture();
+                                capture_output.span = span;
+                                &mut capture_output.inner
                             };
                             builtin(ctx.shell, &mut ctx.frame, args, stream, temp_output_cap)?;
                             ctx.shell.set_status(ExitStatus::Exited(0));
                         }
-                        CallType::Internal(func, args) => {
+                        CallType::Internal(func, args, span) => {
                             let stream = if execs.is_empty() {
                                 let mut stream = OutputStream::new_capture();
-                                mem::swap(&mut capture_output, &mut stream);
+                                mem::swap(&mut capture_output.inner, &mut stream);
                                 stream.into_value_stream()
                             } else {
                                 let value = run_pipeline(
                                     ctx,
                                     execs,
                                     true,
-                                    capture_output.into_value_stream(),
+                                    Spanned::new(
+                                        capture_output.inner.into_value_stream(),
+                                        capture_output.span,
+                                    ),
                                 )?
                                 .unwrap();
-                                capture_output = OutputStream::new_capture();
+                                capture_output.inner = OutputStream::new_capture();
+                                capture_output.span = span;
                                 execs = Vec::new();
                                 ValueStream::from_value(value)
                             };
@@ -429,8 +440,9 @@ impl Expr {
                             let temp_output_cap = if expanded_calls.is_empty() {
                                 &mut *ctx.output
                             } else {
-                                capture_output = OutputStream::new_capture();
-                                &mut capture_output
+                                capture_output.inner = OutputStream::new_capture();
+                                capture_output.span = span;
+                                &mut capture_output.inner
                             };
                             let ctx = &mut Context {
                                 shell: ctx.shell,
@@ -446,12 +458,27 @@ impl Expr {
 
                 if !execs.is_empty() {
                     if ctx.output.is_capture() {
-                        let value =
-                            run_pipeline(ctx, execs, true, capture_output.into_value_stream())?
-                                .unwrap();
+                        let value = run_pipeline(
+                            ctx,
+                            execs,
+                            true,
+                            Spanned::new(
+                                capture_output.inner.into_value_stream(),
+                                capture_output.span,
+                            ),
+                        )?
+                        .unwrap();
                         ctx.output.push(value);
                     } else {
-                        run_pipeline(ctx, execs, false, capture_output.into_value_stream())?;
+                        run_pipeline(
+                            ctx,
+                            execs,
+                            false,
+                            Spanned::new(
+                                capture_output.inner.into_value_stream(),
+                                capture_output.span,
+                            ),
+                        )?;
                     }
                 }
 
@@ -485,29 +512,49 @@ pub fn try_bytes_to_value(bytes: Vec<u8>) -> Value {
 
 fn run_pipeline(
     ctx: &mut Context,
-    mut execs: Vec<(Exec, String)>,
+    mut execs: Vec<(Exec, String, Span)>,
     capture_output: bool,
-    input: ValueStream,
+    input: Spanned<ValueStream>,
 ) -> Result<Option<Value>, ShellErrorKind> {
-    let mut input_string = String::new();
-    for value in input {
-        match value {
-            Value::String(text) => {
-                input_string.push_str(&text);
-                input_string.push('\n');
+    let Spanned {
+        inner: input,
+        span: input_span,
+    } = input;
+
+    let mut input_data = Vec::new();
+    for value in input.into_iter() {
+        let spanned: SpannedValue = value.spanned(input_span);
+        match spanned.value {
+            Value::String(..)
+            | Value::Bool(..)
+            | Value::Int(..)
+            | Value::Float(..)
+            | Value::Range(..)
+            | Value::List(..) => {
+                let mut strings = Vec::new();
+                spanned.try_expand_to_strings(&mut strings)?;
+                for string in strings {
+                    input_data.extend_from_slice(string.as_bytes());
+                    input_data.push(b'\n');
+                }
+            }
+            Value::Binary(data) => {
+                // TODO figure out if there should be a newline here
+                input_data.extend_from_slice(&data);
             }
             _ => {
                 return Err(ShellErrorKind::InvalidPipelineInput {
                     expected: Type::STRING,
-                    recived: value.to_type(),
+                    recived: spanned.value.to_type(),
                 });
             }
         }
     }
-    let input_data: Option<Vec<u8>> = if input_string.is_empty() {
+
+    let input_data: Option<Vec<u8>> = if input_data.is_empty() {
         None
     } else {
-        Some(input_string.into())
+        Some(input_data)
     };
 
     let stdin = if input_data.is_some() {
@@ -519,10 +566,10 @@ fn run_pipeline(
     let env = ctx.frame.env();
     if execs.len() == 1 {
         let (exec, name) = if capture_output {
-            let (exec, name) = execs.pop().unwrap();
+            let (exec, name, _) = execs.pop().unwrap();
             (exec.stdout(Redirection::Pipe), name)
         } else {
-            execs.pop().unwrap()
+            execs.pop().map(|(exec, name, _)| (exec, name)).unwrap()
         };
         let exec = exec.stdin(stdin).env_clear().env_extend(&env);
 
@@ -557,7 +604,7 @@ fn run_pipeline(
         // TODO this also need to be turned into a command not found error
         let execs = execs
             .into_iter()
-            .map(|(exec, _)| exec.env_clear().env_extend(&env));
+            .map(|(exec, _, _)| exec.env_clear().env_extend(&env));
         let pipeline = Pipeline::from_exec_iter(execs)
             .stdin(stdin)
             .stdout(if capture_output {
@@ -600,22 +647,23 @@ fn run_pipeline(
 
 fn get_call_type(
     ctx: &mut Context,
-    cmd: String,
+    cmd: Spanned<String>,
     args: Vec<SpannedValue>,
 ) -> Result<CallType, ShellErrorKind> {
-    if let Some(builtin) = builtins::functions::get_builtin(&cmd) {
-        return Ok(CallType::Builtin(builtin, args));
+    let span = cmd.span;
+    if let Some(builtin) = builtins::functions::get_builtin(&cmd.inner) {
+        return Ok(CallType::Builtin(builtin, args, span));
     }
 
     for frame in ctx.frame.clone() {
-        if let Some(func) = frame.get_function(&cmd) {
-            return Ok(CallType::Internal(func, args));
+        if let Some(func) = frame.get_function(&cmd.inner) {
+            return Ok(CallType::Internal(func, args, span));
         }
     }
 
-    let cmd = match ctx.shell.find_exe(&cmd) {
+    let cmd = match ctx.shell.find_exe(&cmd.inner) {
         Some(cmd) => cmd,
-        None => cmd,
+        None => cmd.inner,
     };
 
     let mut str_args = Vec::new();
@@ -626,6 +674,7 @@ fn get_call_type(
     Ok(CallType::External(
         P::new(Exec::cmd(cmd.clone()).args(&str_args)),
         cmd,
+        span,
     ))
 }
 
@@ -633,7 +682,7 @@ fn expand_call(
     ctx: &mut Context,
     commandparts: &[CommandPart],
     args: &[Argument],
-) -> Result<(String, Vec<SpannedValue>), ShellErrorKind> {
+) -> Result<(Spanned<String>, Vec<SpannedValue>), ShellErrorKind> {
     let mut expanded_args = Vec::new();
     for arg in args {
         expanded_args.push(arg.eval(ctx)?);
@@ -654,13 +703,13 @@ fn expand_call(
         args.extend(expanded_args);
         expanded_args = args;
     }
-    Ok((command, expanded_args))
+    Ok((Spanned::new(command, cmd_span), expanded_args))
 }
 
 pub enum CallType {
-    Builtin(BulitinFn, Vec<SpannedValue>),
-    Internal(Rc<Function>, Vec<SpannedValue>),
-    External(P<Exec>, String),
+    Builtin(BulitinFn, Vec<SpannedValue>, Span),
+    Internal(Rc<Function>, Vec<SpannedValue>, Span),
+    External(P<Exec>, String, Span),
 }
 
 fn popen_to_shell_err(error: PopenError, name: String) -> ShellErrorKind {

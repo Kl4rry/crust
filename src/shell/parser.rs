@@ -1073,13 +1073,12 @@ impl Parser {
                 let span = expr.span;
                 (ArgumentPartKind::Expr(expr).spanned(span), true)
             }
-            // TODO list should maybe be parsed below to allow for concatination
             TokenType::LeftBracket => {
                 let expr = self.parse_list()?;
                 let span = expr.span;
                 (ArgumentPartKind::Expr(expr).spanned(span), false)
             }
-            // TODO same for map
+            // TODO map should maybe be parsed below
             TokenType::At => {
                 let expr = self.parse_regex_or_map()?;
                 let span = expr.span;
