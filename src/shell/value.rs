@@ -9,7 +9,9 @@ use regex::Regex;
 use yansi::Paint;
 
 use crate::parser::{
-    ast::expr::binop::BinOpKind, lexer::token::span::Span, shell_error::ShellErrorKind,
+    ast::expr::{binop::BinOpKind, closure::Closure},
+    lexer::token::span::Span,
+    shell_error::ShellErrorKind,
 };
 
 mod format;
@@ -17,6 +19,8 @@ pub mod table;
 use table::Table;
 mod types;
 pub use types::Type;
+
+use super::frame::Frame;
 
 mod de;
 mod ser;
@@ -605,6 +609,7 @@ pub enum Value {
     Range(Rc<Range<i64>>),
     Regex(Rc<(Regex, String)>),
     Binary(Rc<Vec<u8>>),
+    Closure(Rc<(Rc<Closure>, Frame)>),
 }
 
 impl fmt::Display for Value {
@@ -721,7 +726,8 @@ impl fmt::Display for Value {
 
                 Ok(())
             }
-            _ => Ok(()),
+            Self::Closure(_) => write!(f, "{}", self.to_compact_string()),
+            Self::Null => Ok(()),
         }
     }
 }
@@ -759,6 +765,7 @@ impl PartialEq for Value {
                 Value::Binary(_) => false,
                 Value::Null => false,
                 Value::Regex(_) => false,
+                Value::Closure(_) => false,
             },
             Value::String(string) => match other {
                 Value::String(rhs) => string == rhs,
@@ -794,6 +801,7 @@ impl PartialEq for Value {
                 Value::Regex(other) => *regex.1 == *other.1,
                 _ => false,
             },
+            Value::Closure(_) => false,
         }
     }
 }
@@ -818,6 +826,7 @@ impl Value {
                 "[{} of binary data]",
                 humansize::format_size(data.len(), humansize::BINARY.space_after_value(false))
             ),
+            Self::Closure(_) => "[closure]".into(),
         }
     }
 
@@ -826,6 +835,12 @@ impl Value {
         match self {
             Self::Int(_) | Self::Float(_) | Self::Bool(_) => Color::Yellow,
             Self::Regex(_) => Color::Blue,
+            Self::List(_)
+            | Self::Map(_)
+            | Self::Binary(_)
+            | Self::Range(_)
+            | Self::Table(_)
+            | Self::Closure(_) => Color::Cyan,
             _ => Color::Reset,
         }
     }
@@ -843,6 +858,7 @@ impl Value {
             Self::Null => Type::NULL,
             Self::Regex(..) => Type::REGEX,
             Self::Binary(..) => Type::BINARY,
+            Self::Closure(..) => Type::CLOSURE,
         }
     }
 
@@ -877,7 +893,9 @@ impl Value {
             Self::Range(range) => range.start != 0 && range.end != 0,
             Self::Binary(data) => !data.is_empty(),
             Self::Null => false,
+            // TODO make this return an error
             Self::Regex(..) => false,
+            Self::Closure(..) => false,
         }
     }
 
@@ -936,6 +954,16 @@ impl Value {
             Self::Float(s) => *s,
             _ => panic!(
                 "called `Value::unwrap_float()` on a `{}` value",
+                self.to_type()
+            ),
+        }
+    }
+
+    pub fn unwrap_closure(self) -> Rc<(Rc<Closure>, Frame)> {
+        match self {
+            Self::Closure(s) => s,
+            _ => panic!(
+                "called `Value::unwrap_closure()` on a `{}` value",
                 self.to_type()
             ),
         }

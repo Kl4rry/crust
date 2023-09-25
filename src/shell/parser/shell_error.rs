@@ -100,7 +100,7 @@ pub enum ShellErrorKind {
     FileNotFound(String),
     FilePermissionDenied(String),
     IncorrectArgumentCount {
-        name: Rc<str>,
+        name: Option<Rc<str>>,
         arg_span: Span,
         expected: usize,
         recived: usize,
@@ -179,9 +179,13 @@ impl fmt::Display for ShellErrorKind {
                 expected,
                 recived,
                 ..
-            } => {
-                write!(f, "{name} expected {expected} arguments, recived {recived}")
-            }
+            } => match name {
+                Some(name) => write!(f, "{name} expected {expected} arguments, recived {recived}"),
+                None => write!(
+                    f,
+                    "closure expected {expected} arguments, recived {recived}"
+                ),
+            },
             NoColumns(t) => write!(f, "{t} does not have columns"),
             NotIndexable(t, ..) => write!(f, "Cannot index into {t}"),
             InvalidBinaryOperand(binop, lhs, rhs, ..) => {

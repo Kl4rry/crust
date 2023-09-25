@@ -6,7 +6,7 @@ use crate::{
     shell::value::Value,
 };
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct Inner {
     variables: HashMap<Rc<str>, (bool, Value)>,
     functions: HashMap<Rc<str>, Rc<Function>>,
@@ -16,7 +16,7 @@ struct Inner {
     index: usize,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Frame(Rc<Inner>);
 
 impl Frame {

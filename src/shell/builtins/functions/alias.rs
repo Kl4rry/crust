@@ -5,12 +5,10 @@ use once_cell::sync::Lazy;
 
 use crate::{
     argparse::{App, Arg, ParseResult},
-    parser::shell_error::ShellErrorKind,
+    parser::{ast::context::Context, shell_error::ShellErrorKind},
     shell::{
-        frame::Frame,
-        stream::{OutputStream, ValueStream},
+        stream::ValueStream,
         value::{table::Table, SpannedValue, Type, Value},
-        Shell,
     },
 };
 
@@ -22,16 +20,14 @@ static APP: Lazy<App> = Lazy::new(|| {
 });
 
 pub fn alias(
-    shell: &mut Shell,
-    _: &mut Frame,
+    ctx: &mut Context,
     args: Vec<SpannedValue>,
     _: ValueStream,
-    output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
     let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            output.push(info);
+            ctx.output.push(info);
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -72,11 +68,11 @@ pub fn alias(
                 ));
             }
 
-            shell
+            ctx.shell
                 .aliases
                 .insert(Rc::unwrap_or_clone(name), Rc::unwrap_or_clone(command));
-        } else if let Some(command) = shell.aliases.get(&*name) {
-            output.push(Value::from(command.clone()));
+        } else if let Some(command) = ctx.shell.aliases.get(&*name) {
+            ctx.output.push(Value::from(command.clone()));
         } else {
             return Err(ShellErrorKind::Basic(
                 "Alias Error",
@@ -87,13 +83,13 @@ pub fn alias(
         let mut table = Table::new();
         let alias_header: Rc<str> = Rc::from("alias");
         let command_header: Rc<str> = Rc::from("command");
-        for (alias, command) in &shell.aliases {
+        for (alias, command) in &ctx.shell.aliases {
             table.insert_map(IndexMap::from([
                 (alias_header.clone(), Value::from(alias.clone())),
                 (command_header.clone(), Value::from(command.clone())),
             ]));
         }
-        output.push(table.into());
+        ctx.output.push(table.into());
     }
 
     Ok(())

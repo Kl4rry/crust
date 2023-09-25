@@ -1,7 +1,11 @@
 let failed = 0
 
 for test in (echo tests/*.crust) {
-    if !?(crust $test) {
+    let output = $null;
+    try {
+        $output = (crust $test)
+    } catch {
+        print ($output)
         print "$test Failed"
         $failed += 1 
     }

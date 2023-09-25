@@ -4,12 +4,10 @@ use once_cell::sync::Lazy;
 
 use crate::{
     argparse::{App, Arg, ParseResult},
-    parser::shell_error::ShellErrorKind,
+    parser::{ast::context::Context, shell_error::ShellErrorKind},
     shell::{
-        frame::Frame,
-        stream::{OutputStream, ValueStream},
+        stream::ValueStream,
         value::{SpannedValue, Type, Value},
-        Shell,
     },
 };
 
@@ -20,16 +18,14 @@ static APP: Lazy<App> = Lazy::new(|| {
 });
 
 pub fn last(
-    _: &mut Shell,
-    _: &mut Frame,
+    ctx: &mut Context,
     args: Vec<SpannedValue>,
     input: ValueStream,
-    output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
     let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            output.push(info);
+            ctx.output.push(info);
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -52,7 +48,7 @@ pub fn last(
                 let removed = list.len().saturating_sub(count);
                 list.drain(..removed);
             }
-            output.push(Value::List(list));
+            ctx.output.push(Value::List(list));
         }
         Value::String(ref string) => {
             let mut buffer = VecDeque::new();
@@ -62,11 +58,12 @@ pub fn last(
                     buffer.pop_front();
                 }
             }
-            output.push(Value::from(buffer.into_iter().collect::<String>()));
+            ctx.output
+                .push(Value::from(buffer.into_iter().collect::<String>()));
         }
         Value::Table(mut table) => {
             Rc::make_mut(&mut table).last(count);
-            output.push(Value::Table(table));
+            ctx.output.push(Value::Table(table));
         }
         Value::Range(ref range) => {
             let mut buffer = VecDeque::new();
@@ -76,7 +73,7 @@ pub fn last(
                     buffer.pop_front();
                 }
             }
-            output.push(Value::from(Vec::from(buffer)));
+            ctx.output.push(Value::from(Vec::from(buffer)));
         }
         Value::Binary(mut data) => {
             {
@@ -84,7 +81,7 @@ pub fn last(
                 let removed = data.len().saturating_sub(count);
                 data.drain(..removed);
             }
-            output.push(Value::Binary(data));
+            ctx.output.push(Value::Binary(data));
         }
         _ => {
             return Err(ShellErrorKind::Basic(

@@ -32,7 +32,7 @@ use syntax_error::{SyntaxError, SyntaxErrorKind};
 
 use self::{
     ast::{
-        expr::{argument::ArgumentPartKind, command::CommandPartKind, ExprKind},
+        expr::{argument::ArgumentPartKind, closure::Closure, command::CommandPartKind, ExprKind},
         literal::{Literal, LiteralKind},
         statement::{function::Function, Statement},
     },
@@ -244,8 +244,13 @@ impl Parser {
         }
     }
 
-    fn parse_block(&mut self, ctx: ParserContext) -> Result<Block> {
-        let start = self.eat()?.expect(TokenType::LeftBrace)?.span;
+    fn parse_block(&mut self, ctx: ParserContext, opening_brace: Option<Token>) -> Result<Block> {
+        let start = match opening_brace {
+            Some(token) => token,
+            None => self.eat()?,
+        }
+        .expect(TokenType::LeftBrace)?
+        .span;
         let sequence = self.parse_sequence(true, ctx)?;
         let end = self.eat()?.expect(TokenType::RightBrace)?.span;
         Ok(Block {
@@ -254,14 +259,75 @@ impl Parser {
         })
     }
 
+    fn parse_closure(&mut self, opening_brace: Option<Token>) -> Result<Expr> {
+        let left_brace = match opening_brace {
+            Some(token) => token,
+            None => self.eat()?,
+        }
+        .expect(TokenType::LeftBrace)?;
+        let start = left_brace.span;
+        let mut vars: Vec<Variable> = Vec::new();
+        let token = self.eat()?;
+        let mut arg_span = token.span;
+        match token.token_type {
+            TokenType::Or => (),
+            TokenType::Pipe => loop {
+                self.skip_whitespace();
+                let token = self.peek()?;
+                match token.token_type {
+                    TokenType::Pipe => {
+                        self.eat()?;
+                        break;
+                    }
+                    TokenType::Dollar | TokenType::Symbol(..) => {
+                        vars.push(self.parse_variable(false)?);
+                    }
+                    _ => return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
+                }
+
+                self.skip_whitespace();
+                let token = self.eat()?;
+                arg_span += token.span;
+                match token.token_type {
+                    TokenType::Pipe => break,
+                    TokenType::Comma => (),
+                    _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
+                }
+            },
+            _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
+        }
+
+        self.skip_whitespace();
+        let block = self.parse_block(ParserContext::INSIDE_FUNCTION, Some(left_brace))?;
+        let end = block.span;
+        let span = start + end;
+        Ok(ExprKind::Closure(
+            Closure {
+                span,
+                arg_span,
+                parameters: vars,
+                block,
+                src: self.named_source(),
+            }
+            .into(),
+        )
+        .spanned(span))
+    }
+
     fn parse_compound(&mut self, ctx: ParserContext) -> Result<Compound> {
         let token_type = &self.peek()?.token_type;
 
         match token_type {
             TokenType::LeftBrace => {
-                let block = self.parse_block(ctx)?;
-                let span = block.span;
-                Ok(StatementKind::Block(block).spanned(span).into())
+                let token = self.eat()?;
+                self.skip_whitespace();
+                if matches!(self.peek()?.token_type, TokenType::Pipe | TokenType::Or) {
+                    Ok(self.parse_closure(Some(token))?.into())
+                } else {
+                    let block = self.parse_block(ctx, Some(token))?;
+                    let span = block.span;
+                    Ok(StatementKind::Block(block).spanned(span).into())
+                }
             }
             TokenType::Dollar => {
                 let var: Variable = self.parse_variable(true)?;
@@ -369,7 +435,7 @@ impl Parser {
                     }
                 }
                 self.skip_whitespace();
-                let block = self.parse_block(ParserContext::INSIDE_FUNCTION)?;
+                let block = self.parse_block(ParserContext::INSIDE_FUNCTION, None)?;
                 let end = block.span;
 
                 let func = Function {
@@ -387,7 +453,7 @@ impl Parser {
             TokenType::Loop => {
                 let start = self.eat()?.span;
                 self.skip_whitespace();
-                let block = self.parse_block(ctx | ParserContext::INSIDE_LOOP)?;
+                let block = self.parse_block(ctx | ParserContext::INSIDE_LOOP, None)?;
                 let end = block.span;
                 Ok(StatementKind::Loop(block).spanned(start + end).into())
             }
@@ -400,7 +466,7 @@ impl Parser {
                 self.skip_whitespace();
                 let expr = self.parse_expr(None, false)?;
                 self.skip_whitespace();
-                let block = self.parse_block(ctx | ParserContext::INSIDE_LOOP)?;
+                let block = self.parse_block(ctx | ParserContext::INSIDE_LOOP, None)?;
                 let end = block.span;
 
                 Ok(StatementKind::For(var, expr, block)
@@ -412,7 +478,7 @@ impl Parser {
                 self.skip_whitespace();
                 let expr = self.parse_expr(None, false)?;
                 self.skip_whitespace();
-                let block = self.parse_block(ctx | ParserContext::INSIDE_LOOP)?;
+                let block = self.parse_block(ctx | ParserContext::INSIDE_LOOP, None)?;
                 let end = block.span;
                 Ok(StatementKind::While(expr, block)
                     .spanned(start + end)
@@ -422,7 +488,7 @@ impl Parser {
             TokenType::Symbol(symbol) if symbol == "try" => {
                 let span = self.eat()?.span;
                 self.skip_whitespace();
-                let block = self.parse_block(ctx)?;
+                let block = self.parse_block(ctx, None)?;
                 self.skip_whitespace();
                 let token = self.eat()?;
                 match &token.token_type {
@@ -430,7 +496,7 @@ impl Parser {
                     _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
                 }
                 self.skip_whitespace();
-                let catch = self.parse_block(ctx)?;
+                let catch = self.parse_block(ctx, None)?;
                 let span = span + catch.span;
                 Ok(StatementKind::TryCatch(block, catch).spanned(span).into())
             }
@@ -619,7 +685,7 @@ impl Parser {
         self.skip_optional_space();
         let expr = self.parse_expr(None, false)?;
         self.skip_optional_space();
-        let block = self.parse_block(ctx)?;
+        let block = self.parse_block(ctx, None)?;
         self.skip_optional_space();
 
         let statement = match self.peek() {
@@ -630,7 +696,7 @@ impl Parser {
                     match self.peek()?.token_type {
                         TokenType::If => Some(P::new(self.parse_if(ctx)?)),
                         TokenType::LeftBrace => {
-                            let block = self.parse_block(ctx)?;
+                            let block = self.parse_block(ctx, None)?;
                             let block_span = block.span;
                             Some(P::new(StatementKind::Block(block).spanned(block_span)))
                         }
@@ -707,14 +773,19 @@ impl Parser {
     fn parse_regex_or_map(&mut self) -> Result<Expr> {
         self.eat()?.expect(TokenType::At)?;
         match self.peek()?.token_type {
-            TokenType::LeftBrace => self.parse_map(),
+            TokenType::LeftBrace => self.parse_map(None),
             TokenType::Quote => self.parse_regex(),
             _ => Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         }
     }
 
-    fn parse_map(&mut self) -> Result<Expr> {
-        let mut span = self.eat()?.expect(TokenType::LeftBrace)?.span;
+    fn parse_map(&mut self, left_brace: Option<Token>) -> Result<Expr> {
+        let left_brace = match left_brace {
+            Some(token) => token,
+            None => self.eat()?,
+        }
+        .expect(TokenType::LeftBrace)?;
+        let mut span = left_brace.span;
         let mut exprs: Vec<(Expr, Expr)> = Vec::new();
         let mut last_was_comma = true;
         loop {
@@ -843,7 +914,15 @@ impl Parser {
             TokenType::LeftBracket => self.parse_list()?,
             TokenType::At => self.parse_regex_or_map()?,
             TokenType::QuestionMark => self.parse_error_check()?,
-            TokenType::LeftBrace => self.parse_map()?,
+            TokenType::LeftBrace => {
+                let token = self.eat()?;
+                self.skip_whitespace();
+                if matches!(self.peek()?.token_type, TokenType::Pipe | TokenType::Or) {
+                    self.parse_closure(Some(token))?
+                } else {
+                    self.parse_map(Some(token))?
+                }
+            }
             _ => return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
         };
 
@@ -1096,6 +1175,11 @@ impl Parser {
             // TODO map should maybe be parsed below
             TokenType::At => {
                 let expr = self.parse_regex_or_map()?;
+                let span = expr.span;
+                (ArgumentPartKind::Expr(expr).spanned(span), false)
+            }
+            TokenType::LeftBrace => {
+                let expr = self.parse_closure(None)?;
                 let span = expr.span;
                 (ArgumentPartKind::Expr(expr).spanned(span), false)
             }

@@ -7,13 +7,8 @@ use std::{
 use phf::*;
 
 use crate::{
-    parser::shell_error::ShellErrorKind,
-    shell::{
-        frame::Frame,
-        stream::{OutputStream, ValueStream},
-        value::SpannedValue,
-        Shell,
-    },
+    parser::{ast::context::Context, shell_error::ShellErrorKind},
+    shell::{stream::ValueStream, value::SpannedValue},
 };
 
 mod alias;
@@ -21,6 +16,7 @@ mod assert;
 mod back;
 mod cd;
 mod clear;
+mod do_closure;
 mod echo;
 mod env;
 mod exit;
@@ -37,15 +33,10 @@ mod print;
 mod pwd;
 mod save;
 mod shuffle;
+mod time;
 mod unalias;
 
-pub type BulitinFn = fn(
-    &mut Shell,
-    &mut Frame,
-    Vec<SpannedValue>,
-    ValueStream,
-    &mut OutputStream,
-) -> Result<(), ShellErrorKind>;
+pub type BulitinFn = fn(&mut Context, Vec<SpannedValue>, ValueStream) -> Result<(), ShellErrorKind>;
 
 static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "clear" => clear::clear,
@@ -70,6 +61,8 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "print" => print::print,
     "last" => last::last,
     "first" => first::first,
+    "do" => do_closure::do_closure,
+    "time" => time::time,
 };
 
 pub fn get_builtin(command: &str) -> Option<BulitinFn> {

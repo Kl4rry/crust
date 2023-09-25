@@ -3,28 +3,24 @@ use once_cell::sync::Lazy;
 
 use crate::{
     argparse::{App, ParseResult},
-    parser::shell_error::ShellErrorKind,
+    parser::{ast::context::Context, shell_error::ShellErrorKind},
     shell::{
-        frame::Frame,
-        stream::{OutputStream, ValueStream},
+        stream::ValueStream,
         value::{table::Table, SpannedValue, Value},
-        Shell,
     },
 };
 
 static APP: Lazy<App> = Lazy::new(|| App::new("env").about("List all environment variables"));
 
 pub fn env(
-    _: &mut Shell,
-    frame: &mut Frame,
+    ctx: &mut Context,
     args: Vec<SpannedValue>,
     _: ValueStream,
-    output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
     let _ = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            output.push(info);
+            ctx.output.push(info);
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -32,14 +28,14 @@ pub fn env(
 
     let mut table = Table::new();
 
-    for (name, value) in frame.env() {
+    for (name, value) in ctx.frame.env() {
         let map = IndexMap::from([
             ("Name".into(), Value::from(name)),
             ("Value".into(), Value::from(value)),
         ]);
         table.insert_map(map);
     }
-    output.push(Value::from(table));
+    ctx.output.push(Value::from(table));
 
     Ok(())
 }

@@ -10,19 +10,24 @@ use crate::{
 };
 
 static APP: Lazy<App> = Lazy::new(|| {
-    App::new("open")
-        .about("Open a file or url with the default program")
+    App::new("do")
+        .about("Execute closure")
         .arg(
-            Arg::new("PATH", Type::STRING)
-                .help("Path to the file or directory to open")
-                .required(true),
+            Arg::new("CLOSURE", Type::CLOSURE)
+                .required(true)
+                .help("The closure to be executed"),
+        )
+        .arg(
+            Arg::new("ARGUMENTS", Type::all())
+                .multiple(true)
+                .help("Arguments to be passed to closure"),
         )
 });
 
-pub fn open(
+pub fn do_closure(
     ctx: &mut Context,
     args: Vec<SpannedValue>,
-    _: ValueStream,
+    input: ValueStream,
 ) -> Result<(), ShellErrorKind> {
     let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
@@ -33,12 +38,12 @@ pub fn open(
         Err(e) => return Err(e.into()),
     };
 
-    let path = matches
-        .take_value(&String::from("PATH"))
+    let args = matches.take_values("ARGUMENTS").unwrap_or_default();
+    let (closure, frame) = &*matches
+        .take_value("CLOSURE")
         .unwrap()
         .value
-        .unwrap_string();
+        .unwrap_closure();
 
-    opener::open(&*path)?;
-    Ok(())
+    closure.eval(ctx, frame.clone(), args.into_iter(), input)
 }

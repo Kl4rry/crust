@@ -1,0 +1,31 @@
+let c1 = {|a|
+    echo abc
+}
+
+let c2 = {|| echo abc}
+let c3 = {|a| echo abc}
+let c4 = ({|a| echo abc})
+let c5 = ({|a, b, c| echo abc})
+let c6 = ({|a, b, c| echo abc})
+
+{|a| echo abc}
+
+{
+    let closure = $null;
+    {
+        let number = 123;
+        $closure = {|| assert ($number == 123)}
+    }
+
+    do $closure
+}
+
+{
+    let closure = $null;
+    {
+        let number = 123;
+        $closure = {|x| assert ($number == $x)}
+    }
+
+    do $closure 123
+}

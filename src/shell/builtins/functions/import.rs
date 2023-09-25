@@ -5,12 +5,10 @@ use once_cell::sync::Lazy;
 use super::read_file;
 use crate::{
     argparse::{App, Arg, ParseResult},
-    parser::shell_error::ShellErrorKind,
+    parser::{ast::context::Context, shell_error::ShellErrorKind},
     shell::{
-        frame::Frame,
-        stream::{OutputStream, ValueStream},
+        stream::ValueStream,
         value::{SpannedValue, Type},
-        Shell,
     },
 };
 
@@ -25,16 +23,14 @@ static APP: Lazy<App> = Lazy::new(|| {
 });
 
 pub fn import(
-    shell: &mut Shell,
-    _: &mut Frame,
+    ctx: &mut Context,
     args: Vec<SpannedValue>,
     _: ValueStream,
-    output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
     let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            output.push(info);
+            ctx.output.push(info);
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -52,7 +48,8 @@ pub fn import(
         read_file(&*path)?
     };
 
-    shell.run_src(Rc::unwrap_or_clone(path), src, output);
+    ctx.shell
+        .run_src(Rc::unwrap_or_clone(path), src, ctx.output);
     Ok(())
 }
 

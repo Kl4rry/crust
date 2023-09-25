@@ -2,12 +2,10 @@ use once_cell::sync::Lazy;
 
 use crate::{
     argparse::{App, Arg, ParseResult},
-    parser::shell_error::ShellErrorKind,
+    parser::{ast::context::Context, shell_error::ShellErrorKind},
     shell::{
-        frame::Frame,
-        stream::{OutputStream, ValueStream},
+        stream::ValueStream,
         value::{SpannedValue, Type, Value},
-        Shell,
     },
 };
 
@@ -18,16 +16,14 @@ static APP: Lazy<App> = Lazy::new(|| {
 });
 
 pub fn first(
-    _: &mut Shell,
-    _: &mut Frame,
+    ctx: &mut Context,
     args: Vec<SpannedValue>,
     input: ValueStream,
-    output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
     let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            output.push(info);
+            ctx.output.push(info);
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -44,19 +40,21 @@ pub fn first(
 
     let input = input.unpack();
     match input {
-        Value::List(ref list) => output.extend(list.iter().take(count).cloned()),
-        Value::String(ref string) => {
-            output.push(string.chars().take(count).collect::<String>().into())
-        }
-        Value::Table(ref table) => output.extend(
+        Value::List(ref list) => ctx.output.extend(list.iter().take(count).cloned()),
+        Value::String(ref string) => ctx
+            .output
+            .push(string.chars().take(count).collect::<String>().into()),
+        Value::Table(ref table) => ctx.output.extend(
             table
                 .rows()
                 .iter()
                 .take(count)
                 .map(|v| Value::from(v.to_vec())),
         ),
-        Value::Range(ref range) => output.extend((**range).clone().take(count).map(Value::from)),
-        Value::Binary(ref data) => output.push(Value::from(
+        Value::Range(ref range) => ctx
+            .output
+            .extend((**range).clone().take(count).map(Value::from)),
+        Value::Binary(ref data) => ctx.output.push(Value::from(
             data.iter().copied().take(count).collect::<Vec<u8>>(),
         )),
         _ => {

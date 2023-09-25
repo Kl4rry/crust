@@ -2,28 +2,24 @@ use once_cell::sync::Lazy;
 
 use crate::{
     argparse::{App, ParseResult},
-    parser::shell_error::ShellErrorKind,
+    parser::{ast::context::Context, shell_error::ShellErrorKind},
     shell::{
-        frame::Frame,
-        stream::{OutputStream, ValueStream},
+        stream::ValueStream,
         value::{SpannedValue, Value},
-        Shell,
     },
 };
 
 static APP: Lazy<App> = Lazy::new(|| App::new("len").about("Get number of items in container"));
 
 pub fn len(
-    _: &mut Shell,
-    _: &mut Frame,
+    ctx: &mut Context,
     args: Vec<SpannedValue>,
     input: ValueStream,
-    output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
     let _ = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            output.push(info);
+            ctx.output.push(info);
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -45,7 +41,7 @@ pub fn len(
         }
     };
 
-    output.push(len.into());
+    ctx.output.push(len.into());
 
     Ok(())
 }

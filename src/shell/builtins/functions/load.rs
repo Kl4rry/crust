@@ -5,12 +5,10 @@ use once_cell::sync::Lazy;
 use super::{read_file, read_file_raw};
 use crate::{
     argparse::{App, Arg, Flag, ParseResult},
-    parser::shell_error::ShellErrorKind,
+    parser::{ast::context::Context, shell_error::ShellErrorKind},
     shell::{
-        frame::Frame,
-        stream::{OutputStream, ValueStream},
+        stream::ValueStream,
         value::{SpannedValue, Type, Value},
-        Shell,
     },
 };
 
@@ -39,16 +37,14 @@ static APP: Lazy<App> = Lazy::new(|| {
 });
 
 pub fn load(
-    _: &mut Shell,
-    _: &mut Frame,
+    ctx: &mut Context,
     args: Vec<SpannedValue>,
     _: ValueStream,
-    output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
     let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            output.push(info);
+            ctx.output.push(info);
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -65,10 +61,10 @@ pub fn load(
 
     if matches.conatins("STR") {
         let file = read_file(&path)?;
-        output.push(Value::String(Rc::new(file)));
+        ctx.output.push(Value::String(Rc::new(file)));
     } else if matches.conatins("RAW") {
         let file = read_file_raw(&path)?;
-        output.push(Value::Binary(Rc::new(file)));
+        ctx.output.push(Value::Binary(Rc::new(file)));
     } else {
         let ext = path.extension();
         if let Some(ext) = ext {
@@ -76,23 +72,23 @@ pub fn load(
             match ext.as_str() {
                 "json" => {
                     let file = read_file(&path)?;
-                    output.push(serde_json::from_str(&file)?);
+                    ctx.output.push(serde_json::from_str(&file)?);
                 }
                 "toml" => {
                     let file = read_file(&path)?;
-                    output.push(toml::from_str(&file)?);
+                    ctx.output.push(toml::from_str(&file)?);
                 }
                 "txt" => {
                     let file = read_file(&path)?;
-                    output.push(file.into());
+                    ctx.output.push(file.into());
                 }
                 _ => return Err(ShellErrorKind::UnknownFileType(ext)),
             }
         } else {
             let file = read_file_raw(&path)?;
             match String::from_utf8(file) {
-                Ok(string) => output.push(string.into()),
-                Err(e) => output.push(e.into_bytes().into()),
+                Ok(string) => ctx.output.push(string.into()),
+                Err(e) => ctx.output.push(e.into_bytes().into()),
             }
         }
     }

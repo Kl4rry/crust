@@ -1,21 +1,13 @@
 use crate::{
-    parser::shell_error::ShellErrorKind,
+    parser::{ast::context::Context, shell_error::ShellErrorKind},
     shell::{
-        frame::Frame,
-        stream::{OutputStream, ValueStream},
+        stream::ValueStream,
         value::{SpannedValue, Value},
-        Shell,
     },
 };
 
-pub fn help(
-    _: &mut Shell,
-    _: &mut Frame,
-    _: Vec<SpannedValue>,
-    _: ValueStream,
-    output: &mut OutputStream,
-) -> Result<(), ShellErrorKind> {
-    output.push(Value::from(
+pub fn help(ctx: &mut Context, _: Vec<SpannedValue>, _: ValueStream) -> Result<(), ShellErrorKind> {
+    ctx.output.push(Value::from(
         "For now you're just gonna have to figure it out :/",
     ));
     Ok(())

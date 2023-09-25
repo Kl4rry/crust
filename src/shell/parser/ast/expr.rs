@@ -33,6 +33,9 @@ use command::CommandPart;
 pub mod argument;
 use argument::Argument;
 
+pub mod closure;
+use closure::Closure;
+
 use self::{binop::BinOpKind, unop::UnOpKind};
 use super::{context::Context, statement::function::Function};
 
@@ -117,6 +120,7 @@ pub enum ExprKind {
     Column(P<Expr>, String),
     ErrorCheck(P<Expr>),
     Index { expr: P<Expr>, index: P<Expr> },
+    Closure(Rc<Closure>),
 }
 
 impl ExprKind {
@@ -145,6 +149,11 @@ impl Expr {
             ExprKind::Call(_, _) => {
                 unreachable!("calls must always be in a pipeline, bare calls are a bug")
             }
+            ExprKind::Closure(closure) => Ok(Value::Closure(Rc::new((
+                closure.clone(),
+                ctx.frame.clone(),
+            )))
+            .spanned(closure.span)),
             ExprKind::ErrorCheck(expr) => match expr.eval(ctx) {
                 Ok(_) => Ok(Value::Bool(true).spanned(expr.span)),
                 Err(err) => {
@@ -388,7 +397,13 @@ impl Expr {
                                 capture_output.span = span;
                                 &mut capture_output.inner
                             };
-                            builtin(ctx.shell, &mut ctx.frame, args, stream, temp_output_cap)?;
+                            let mut ctx = Context {
+                                shell: ctx.shell,
+                                frame: ctx.frame.clone(),
+                                output: temp_output_cap,
+                                src: ctx.src.clone(),
+                            };
+                            builtin(&mut ctx, args, stream)?;
                             ctx.shell.set_status(ExitStatus::Exited(0));
                         }
                         CallType::Internal(func, args, span) => {
@@ -424,7 +439,7 @@ impl Expr {
 
                             if parameters.len() != args.len() {
                                 return Err(ShellErrorKind::IncorrectArgumentCount {
-                                    name: name.clone(),
+                                    name: Some(name.clone()),
                                     expected: parameters.len(),
                                     recived: args.len(),
                                     arg_span: *arg_span,

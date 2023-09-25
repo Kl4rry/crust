@@ -1,6 +1,6 @@
 use indexmap::IndexMap;
 use serde::{
-    ser::{SerializeMap, SerializeSeq},
+    ser::{Error, SerializeMap, SerializeSeq},
     Serialize,
 };
 
@@ -44,6 +44,7 @@ impl Serialize for Value {
             }
             Value::Regex(regex) => regex.1.serialize(serializer),
             Value::Binary(binary) => binary.serialize(serializer),
+            Value::Closure(..) => Err(Error::custom("closure cannot be serialized")),
         }
     }
 }

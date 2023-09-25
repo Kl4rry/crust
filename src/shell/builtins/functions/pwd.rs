@@ -2,14 +2,8 @@ use once_cell::sync::Lazy;
 
 use crate::{
     argparse::{App, Flag, ParseResult},
-    parser::shell_error::ShellErrorKind,
-    shell::{
-        current_dir_str,
-        frame::Frame,
-        stream::{OutputStream, ValueStream},
-        value::SpannedValue,
-        Shell, Value,
-    },
+    parser::{ast::context::Context, shell_error::ShellErrorKind},
+    shell::{current_dir_str, stream::ValueStream, value::SpannedValue, Value},
 };
 
 static APP: Lazy<App> = Lazy::new(|| {
@@ -19,16 +13,14 @@ static APP: Lazy<App> = Lazy::new(|| {
 });
 
 pub fn pwd(
-    _: &mut Shell,
-    _: &mut Frame,
+    ctx: &mut Context,
     args: Vec<SpannedValue>,
     _: ValueStream,
-    output: &mut OutputStream,
 ) -> Result<(), ShellErrorKind> {
     let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            output.push(info);
+            ctx.output.push(info);
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -36,11 +28,12 @@ pub fn pwd(
 
     if matches.conatins("PHYSICAL") {
         if let Ok(path) = std::fs::read_link(current_dir_str()) {
-            output.push(Value::from(path.to_string_lossy().to_string()));
+            ctx.output
+                .push(Value::from(path.to_string_lossy().to_string()));
             return Ok(());
         }
     }
 
-    output.push(Value::from(current_dir_str()));
+    ctx.output.push(Value::from(current_dir_str()));
     Ok(())
 }
