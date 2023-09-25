@@ -170,6 +170,7 @@ impl TokenType {
                 | At
                 | LeftBracket
                 | LeftParen
+                | LeftBrace
                 | Quote
                 | DoubleQuote
                 | AddAssign
