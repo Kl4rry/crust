@@ -33,6 +33,7 @@ pub enum StatementKind {
     For(Variable, Expr, Block),
     While(Expr, Block),
     Loop(Block),
+    TryCatch(Block, Block),
     Block(Block),
     Continue,
     Break,
@@ -205,6 +206,16 @@ impl Statement {
             }
             StatementKind::Fn(name, func) => {
                 ctx.frame.add_function(name.clone(), func.clone());
+                Ok(())
+            }
+            StatementKind::TryCatch(block, catch) => {
+                if let Err(e) = block.eval(ctx, None, None) {
+                    if e.is_error() {
+                        catch.eval(ctx, None, None)?;
+                    } else {
+                        return Err(e);
+                    }
+                }
                 Ok(())
             }
             StatementKind::Return(expr) => {

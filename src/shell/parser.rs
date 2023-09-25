@@ -419,6 +419,21 @@ impl Parser {
                     .into())
             }
             TokenType::If => Ok(self.parse_if(ctx)?.into()),
+            TokenType::Symbol(symbol) if symbol == "try" => {
+                let span = self.eat()?.span;
+                self.skip_whitespace();
+                let block = self.parse_block(ctx)?;
+                self.skip_whitespace();
+                let token = self.eat()?;
+                match &token.token_type {
+                    TokenType::Symbol(symbol) if symbol == "catch" => (),
+                    _ => return Err(SyntaxErrorKind::UnexpectedToken(token)),
+                }
+                self.skip_whitespace();
+                let catch = self.parse_block(ctx)?;
+                let span = span + catch.span;
+                Ok(StatementKind::TryCatch(block, catch).spanned(span).into())
+            }
             TokenType::Break => {
                 let span = self.eat()?.span;
                 if !ctx.contains(ParserContext::INSIDE_LOOP) {

@@ -1,0 +1,14 @@
+
+try {
+    10 / 0
+} catch {
+    assert (true)
+}
+
+try { 10 / 0 } catch { assert (true) }
+
+try {
+    exit 0
+} catch {
+    assert (false)
+}
