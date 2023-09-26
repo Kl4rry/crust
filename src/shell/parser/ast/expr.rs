@@ -15,6 +15,7 @@ use crate::{
     },
     shell::{
         builtins::{self, functions::BulitinFn},
+        frame::Frame,
         stream::{OutputStream, ValueStream},
         value::{SpannedValue, Type, Value},
     },
@@ -428,6 +429,8 @@ impl Expr {
                                 ValueStream::from_value(value)
                             };
 
+                            let (function, frame) = &*func;
+
                             let Function {
                                 parameters,
                                 block,
@@ -435,7 +438,7 @@ impl Expr {
                                 src,
                                 arg_span,
                                 ..
-                            } = &*func;
+                            } = &**function;
 
                             if parameters.len() != args.len() {
                                 return Err(ShellErrorKind::IncorrectArgumentCount {
@@ -461,7 +464,7 @@ impl Expr {
                             };
                             let ctx = &mut Context {
                                 shell: ctx.shell,
-                                frame: ctx.frame.clone(),
+                                frame: frame.clone(),
                                 output: temp_output_cap,
                                 src: ctx.src.clone(),
                             };
@@ -723,7 +726,7 @@ fn expand_call(
 
 pub enum CallType {
     Builtin(BulitinFn, Vec<SpannedValue>, Span),
-    Internal(Rc<Function>, Vec<SpannedValue>, Span),
+    Internal(Rc<(Rc<Function>, Frame)>, Vec<SpannedValue>, Span),
     External(P<Exec>, String, Span),
 }
 

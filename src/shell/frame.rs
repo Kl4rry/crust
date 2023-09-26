@@ -9,7 +9,7 @@ use crate::{
 #[derive(Default, Debug)]
 struct Inner {
     variables: HashMap<Rc<str>, (bool, Value)>,
-    functions: HashMap<Rc<str>, Rc<Function>>,
+    functions: HashMap<Rc<str>, Rc<(Rc<Function>, Frame)>>,
     #[allow(unused)]
     input: ValueStream,
     parent: Option<Frame>,
@@ -22,7 +22,7 @@ pub struct Frame(Rc<Inner>);
 impl Frame {
     pub fn new(
         variables: HashMap<Rc<str>, (bool, Value)>,
-        functions: HashMap<Rc<str>, Rc<Function>>,
+        functions: HashMap<Rc<str>, Rc<(Rc<Function>, Frame)>>,
         input: ValueStream,
     ) -> Self {
         Self(Rc::new(Inner {
@@ -37,7 +37,7 @@ impl Frame {
     pub fn push(
         self,
         variables: HashMap<Rc<str>, (bool, Value)>,
-        functions: HashMap<Rc<str>, Rc<Function>>,
+        functions: HashMap<Rc<str>, Rc<(Rc<Function>, Frame)>>,
         input: ValueStream,
     ) -> Frame {
         Self(Rc::new(Inner {
@@ -109,11 +109,11 @@ impl Frame {
         };
     }
 
-    pub fn get_function(&self, name: &str) -> Option<Rc<Function>> {
+    pub fn get_function(&self, name: &str) -> Option<Rc<(Rc<Function>, Frame)>> {
         self.0.functions.get(name).cloned()
     }
 
-    pub fn add_function(&mut self, name: Rc<str>, func: Rc<Function>) {
+    pub fn add_function(&mut self, name: Rc<str>, func: Rc<(Rc<Function>, Frame)>) {
         unsafe {
             let inner = Rc::get_mut_unchecked(&mut self.0);
             inner.functions.insert(name, func);

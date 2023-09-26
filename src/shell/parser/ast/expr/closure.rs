@@ -7,7 +7,7 @@ use crate::{
         shell_error::ShellErrorKind,
         source::Source,
     },
-    shell::{frame::Frame, stream::ValueStream, value::SpannedValue},
+    shell::{stream::ValueStream, value::SpannedValue},
 };
 
 #[derive(Debug)]
@@ -23,7 +23,6 @@ impl Closure {
     pub fn eval(
         &self,
         ctx: &mut Context,
-        frame: Frame,
         arguments: impl ExactSizeIterator<Item = SpannedValue>,
         input: ValueStream,
     ) -> Result<(), ShellErrorKind> {
@@ -52,7 +51,7 @@ impl Closure {
 
         let ctx = &mut Context {
             shell: ctx.shell,
-            frame: frame.clone(),
+            frame: ctx.frame.clone(),
             output: ctx.output,
             src: ctx.src.clone(),
         };

@@ -13,7 +13,7 @@ use crate::{
 };
 
 pub type GetBuiltin = fn(&mut Shell) -> Value;
-pub type SetBuiltin = fn(&mut Shell, SpannedValue);
+pub type SetBuiltin = fn(&mut Shell, SpannedValue) -> Result<(), ShellErrorKind>;
 
 pub struct Builtins(GetBuiltin, Option<SetBuiltin>);
 
@@ -43,6 +43,7 @@ static BUILTIN_VARS: phf::Map<&'static str, Builtins> = phf_map! {
     "path_sep" => Builtins(path_sep, None),
     "interactive" => Builtins(interactive, None),
     "print_ast" => Builtins(get_print_ast, Some(set_print_ast)),
+    "prompt" => Builtins(get_prompt, Some(set_prompt)),
 };
 
 pub fn is_builtin(name: &str) -> bool {
@@ -70,12 +71,38 @@ pub fn set_var(shell: &mut Shell, name: &str, span: Span, value: SpannedValue) -
         return SetResult::Error(ShellErrorKind::ReadOnlyVar(name.into(), span));
     };
 
-    set(shell, value);
+    if let Err(err) = set(shell, value) {
+        return SetResult::Error(err);
+    }
+
     SetResult::Success
 }
 
-pub fn set_print_ast(shell: &mut Shell, value: SpannedValue) {
+pub fn set_prompt(shell: &mut Shell, value: SpannedValue) -> Result<(), ShellErrorKind> {
+    match value.value {
+        Value::Closure(closure) => {
+            shell.prompt = Some(closure);
+            Ok(())
+        }
+        // TODO make error nicer
+        _ => Err(ShellErrorKind::Basic(
+            "Type Error",
+            "Prompt must be a closure".into(),
+        )),
+    }
+}
+
+pub fn get_prompt(shell: &mut Shell) -> Value {
+    shell
+        .prompt
+        .clone()
+        .map(Value::Closure)
+        .unwrap_or(Value::Null)
+}
+
+pub fn set_print_ast(shell: &mut Shell, value: SpannedValue) -> Result<(), ShellErrorKind> {
     shell.print_ast = value.value.truthy();
+    Ok(())
 }
 
 pub fn get_print_ast(shell: &mut Shell) -> Value {

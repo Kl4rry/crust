@@ -3,6 +3,7 @@ use std::{
     fs::{self, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
+    rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex, MutexGuard,
@@ -30,8 +31,11 @@ mod hello;
 use self::{
     dir_history::DirHistory,
     helper::EditorHelper,
-    parser::{ast::context::Context, shell_error::ShellError},
-    stream::OutputStream,
+    parser::{
+        ast::{context::Context, expr::closure::Closure},
+        shell_error::ShellError,
+    },
+    stream::{OutputStream, ValueStream},
 };
 
 mod helper;
@@ -52,6 +56,7 @@ pub struct Shell {
     interactive: bool,
     pub dir_history: DirHistory,
     print_ast: bool,
+    prompt: Option<Rc<(Rc<Closure>, Frame)>>,
 }
 
 impl Shell {
@@ -107,6 +112,7 @@ impl Shell {
             interactive: false,
             dir_history: DirHistory::new(),
             print_ast: false,
+            prompt: None,
         }
     }
 
@@ -222,25 +228,25 @@ impl Shell {
     }
 
     fn prompt(&mut self) -> String {
-        if let Some(func) = self.stack.get_function("prompt") {
-            if func.parameters.is_empty() {
-                let mut output = OutputStream::new_capture();
-                let mut ctx = Context {
-                    frame: self.stack.clone(),
-                    shell: self,
-                    output: &mut output,
-                    src: func.src.clone(),
-                };
+        if let Some(prompt) = &self.prompt {
+            let (closure, frame) = &*prompt.clone();
+            let mut output = OutputStream::new_capture();
+            let mut ctx = Context {
+                frame: frame.clone(),
+                shell: self,
+                output: &mut output,
+                src: closure.src.clone(),
+            };
 
-                let status = ctx.shell.status();
-                match func.block.eval(&mut ctx, None, None) {
-                    Ok(_) => {
-                        // Prompt should not have any effect on the status variable so we reset it
-                        ctx.shell.exit_status = status;
-                        return output.to_string();
-                    }
-                    Err(err) => report_error(ShellError::new(err, func.src.clone())),
+            let status = ctx.shell.status();
+            let res = closure.eval(&mut ctx, Vec::new().into_iter(), ValueStream::new());
+            match res {
+                Ok(_) => {
+                    // Prompt should not have any effect on the status variable so we reset it
+                    ctx.shell.exit_status = status;
+                    return output.to_string();
                 }
+                Err(err) => report_error(ShellError::new(err, closure.src.clone())),
             }
         }
         self.default_prompt()

@@ -29,3 +29,20 @@ let c6 = ({|a, b, c| echo abc})
 
     do $closure 123
 }
+
+{
+    let closure = $null;
+    {
+        let i = 123
+        fn function() {
+            echo $i
+        }
+
+        {
+            let i = 321
+            $closure = {|x| assert ((function) == $x) }
+        }
+    }
+
+    do $closure 123
+}

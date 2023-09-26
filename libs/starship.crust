@@ -1,3 +1,2 @@
-fn prompt() {
-    starship prompt -s $? 
-}
+
+$prompt = {|| starship prompt -s $? }

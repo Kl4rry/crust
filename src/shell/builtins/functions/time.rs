@@ -42,8 +42,14 @@ pub fn time(
         .value
         .unwrap_closure();
 
+    let mut ctx = Context {
+        shell: ctx.shell,
+        frame: frame.clone(),
+        output: ctx.output,
+        src: ctx.src.clone(),
+    };
     let before = Instant::now();
-    closure.eval(ctx, frame.clone(), iter::empty(), input)?;
+    closure.eval(&mut ctx, iter::empty(), input)?;
     let duration = Instant::now().duration_since(before);
     ctx.output.push(Value::from(format!("{:?}", duration)));
 

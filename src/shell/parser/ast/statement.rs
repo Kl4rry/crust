@@ -205,7 +205,8 @@ impl Statement {
                 }
             }
             StatementKind::Fn(name, func) => {
-                ctx.frame.add_function(name.clone(), func.clone());
+                ctx.frame
+                    .add_function(name.clone(), Rc::new((func.clone(), ctx.frame.clone())));
                 Ok(())
             }
             StatementKind::TryCatch(block, catch) => {

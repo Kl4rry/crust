@@ -45,5 +45,11 @@ pub fn do_closure(
         .value
         .unwrap_closure();
 
-    closure.eval(ctx, frame.clone(), args.into_iter(), input)
+    let mut ctx = Context {
+        shell: ctx.shell,
+        frame: frame.clone(),
+        output: ctx.output,
+        src: ctx.src.clone(),
+    };
+    closure.eval(&mut ctx, args.into_iter(), input)
 }
