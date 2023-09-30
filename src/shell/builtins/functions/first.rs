@@ -3,10 +3,7 @@ use once_cell::sync::Lazy;
 use crate::{
     argparse::{App, Arg, ParseResult},
     parser::{ast::context::Context, shell_error::ShellErrorKind},
-    shell::{
-        stream::ValueStream,
-        value::{SpannedValue, Type, Value},
-    },
+    shell::value::{SpannedValue, Type, Value},
 };
 
 static APP: Lazy<App> = Lazy::new(|| {
@@ -15,11 +12,7 @@ static APP: Lazy<App> = Lazy::new(|| {
         .about("Get first item of sequence")
 });
 
-pub fn first(
-    ctx: &mut Context,
-    args: Vec<SpannedValue>,
-    input: ValueStream,
-) -> Result<(), ShellErrorKind> {
+pub fn first(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErrorKind> {
     let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
@@ -38,7 +31,7 @@ pub fn first(
     }
     let count = count as usize;
 
-    let input = input.unpack();
+    let input = ctx.input.take().unpack();
     match input {
         Value::List(ref list) => ctx.output.extend(list.iter().take(count).cloned()),
         Value::String(ref string) => ctx

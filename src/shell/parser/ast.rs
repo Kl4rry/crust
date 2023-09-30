@@ -60,6 +60,8 @@ impl Ast {
                 frame,
                 output,
                 src: self.src.clone(),
+                // TODO make this tty input
+                input: &mut ValueStream::new(),
             };
 
             match compound {
@@ -112,20 +114,19 @@ impl Block {
         &self,
         ctx: &mut Context,
         variables: Option<HashMap<Rc<str>, (bool, Value)>>,
-        input: Option<ValueStream>,
     ) -> Result<(), ShellErrorKind> {
         if ctx.frame.index() == ctx.shell.recursion_limit {
             return Err(ShellErrorKind::MaxRecursion(ctx.shell.recursion_limit));
         }
-        let frame = ctx.frame.clone().push(
-            variables.unwrap_or_default(),
-            HashMap::new(),
-            input.unwrap_or_default(),
-        );
+        let frame = ctx
+            .frame
+            .clone()
+            .push(variables.unwrap_or_default(), HashMap::new());
         let ctx = &mut Context {
             shell: ctx.shell,
             frame,
             output: ctx.output,
+            input: ctx.input,
             src: ctx.src.clone(),
         };
         for compound in &self.sequence {

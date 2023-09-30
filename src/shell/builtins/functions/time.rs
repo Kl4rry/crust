@@ -5,10 +5,7 @@ use once_cell::sync::Lazy;
 use crate::{
     argparse::{App, Arg, ParseResult},
     parser::{ast::context::Context, shell_error::ShellErrorKind},
-    shell::{
-        stream::ValueStream,
-        value::{SpannedValue, Type, Value},
-    },
+    shell::value::{SpannedValue, Type, Value},
 };
 
 // TODO add output formats
@@ -22,11 +19,7 @@ static APP: Lazy<App> = Lazy::new(|| {
         )
 });
 
-pub fn time(
-    ctx: &mut Context,
-    args: Vec<SpannedValue>,
-    input: ValueStream,
-) -> Result<(), ShellErrorKind> {
+pub fn time(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErrorKind> {
     let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
@@ -46,10 +39,11 @@ pub fn time(
         shell: ctx.shell,
         frame: frame.clone(),
         output: ctx.output,
+        input: ctx.input,
         src: ctx.src.clone(),
     };
     let before = Instant::now();
-    closure.eval(&mut ctx, iter::empty(), input)?;
+    closure.eval(&mut ctx, iter::empty())?;
     let duration = Instant::now().duration_since(before);
     ctx.output.push(Value::from(format!("{:?}", duration)));
 

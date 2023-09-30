@@ -3,10 +3,7 @@ use once_cell::sync::Lazy;
 use crate::{
     argparse::{App, Arg, ParseResult},
     parser::{ast::context::Context, shell_error::ShellErrorKind},
-    shell::{
-        stream::ValueStream,
-        value::{SpannedValue, Type},
-    },
+    shell::value::{SpannedValue, Type},
 };
 
 static APP: Lazy<App> = Lazy::new(|| {
@@ -24,11 +21,7 @@ static APP: Lazy<App> = Lazy::new(|| {
         )
 });
 
-pub fn do_closure(
-    ctx: &mut Context,
-    args: Vec<SpannedValue>,
-    input: ValueStream,
-) -> Result<(), ShellErrorKind> {
+pub fn do_closure(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErrorKind> {
     let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
@@ -49,7 +42,8 @@ pub fn do_closure(
         shell: ctx.shell,
         frame: frame.clone(),
         output: ctx.output,
+        input: ctx.input,
         src: ctx.src.clone(),
     };
-    closure.eval(&mut ctx, args.into_iter(), input)
+    closure.eval(&mut ctx, args.into_iter())
 }

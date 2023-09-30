@@ -6,19 +6,12 @@ use rand::prelude::*;
 use crate::{
     argparse::{App, ParseResult},
     parser::{ast::context::Context, shell_error::ShellErrorKind},
-    shell::{
-        stream::ValueStream,
-        value::{SpannedValue, Value},
-    },
+    shell::value::{SpannedValue, Value},
 };
 
 static APP: Lazy<App> = Lazy::new(|| App::new("shuffle").about("Shuffle items in container"));
 
-pub fn shuffle(
-    ctx: &mut Context,
-    args: Vec<SpannedValue>,
-    input: ValueStream,
-) -> Result<(), ShellErrorKind> {
+pub fn shuffle(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErrorKind> {
     let _ = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
@@ -28,7 +21,7 @@ pub fn shuffle(
         Err(e) => return Err(e.into()),
     };
 
-    let mut input = input.unpack();
+    let mut input = ctx.input.take().unpack();
 
     match input {
         Value::List(ref mut list) => {

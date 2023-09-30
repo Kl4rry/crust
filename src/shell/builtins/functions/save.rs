@@ -7,10 +7,7 @@ use super::save_file;
 use crate::{
     argparse::{App, Arg, Flag, ParseResult},
     parser::{ast::context::Context, shell_error::ShellErrorKind},
-    shell::{
-        stream::ValueStream,
-        value::{SpannedValue, Type, Value},
-    },
+    shell::value::{SpannedValue, Type, Value},
 };
 
 static APP: Lazy<App> = Lazy::new(|| {
@@ -49,11 +46,7 @@ static APP: Lazy<App> = Lazy::new(|| {
         )
 });
 
-pub fn save(
-    ctx: &mut Context,
-    args: Vec<SpannedValue>,
-    input: ValueStream,
-) -> Result<(), ShellErrorKind> {
+pub fn save(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErrorKind> {
     let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
@@ -74,6 +67,8 @@ pub fn save(
 
     let pretty = matches.conatins(&String::from("PRETTY"));
     let append = matches.conatins(&String::from("APPEND"));
+
+    let input = ctx.input.take();
 
     if matches.conatins("STR") {
         let value: Value = input.unpack();

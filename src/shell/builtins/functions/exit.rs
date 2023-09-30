@@ -3,10 +3,7 @@ use once_cell::sync::Lazy;
 use crate::{
     argparse::{App, Arg, ParseResult},
     parser::{ast::context::Context, shell_error::ShellErrorKind},
-    shell::{
-        stream::ValueStream,
-        value::{SpannedValue, Type, Value},
-    },
+    shell::value::{SpannedValue, Type, Value},
 };
 
 static APP: Lazy<App> = Lazy::new(|| {
@@ -15,11 +12,7 @@ static APP: Lazy<App> = Lazy::new(|| {
         .arg(Arg::new("STATUS", Type::INT).help("The exit status of the shell"))
 });
 
-pub fn exit(
-    ctx: &mut Context,
-    args: Vec<SpannedValue>,
-    _: ValueStream,
-) -> Result<(), ShellErrorKind> {
+pub fn exit(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErrorKind> {
     let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {

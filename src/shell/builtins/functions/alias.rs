@@ -6,10 +6,7 @@ use once_cell::sync::Lazy;
 use crate::{
     argparse::{App, Arg, ParseResult},
     parser::{ast::context::Context, shell_error::ShellErrorKind},
-    shell::{
-        stream::ValueStream,
-        value::{table::Table, SpannedValue, Type, Value},
-    },
+    shell::value::{table::Table, SpannedValue, Type, Value},
 };
 
 static APP: Lazy<App> = Lazy::new(|| {
@@ -19,11 +16,7 @@ static APP: Lazy<App> = Lazy::new(|| {
         .arg(Arg::new("COMMAND", Type::STRING).help("The command that will be run"))
 });
 
-pub fn alias(
-    ctx: &mut Context,
-    args: Vec<SpannedValue>,
-    _: ValueStream,
-) -> Result<(), ShellErrorKind> {
+pub fn alias(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErrorKind> {
     let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {

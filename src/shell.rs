@@ -235,11 +235,12 @@ impl Shell {
                 frame: frame.clone(),
                 shell: self,
                 output: &mut output,
+                input: &mut ValueStream::new(),
                 src: closure.src.clone(),
             };
 
             let status = ctx.shell.status();
-            let res = closure.eval(&mut ctx, Vec::new().into_iter(), ValueStream::new());
+            let res = closure.eval(&mut ctx, Vec::new().into_iter());
             match res {
                 Ok(_) => {
                     // Prompt should not have any effect on the status variable so we reset it

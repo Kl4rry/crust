@@ -8,7 +8,7 @@ use phf::*;
 
 use crate::{
     parser::{ast::context::Context, shell_error::ShellErrorKind},
-    shell::{stream::ValueStream, value::SpannedValue},
+    shell::value::SpannedValue,
 };
 
 mod alias;
@@ -36,33 +36,33 @@ mod shuffle;
 mod time;
 mod unalias;
 
-pub type BulitinFn = fn(&mut Context, Vec<SpannedValue>, ValueStream) -> Result<(), ShellErrorKind>;
+pub type BulitinFn = fn(&mut Context, Vec<SpannedValue>) -> Result<(), ShellErrorKind>;
 
 static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
-    "clear" => clear::clear,
-    "pwd" => pwd::pwd,
-    "exit" => exit::exit,
-    "cd" => cd::cd,
-    "back" => back::back,
-    "echo" => echo::echo,
-    "import" => import::import,
     "alias" => alias::alias,
-    "unalias" => unalias::unalias,
-    "env" => env::env,
-    "open" => open::open,
-    "load" => load::load,
-    "save" => save::save,
-    "help" => help::help,
     "assert" => assert::assert,
+    "back" => back::back,
+    "cd" => cd::cd,
+    "clear" => clear::clear,
+    "do" => do_closure::do_closure,
+    "echo" => echo::echo,
+    "env" => env::env,
+    "exit" => exit::exit,
+    "first" => first::first,
+    "help" => help::help,
+    "import" => import::import,
     "input" => input::input,
-    "shuffle" => shuffle::shuffle,
+    "last" => last::last,
     "len" => len::len,
     "lines" => lines::lines,
+    "load" => load::load,
+    "open" => open::open,
     "print" => print::print,
-    "last" => last::last,
-    "first" => first::first,
-    "do" => do_closure::do_closure,
+    "pwd" => pwd::pwd,
+    "save" => save::save,
+    "shuffle" => shuffle::shuffle,
     "time" => time::time,
+    "unalias" => unalias::unalias,
 };
 
 pub fn get_builtin(command: &str) -> Option<BulitinFn> {

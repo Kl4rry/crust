@@ -560,18 +560,35 @@ impl Parser {
     }
 
     fn parse_variable(&mut self, require_prefix: bool) -> Result<Variable> {
+        let mut has_prefix = false;
         if require_prefix || self.peek()?.token_type == TokenType::Dollar {
             self.eat()?.expect(TokenType::Dollar)?;
+            has_prefix = true;
         }
 
         let token = self.eat()?;
         match token.token_type {
-            TokenType::LeftBrace => {
-                let var = Variable::try_from(self.eat()?)?;
+            TokenType::LeftBrace if require_prefix => {
+                let token = self.eat()?;
+                let var = match token.token_type {
+                    TokenType::Gt => Variable {
+                        name: ">".into(),
+                        span: token.span,
+                    },
+                    TokenType::QuestionMark => Variable {
+                        name: "?".into(),
+                        span: token.span,
+                    },
+                    _ => Variable::try_from(token)?,
+                };
                 self.eat()?.expect(TokenType::RightBrace)?;
                 Ok(var)
             }
-            TokenType::QuestionMark if require_prefix => Ok(Variable {
+            TokenType::Gt if has_prefix => Ok(Variable {
+                name: ">".into(),
+                span: token.span,
+            }),
+            TokenType::QuestionMark if has_prefix => Ok(Variable {
                 name: "?".into(),
                 span: token.span,
             }),

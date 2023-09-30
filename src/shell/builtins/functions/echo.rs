@@ -1,16 +1,9 @@
 use crate::{
     parser::{ast::context::Context, shell_error::ShellErrorKind},
-    shell::{
-        stream::ValueStream,
-        value::{SpannedValue, Value},
-    },
+    shell::value::{SpannedValue, Value},
 };
 
-pub fn echo(
-    ctx: &mut Context,
-    args: Vec<SpannedValue>,
-    _: ValueStream,
-) -> Result<(), ShellErrorKind> {
+pub fn echo(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErrorKind> {
     if args.len() == 1 {
         for arg in args {
             ctx.output.push(arg.into());

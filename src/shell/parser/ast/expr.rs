@@ -370,7 +370,7 @@ impl Expr {
                             execs.push((*exec, name, span));
                         }
                         CallType::Builtin(builtin, args, span) => {
-                            let stream = if execs.is_empty() {
+                            let mut stream = if execs.is_empty() {
                                 let mut stream = OutputStream::new_capture();
                                 mem::swap(&mut capture_output.inner, &mut stream);
                                 stream.into_value_stream()
@@ -402,13 +402,14 @@ impl Expr {
                                 shell: ctx.shell,
                                 frame: ctx.frame.clone(),
                                 output: temp_output_cap,
+                                input: &mut stream,
                                 src: ctx.src.clone(),
                             };
-                            builtin(&mut ctx, args, stream)?;
+                            builtin(&mut ctx, args)?;
                             ctx.shell.set_status(ExitStatus::Exited(0));
                         }
                         CallType::Internal(func, args, span) => {
-                            let stream = if execs.is_empty() {
+                            let mut stream = if execs.is_empty() {
                                 let mut stream = OutputStream::new_capture();
                                 mem::swap(&mut capture_output.inner, &mut stream);
                                 stream.into_value_stream()
@@ -466,9 +467,10 @@ impl Expr {
                                 shell: ctx.shell,
                                 frame: frame.clone(),
                                 output: temp_output_cap,
+                                input: &mut stream,
                                 src: ctx.src.clone(),
                             };
-                            block.eval(ctx, Some(input_vars), Some(stream))?;
+                            block.eval(ctx, Some(input_vars))?;
                             ctx.shell.set_status(ExitStatus::Exited(0));
                         }
                     }
@@ -509,6 +511,7 @@ impl Expr {
                         shell: ctx.shell,
                         frame: ctx.frame.clone(),
                         output: &mut capture,
+                        input: &mut ValueStream::new(),
                         src: ctx.src.clone(),
                     };
                     let span = expr.span;

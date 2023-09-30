@@ -3,7 +3,7 @@ use once_cell::sync::Lazy;
 use crate::{
     argparse::{App, Flag, ParseResult},
     parser::{ast::context::Context, shell_error::ShellErrorKind},
-    shell::{current_dir_str, stream::ValueStream, value::SpannedValue, Value},
+    shell::{current_dir_str, value::SpannedValue, Value},
 };
 
 static APP: Lazy<App> = Lazy::new(|| {
@@ -12,11 +12,7 @@ static APP: Lazy<App> = Lazy::new(|| {
         .flag(Flag::new("PHYSICAL").short('p').help("Resolve symlinks"))
 });
 
-pub fn pwd(
-    ctx: &mut Context,
-    args: Vec<SpannedValue>,
-    _: ValueStream,
-) -> Result<(), ShellErrorKind> {
+pub fn pwd(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErrorKind> {
     let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {

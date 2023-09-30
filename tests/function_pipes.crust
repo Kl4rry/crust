@@ -1,0 +1,7 @@
+
+
+fn get_first() {
+    ($>)[0]
+}
+
+assert (([1,2,3] | get_first) == 1)

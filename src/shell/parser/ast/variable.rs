@@ -18,7 +18,7 @@ pub struct Variable {
 
 impl Variable {
     pub fn eval(&self, ctx: &mut Context) -> Result<SpannedValue, ShellErrorKind> {
-        if let Some(value) = variables::get_var(ctx.shell, &self.name) {
+        if let Some(value) = variables::get_var(ctx, &self.name) {
             return Ok(value.spanned(self.span));
         }
 

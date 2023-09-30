@@ -1,6 +1,5 @@
 use std::{collections::HashMap, rc::Rc};
 
-use super::stream::ValueStream;
 use crate::{
     parser::{ast::statement::function::Function, shell_error::ShellErrorKind},
     shell::value::Value,
@@ -10,8 +9,6 @@ use crate::{
 struct Inner {
     variables: HashMap<Rc<str>, (bool, Value)>,
     functions: HashMap<Rc<str>, Rc<(Rc<Function>, Frame)>>,
-    #[allow(unused)]
-    input: ValueStream,
     parent: Option<Frame>,
     index: usize,
 }
@@ -23,12 +20,10 @@ impl Frame {
     pub fn new(
         variables: HashMap<Rc<str>, (bool, Value)>,
         functions: HashMap<Rc<str>, Rc<(Rc<Function>, Frame)>>,
-        input: ValueStream,
     ) -> Self {
         Self(Rc::new(Inner {
             variables,
             functions,
-            input,
             parent: None,
             index: 0,
         }))
@@ -38,12 +33,10 @@ impl Frame {
         self,
         variables: HashMap<Rc<str>, (bool, Value)>,
         functions: HashMap<Rc<str>, Rc<(Rc<Function>, Frame)>>,
-        input: ValueStream,
     ) -> Frame {
         Self(Rc::new(Inner {
             variables,
             functions,
-            input,
             parent: Some(self),
             index: 0,
         }))

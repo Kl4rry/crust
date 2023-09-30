@@ -56,7 +56,7 @@ impl Statement {
         match &self.kind {
             StatementKind::Assign(var, expr) => {
                 let value = expr.eval(ctx)?;
-                let value = match set_var(ctx.shell, &var.name, var.span, value) {
+                let value = match set_var(ctx, &var.name, var.span, value) {
                     SetResult::Success => return Ok(()),
                     SetResult::NotFound(value) => value,
                     SetResult::Error(err) => return Err(err),
@@ -114,10 +114,10 @@ impl Statement {
             StatementKind::If(expr, block, else_clause) => {
                 let value = expr.eval(ctx)?;
                 if value.value.truthy() {
-                    block.eval(ctx, None, None)?
+                    block.eval(ctx, None)?
                 } else if let Some(statement) = else_clause {
                     match &statement.kind {
-                        StatementKind::Block(block) => block.eval(ctx, None, None)?,
+                        StatementKind::Block(block) => block.eval(ctx, None)?,
                         StatementKind::If(..) => statement.eval(ctx)?,
                         _ => unreachable!(),
                     }
@@ -128,7 +128,7 @@ impl Statement {
                 if ctx.shell.interrupt.load(Ordering::SeqCst) {
                     return Err(ShellErrorKind::Interrupt);
                 }
-                match block.eval(ctx, None, None) {
+                match block.eval(ctx, None) {
                     Ok(()) => (),
                     Err(ShellErrorKind::Break) => return Ok(()),
                     Err(ShellErrorKind::Continue) => continue,
@@ -141,7 +141,7 @@ impl Statement {
                         return Err(ShellErrorKind::Interrupt);
                     }
 
-                    match block.eval(ctx, None, None) {
+                    match block.eval(ctx, None) {
                         Ok(()) => (),
                         Err(ShellErrorKind::Break) => break,
                         Err(ShellErrorKind::Continue) => continue,
@@ -167,7 +167,7 @@ impl Statement {
 
                         let mut variables: HashMap<Rc<str>, (bool, Value)> = HashMap::new();
                         variables.insert(name.into(), (false, item.to_owned()));
-                        match block.eval(ctx, Some(variables), None) {
+                        match block.eval(ctx, Some(variables)) {
                             Ok(()) => (),
                             Err(ShellErrorKind::Break) => break,
                             Err(ShellErrorKind::Continue) => continue,
@@ -210,9 +210,9 @@ impl Statement {
                 Ok(())
             }
             StatementKind::TryCatch(block, catch) => {
-                if let Err(e) = block.eval(ctx, None, None) {
+                if let Err(e) = block.eval(ctx, None) {
                     if e.is_error() {
-                        catch.eval(ctx, None, None)?;
+                        catch.eval(ctx, None)?;
                     } else {
                         return Err(e);
                     }
@@ -229,7 +229,7 @@ impl Statement {
             }
             StatementKind::Break => Err(ShellErrorKind::Break),
             StatementKind::Continue => Err(ShellErrorKind::Continue),
-            StatementKind::Block(block) => block.eval(ctx, None, None),
+            StatementKind::Block(block) => block.eval(ctx, None),
         }
     }
 }

@@ -3,10 +3,7 @@ use once_cell::sync::Lazy;
 use crate::{
     argparse::{App, Arg, ParseResult},
     parser::{ast::context::Context, shell_error::ShellErrorKind},
-    shell::{
-        stream::ValueStream,
-        value::{SpannedValue, Type},
-    },
+    shell::value::{SpannedValue, Type},
 };
 
 static APP: Lazy<App> = Lazy::new(|| {
@@ -19,11 +16,7 @@ static APP: Lazy<App> = Lazy::new(|| {
         )
 });
 
-pub fn assert(
-    ctx: &mut Context,
-    args: Vec<SpannedValue>,
-    _: ValueStream,
-) -> Result<(), ShellErrorKind> {
+pub fn assert(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErrorKind> {
     let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {

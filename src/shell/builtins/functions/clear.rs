@@ -5,7 +5,7 @@ use once_cell::sync::Lazy;
 use crate::{
     argparse::{App, Flag, ParseResult},
     parser::{ast::context::Context, shell_error::ShellErrorKind},
-    shell::{stream::ValueStream, value::SpannedValue},
+    shell::value::SpannedValue,
 };
 
 static APP: Lazy<App> = Lazy::new(|| {
@@ -16,11 +16,7 @@ static APP: Lazy<App> = Lazy::new(|| {
     )
 });
 
-pub fn clear(
-    ctx: &mut Context,
-    args: Vec<SpannedValue>,
-    _: ValueStream,
-) -> Result<(), ShellErrorKind> {
+pub fn clear(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErrorKind> {
     let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {

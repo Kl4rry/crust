@@ -1,6 +1,7 @@
 use std::{
     fmt,
     io::{stdout, Write},
+    mem,
     rc::Rc,
     slice,
 };
@@ -58,13 +59,17 @@ impl ValueStream {
     }
 
     pub fn unpack(mut self) -> Value {
-        if self.values.is_empty() {
-            Value::Null
-        } else if self.values.len() == 1 {
-            self.values.pop().unwrap()
-        } else {
-            Value::List(Rc::new(self.values))
+        match self.values.len() {
+            0 => Value::Null,
+            1 => unsafe { self.values.pop().unwrap_unchecked() },
+            _ => Value::List(Rc::new(self.values)),
         }
+    }
+
+    pub fn take(&mut self) -> ValueStream {
+        let mut replacement = ValueStream::new();
+        mem::swap(&mut replacement, self);
+        replacement
     }
 }
 
