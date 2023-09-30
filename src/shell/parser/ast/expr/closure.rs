@@ -7,7 +7,7 @@ use crate::{
         shell_error::ShellErrorKind,
         source::Source,
     },
-    shell::value::SpannedValue,
+    shell::value::Value,
 };
 
 #[derive(Debug)]
@@ -23,7 +23,7 @@ impl Closure {
     pub fn eval(
         &self,
         ctx: &mut Context,
-        arguments: impl ExactSizeIterator<Item = SpannedValue>,
+        arguments: impl ExactSizeIterator<Item = Value>,
     ) -> Result<(), ShellErrorKind> {
         let Closure {
             parameters,
@@ -45,7 +45,7 @@ impl Closure {
 
         let mut input_vars = HashMap::new();
         for (var, arg) in parameters.iter().zip(arguments) {
-            input_vars.insert(var.name.clone(), (false, arg.clone().value));
+            input_vars.insert(var.name.clone(), (false, arg.clone()));
         }
 
         let ctx = &mut Context {

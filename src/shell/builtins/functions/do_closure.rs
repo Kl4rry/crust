@@ -45,5 +45,5 @@ pub fn do_closure(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), Shel
         input: ctx.input,
         src: ctx.src.clone(),
     };
-    closure.eval(&mut ctx, args.into_iter())
+    closure.eval(&mut ctx, args.into_iter().map(|v| v.value))
 }

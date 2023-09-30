@@ -28,6 +28,7 @@ mod last;
 mod len;
 mod lines;
 mod load;
+mod map;
 mod open;
 mod print;
 mod pwd;
@@ -56,6 +57,7 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "len" => len::len,
     "lines" => lines::lines,
     "load" => load::load,
+    "map" => map::map,
     "open" => open::open,
     "print" => print::print,
     "pwd" => pwd::pwd,

@@ -5,3 +5,9 @@ fn get_first() {
 }
 
 assert (([1,2,3] | get_first) == 1)
+
+fn double() {
+    $> | map {|x| $x * 2}
+}
+
+assert (([1,2,3] | double) == [2,4,6])
