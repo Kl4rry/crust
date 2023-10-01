@@ -8,7 +8,7 @@ use crate::{
 
 static APP: Lazy<App> = Lazy::new(|| {
     App::new("lines").about("Split a string into lines").flag(
-        Flag::new("skip")
+        Flag::new("SKIP")
             .long("skip-empty")
             .short('s')
             .help("Skip empty lines"),
@@ -25,7 +25,7 @@ pub fn lines(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErro
         Err(e) => return Err(e.into()),
     };
 
-    let skip = matches.conatins("skip");
+    let skip = matches.conatins("SKIP");
 
     let mut input = ctx.input.take().unpack();
 
