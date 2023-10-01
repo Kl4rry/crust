@@ -151,19 +151,26 @@ impl Shell {
                 config_path.to_string_lossy().to_string(),
                 config,
                 &mut output,
+                ValueStream::new(),
             );
             output.end();
         }
         Ok(())
     }
 
-    pub fn run_src(&mut self, name: String, src: String, output: &mut OutputStream) {
+    pub fn run_src(
+        &mut self,
+        name: String,
+        src: String,
+        output: &mut OutputStream,
+        input: ValueStream,
+    ) {
         match Parser::new(name, src).parse() {
             Ok(ast) => {
                 if self.print_ast {
                     println!("{:#?}", ast);
                 }
-                let res = ast.eval(self, output);
+                let res = ast.eval(self, output, input);
                 if let Err(error) = res {
                     if !error.is_exit() {
                         self.exit_status = error.error.exit_status();
@@ -207,7 +214,7 @@ impl Shell {
 
                     let _ = self.editor.add_history_entry(&line);
                     self.save_history();
-                    self.run_src(String::from("shell"), line, &mut output);
+                    self.run_src(String::from("shell"), line, &mut output, ValueStream::new());
                 }
                 Err(ReadlineError::Interrupted) => {
                     println!("{}", Paint::red("^C"));

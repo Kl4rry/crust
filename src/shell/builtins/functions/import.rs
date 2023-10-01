@@ -6,7 +6,10 @@ use super::read_file;
 use crate::{
     argparse::{App, Arg, ParseResult},
     parser::{ast::context::Context, shell_error::ShellErrorKind},
-    shell::value::{SpannedValue, Type},
+    shell::{
+        stream::ValueStream,
+        value::{SpannedValue, Type},
+    },
 };
 
 static APP: Lazy<App> = Lazy::new(|| {
@@ -41,8 +44,12 @@ pub fn import(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErr
         read_file(&*path)?
     };
 
-    ctx.shell
-        .run_src(Rc::unwrap_or_clone(path), src, ctx.output);
+    ctx.shell.run_src(
+        Rc::unwrap_or_clone(path),
+        src,
+        ctx.output,
+        ValueStream::new(),
+    );
     Ok(())
 }
 

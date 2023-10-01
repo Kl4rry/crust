@@ -2,7 +2,8 @@
 #![feature(arc_unwrap_or_clone)]
 #![feature(get_mut_unchecked)]
 use std::{
-    env, fs,
+    env, fs, io,
+    io::{IsTerminal, Read},
     path::{Path, PathBuf},
     process::ExitCode,
     rc::Rc,
@@ -15,7 +16,7 @@ mod shell;
 pub use shell::parser;
 use shell::{
     parser::{lexer::token::span::Span, shell_error::ShellErrorKind},
-    stream::OutputStream,
+    stream::{OutputStream, ValueStream},
     value::Type,
     Shell,
 };
@@ -42,6 +43,18 @@ fn main() -> ExitCode {
 fn start() -> Result<ExitCode, ShellErrorKind> {
     if !yansi::Paint::enable_windows_ascii() {
         yansi::Paint::disable();
+    }
+
+    let mut input_value = Value::Null;
+    if !io::stdin().is_terminal() {
+        let mut buf = Vec::new();
+        io::stdin()
+            .read_to_end(&mut buf)
+            .map_err(|e| ShellErrorKind::Io(None, e))?;
+        match String::from_utf8(buf) {
+            Ok(string) => input_value = Value::from(string),
+            Err(e) => input_value = Value::from(e.into_bytes()),
+        }
     }
 
     let mut args_iter = env::args();
@@ -104,6 +117,7 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
             fs::read_to_string(file)
                 .map_err(|e| ShellErrorKind::Io(Some(PathBuf::from(file)), e))?,
             &mut OutputStream::new_output(),
+            ValueStream::from_value(input_value),
         );
         shell.status()
     } else if let Some(command) = matches.get_str("COMMAND") {
@@ -111,6 +125,7 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
             String::from("shell"),
             command.to_string(),
             &mut OutputStream::new_output(),
+            ValueStream::from_value(input_value),
         );
         shell.status()
     } else {

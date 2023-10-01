@@ -40,8 +40,13 @@ impl Ast {
         Self { sequence, src }
     }
 
-    pub fn eval(&self, shell: &mut Shell, output: &mut OutputStream) -> Result<(), ShellError> {
-        let res = self.eval_errorkind(shell, output);
+    pub fn eval(
+        &self,
+        shell: &mut Shell,
+        output: &mut OutputStream,
+        input: ValueStream,
+    ) -> Result<(), ShellError> {
+        let res = self.eval_errorkind(shell, output, input);
         res.map_err(|err| ShellError::new(err, (*self.src).clone().into()))
     }
 
@@ -49,6 +54,7 @@ impl Ast {
         &self,
         shell: &mut Shell,
         output: &mut OutputStream,
+        mut input: ValueStream,
     ) -> Result<(), ShellErrorKind> {
         for compound in &self.sequence {
             if shell.interrupt.load(Ordering::SeqCst) {
@@ -60,8 +66,7 @@ impl Ast {
                 frame,
                 output,
                 src: self.src.clone(),
-                // TODO make this tty input
-                input: &mut ValueStream::new(),
+                input: &mut input,
             };
 
             match compound {
