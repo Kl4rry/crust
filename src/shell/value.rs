@@ -839,7 +839,7 @@ impl Value {
                 "[{} of binary data]",
                 humansize::format_size(data.len(), humansize::BINARY.space_after_value(false))
             ),
-            Self::Closure(_) => "[closure]".into(),
+            Self::Closure(closure) => format!("[closure {:p}]", Rc::as_ptr(closure)),
         }
     }
 

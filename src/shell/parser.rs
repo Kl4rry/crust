@@ -1211,7 +1211,9 @@ impl Parser {
 
         if !concat {
             if let Ok(token) = self.peek() {
-                if !matches!(
+                if token.token_type == TokenType::RightParen {
+                    return Ok(Argument { parts });
+                } else if !matches!(
                     token.token_type,
                     TokenType::Space | TokenType::NewLine | TokenType::SemiColon | TokenType::Pipe
                 ) {
