@@ -7,7 +7,7 @@ use comfy_table::{
 use super::Value;
 
 pub fn format_columns<T: Display, Item, I: Iterator<Item = (T, Item)>>(
-    f: &mut fmt::Formatter<'_>,
+    f: &mut impl fmt::Write,
     iterator: I,
 ) -> fmt::Result
 where

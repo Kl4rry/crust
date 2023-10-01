@@ -26,18 +26,16 @@ pub fn clear(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErro
         Err(e) => return Err(e.into()),
     };
 
+    const ERASE_SCREEN: &str = "\x1B[2J";
+    const CURSOR_TO_TOPLEFT: &str = "\x1B[1;1H";
+    const CLEAR_SCREEN: &str = "\u{001b}c";
+
     if matches.get("SCROLLBACK").is_some() {
-        write!(
-            stdout(),
-            "{}{}",
-            ansi_escapes::EraseScreen,
-            ansi_escapes::CursorTo::TopLeft
-        )
-        .map_err(|err| ShellErrorKind::Io(None, err))?;
+        write!(stdout(), "{}{}", ERASE_SCREEN, CURSOR_TO_TOPLEFT)
+            .map_err(|err| ShellErrorKind::Io(None, err))?;
     } else {
         //https://superuser.com/questions/1628694/how-do-i-add-a-keyboard-shortcut-to-clear-scrollback-buffer-in-windows-terminal
-        write!(stdout(), "{}", ansi_escapes::ClearScreen)
-            .map_err(|err| ShellErrorKind::Io(None, err))?;
+        write!(stdout(), "{}", CLEAR_SCREEN).map_err(|err| ShellErrorKind::Io(None, err))?;
     }
     stdout()
         .flush()

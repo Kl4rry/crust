@@ -13,7 +13,6 @@ use crate::{
 
 mod alias;
 mod assert;
-mod back;
 mod cd;
 mod clear;
 mod do_closure;
@@ -44,7 +43,6 @@ pub type BulitinFn = fn(&mut Context, Vec<SpannedValue>) -> Result<(), ShellErro
 static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "alias" => alias::alias,
     "assert" => assert::assert,
-    "back" => back::back,
     "cd" => cd::cd,
     "clear" => clear::clear,
     "do" => do_closure::do_closure,

@@ -29,5 +29,9 @@ pub fn cd(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErrorKi
         None => Rc::new(ctx.shell.home_dir().to_string_lossy().to_string()),
     };
 
-    ctx.shell.dir_history.change_dir(&*dir)
+    if dir.as_str() == "-" {
+        ctx.shell.dir_history.back()
+    } else {
+        ctx.shell.dir_history.change_dir(&*dir)
+    }
 }

@@ -36,7 +36,7 @@ This readme contains notes to myself.
 | Assign and modify += *= etc     | ✅       | ✅    |
 | Run command as background job   | ❌       | ❌    |
 | Escapes sequences               | ✅       | ✅    |
-| Closures                        | ❌       | ❌    |
+| Closures                        | ✅       | ✅    |
 
 ### Standard functions
 | Name       | Completed                   | About                         |
@@ -71,7 +71,6 @@ Add builtins and functions to help when calling unknown command.
 Rework defing functions to use cli parser.  
 Add sub commands to cli parser.  
 Convert statements into expressions.  
-Make it possible to use input from pipeline in user defined function.  
 Better error for unclosed delimiters.  
 
 ## Low prio todo

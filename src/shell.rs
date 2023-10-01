@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     fs::{self, OpenOptions},
-    io::Write,
+    io::{self, Write},
     path::{Path, PathBuf},
     rc::Rc,
     sync::{
@@ -10,7 +10,7 @@ use std::{
     },
 };
 
-use console::Term;
+use crossterm::terminal;
 use directories::{ProjectDirs, UserDirs};
 use miette::{Diagnostic, GraphicalReportHandler};
 use rustyline::{config::BellStyle, error::ReadlineError, history::DefaultHistory, Editor};
@@ -187,7 +187,7 @@ impl Shell {
 
     pub fn run(mut self) -> Result<i64, ShellErrorKind> {
         hello::hello();
-        let term = Term::stdout();
+        let mut term = io::stdout();
         while self.running {
             self.interrupt.store(false, Ordering::SeqCst);
 
@@ -196,12 +196,10 @@ impl Shell {
             #[cfg(not(debug_assertions))]
             let info =
                 current_dir_str().replace(&self.home_dir().to_string_lossy().to_string(), "~");
-
-            term.set_title(format!("Crust: {info}"));
+            let _ = crossterm::execute!(term, terminal::SetTitle(format!("Crust: {info}")));
 
             self.editor.helper_mut().unwrap().prompt = self.prompt();
-            let stripped =
-                console::strip_ansi_codes(&self.editor.helper_mut().unwrap().prompt).to_string();
+            let stripped = strip_ansi_escapes::strip_str(&self.editor.helper_mut().unwrap().prompt);
 
             let mut output = OutputStream::new_output();
 
