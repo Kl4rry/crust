@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 
 use comfy_table::{
-    modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Cell, Color, ContentArrangement,
+    modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL_CONDENSED, Cell, Color, ContentArrangement,
 };
 
 use super::Value;
@@ -15,7 +15,7 @@ where
 {
     let mut table = comfy_table::Table::new();
     table
-        .load_preset(UTF8_FULL)
+        .load_preset(UTF8_FULL_CONDENSED)
         .apply_modifier(UTF8_ROUND_CORNERS)
         .set_content_arrangement(ContentArrangement::Dynamic);
 

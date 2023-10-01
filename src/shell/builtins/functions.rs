@@ -20,6 +20,7 @@ mod do_closure;
 mod echo;
 mod env;
 mod exit;
+mod filter;
 mod first;
 mod help;
 mod import;
@@ -36,6 +37,7 @@ mod save;
 mod shuffle;
 mod time;
 mod unalias;
+mod unique;
 
 pub type BulitinFn = fn(&mut Context, Vec<SpannedValue>) -> Result<(), ShellErrorKind>;
 
@@ -65,6 +67,8 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "shuffle" => shuffle::shuffle,
     "time" => time::time,
     "unalias" => unalias::unalias,
+    "filter" => filter::filter,
+    "unique" => unique::unique,
 };
 
 pub fn get_builtin(command: &str) -> Option<BulitinFn> {

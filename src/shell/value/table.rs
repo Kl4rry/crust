@@ -122,13 +122,19 @@ impl Table {
         self.rows.drain(..removed);
     }
 
-    pub fn rows_mut(&mut self) -> &mut [ConstVec<Value>] {
-        unsafe { mem::transmute::<_, &mut [ConstVec<Value>]>(&mut *self.rows) }
+    pub fn rows_mut(&mut self) -> &mut Vec<ConstVec<Value>> {
+        unsafe { mem::transmute::<_, &mut Vec<ConstVec<Value>>>(&mut self.rows) }
     }
 
     pub fn rows(&self) -> &[Vec<Value>] {
         &self.rows
     }
+
+    pub fn headers(&self) -> &[Rc<str>] {
+        &self.headers
+    }
+
+    pub fn unique(&mut self) {}
 }
 
 impl fmt::Display for Table {

@@ -1,5 +1,6 @@
 use std::{
     fmt::{self, Write},
+    mem,
     ops::Range,
     rc::Rc,
 };
@@ -20,9 +21,11 @@ use table::Table;
 mod types;
 pub use types::Type;
 
+use self::hashable::HashableValue;
 use super::frame::Frame;
 
 mod de;
+mod hashable;
 mod ser;
 
 #[derive(Debug, Clone)]
@@ -612,6 +615,16 @@ pub enum Value {
     Closure(Rc<(Rc<Closure>, Frame)>),
 }
 
+impl Value {
+    pub fn into_hashable(self) -> HashableValue {
+        unsafe { mem::transmute::<_, HashableValue>(self) }
+    }
+
+    pub fn as_hashable(&self) -> &HashableValue {
+        unsafe { mem::transmute::<_, &HashableValue>(self) }
+    }
+}
+
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -1041,5 +1054,11 @@ impl From<char> for Value {
 impl From<Vec<u8>> for Value {
     fn from(value: Vec<u8>) -> Self {
         Value::Binary(Rc::new(value))
+    }
+}
+
+impl From<HashableValue> for Value {
+    fn from(value: HashableValue) -> Self {
+        value.0
     }
 }
