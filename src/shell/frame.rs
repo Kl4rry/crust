@@ -124,6 +124,17 @@ impl Frame {
         }
         vars.into_iter().collect()
     }
+
+    pub fn all_variables(&self) -> HashMap<Rc<str>, (bool, Value)> {
+        let mut output = HashMap::new();
+        for frame in self.clone().into_iter() {
+            for (name, value) in &frame.0.variables {
+                let name = name.clone();
+                output.entry(name).or_insert(value.clone());
+            }
+        }
+        output
+    }
 }
 
 impl Clone for Frame {

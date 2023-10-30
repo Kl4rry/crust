@@ -21,6 +21,7 @@ use crate::{
     argparse::ParseError,
     parser::shell_error::exit_status::ExitStatusExt,
     shell::{
+        frame::Frame,
         levenshtein::levenshtein_stripped,
         value::{SpannedValue, Type},
     },
@@ -89,7 +90,7 @@ pub enum ShellErrorKind {
     },
     NoColumns(Type),
     NotIndexable(Type, Span),
-    VariableNotFound(Rc<str>),
+    VariableNotFound(Rc<str>, Frame),
     InvalidBinaryOperand(BinOp, Type, Type, Span, Span),
     InvalidUnaryOperand(UnOp, Type, Span),
     InvalidIterator(Type),
@@ -165,7 +166,7 @@ impl fmt::Display for ShellErrorKind {
                 write!(f, "Cannot run `{name}` permission denied")
             }
             NoMatch(pattern, ..) => write!(f, "No match found for pattern `{pattern}`"),
-            VariableNotFound(name) => write!(f, "Variable with name `{name}` not found"),
+            VariableNotFound(name, ..) => write!(f, "Variable with name `{name}` not found"),
             IntegerOverFlow => write!(f, "Integer literal too large"),
             Interrupt => write!(f, "^C"),
             InvalidPipelineInput { expected, recived } => {
@@ -351,15 +352,15 @@ impl Diagnostic for ShellError {
     }
 
     fn help<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
-        match self.error {
-            ShellErrorKind::CommandNotFound(ref cmd) => {
+        match &self.error {
+            ShellErrorKind::CommandNotFound(cmd) => {
                 let exes = executable_finder::executables().ok()?;
 
                 let mut options: Vec<_> = exes
                     .par_iter()
                     .filter_map(|exec| {
                         let distance = levenshtein_stripped(&exec.name, cmd);
-                        if distance < 10 {
+                        if distance < 8 {
                             Some((exec, distance))
                         } else {
                             None
@@ -369,6 +370,24 @@ impl Diagnostic for ShellError {
                 options.sort_by_key(|(_, d)| *d);
                 let closest = options.first()?;
                 Some(P::new(format!("Did you mean {}?", closest.0.name)))
+            }
+            ShellErrorKind::VariableNotFound(name, frame) => {
+                let variables = frame.all_variables();
+
+                let mut options: Vec<_> = variables
+                    .iter()
+                    .filter_map(|(variable, _)| {
+                        let distance = levenshtein_stripped(variable, name);
+                        if distance < 5 {
+                            Some((variable, distance))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                options.sort_by_key(|(_, d)| *d);
+                let closest = options.first()?;
+                Some(P::new(format!("Did you mean {}?", closest.0)))
             }
             _ => None,
         }

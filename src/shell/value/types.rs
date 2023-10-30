@@ -4,18 +4,18 @@ bitflags::bitflags! {
     #[rustfmt::skip]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct Type: u16 {
-        const NULL =        0b000000000001;
-        const INT =         0b000000000010;
-        const FLOAT =       0b000000000100;
-        const BOOL =        0b000000001000;
-        const STRING =      0b000000010000;
-        const LIST =        0b000000100000;
-        const MAP =         0b000001000000;
-        const TABLE =       0b000010000000;
-        const RANGE =       0b000100000000;
-        const REGEX =       0b001000000000;
-        const BINARY =      0b010000000000;
-        const CLOSURE =     0b100000000000;
+        const NULL =        1 << 0;
+        const INT =         1 << 1;
+        const FLOAT =       1 << 2;
+        const BOOL =        1 << 3;
+        const STRING =      1 << 4;
+        const LIST =        1 << 5;
+        const MAP =         1 << 6;
+        const TABLE =       1 << 7;
+        const RANGE =       1 << 8;
+        const REGEX =       1 << 9;
+        const BINARY =      1 << 10;
+        const CLOSURE =     1 << 11;
 
         const ANY = Self::NULL.bits() | Self::INT.bits() | Self::FLOAT.bits() | Self::BOOL.bits() | Self::STRING.bits() | Self::LIST.bits() | Self::MAP.bits() | Self::TABLE.bits() | Self::RANGE.bits() | Self::RANGE.bits() | Self::BINARY.bits();
     }

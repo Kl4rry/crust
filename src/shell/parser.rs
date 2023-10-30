@@ -56,9 +56,9 @@ pub fn escape_char(c: u8) -> Option<u8> {
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     struct ParserContext: u8 {
-        const NOTHING = 0;
-        const INSIDE_LOOP = 0b00000001;
-        const INSIDE_FUNCTION = 0b00000010;
+        const NOTHING = 1 << 0;
+        const INSIDE_LOOP = 1 << 1;
+        const INSIDE_FUNCTION = 1 << 2;
     }
 }
 

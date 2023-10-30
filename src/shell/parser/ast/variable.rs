@@ -28,7 +28,10 @@ impl Variable {
             }
         }
 
-        Err(ShellErrorKind::VariableNotFound(self.name.clone()))
+        Err(ShellErrorKind::VariableNotFound(
+            self.name.clone(),
+            ctx.frame.clone(),
+        ))
     }
 }
 
