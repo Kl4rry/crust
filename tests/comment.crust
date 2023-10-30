@@ -1,0 +1,20 @@
+$print_ast = true
+# hello
+{
+    # hello
+    let x = (pwd)
+}
+
+# hello
+let y = {|| echo hello}
+
+let y = {
+    # hello
+    || echo hello
+    # hello
+}
+
+# hello
+let z = (call $y)
+# comment
+assert ($z == hello)
