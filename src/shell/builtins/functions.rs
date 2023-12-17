@@ -21,6 +21,7 @@ mod env;
 mod exit;
 mod filter;
 mod first;
+mod glob;
 mod help;
 mod import;
 mod input;
@@ -49,7 +50,9 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "echo" => echo::echo,
     "env" => env::env,
     "exit" => exit::exit,
+    "filter" => filter::filter,
     "first" => first::first,
+    "glob" => glob::glob,
     "help" => help::help,
     "import" => import::import,
     "input" => input::input,
@@ -65,7 +68,6 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "shuffle" => shuffle::shuffle,
     "time" => time::time,
     "unalias" => unalias::unalias,
-    "filter" => filter::filter,
     "unique" => unique::unique,
 };
 

@@ -9,8 +9,8 @@ use crate::{
 };
 
 static APP: Lazy<App> = Lazy::new(|| {
-    App::new("cd")
-        .about("Change working directory")
+    App::new("print")
+        .about("Print to standard output or standard error")
         .flag(
             Flag::new("stderr")
                 .short('e')

@@ -18,3 +18,5 @@ let y = {
 let z = (do $y)
 # comment
 assert ($z == hello)
+
+# assert (false)
