@@ -10,18 +10,20 @@ use super::source::Source;
 
 const LINE_ENDINGS: [&str; 8] = [
     "\u{000D}\u{000A}", // CarriageReturn followed by LineFeed
-    "\u{000A}", // U+000A -- LineFeed
-    "\u{000B}", // U+000B -- VerticalTab
-    "\u{000C}", // U+000C -- FormFeed
-    "\u{000D}", // U+000D -- CarriageReturn
-    "\u{0085}", // U+0085 -- NextLine
-    "\u{2028}", // U+2028 -- Line Separator
-    "\u{2029}", // U+2029 -- ParagraphSeparator
+    "\u{000A}",         // U+000A -- LineFeed
+    "\u{000B}",         // U+000B -- VerticalTab
+    "\u{000C}",         // U+000C -- FormFeed
+    "\u{000D}",         // U+000D -- CarriageReturn
+    "\u{0085}",         // U+0085 -- NextLine
+    "\u{2028}",         // U+2028 -- Line Separator
+    "\u{2029}",         // U+2029 -- ParagraphSeparator
 ];
 
 fn is_word_break(b: u8) -> bool {
     const DISALLOWED: &[u8] = b"\0#$\"\'(){}[]|;&,.:\\/=";
-    DISALLOWED.contains(&b) || b.is_ascii_whitespace()
+    DISALLOWED.contains(&b)
+        || b.is_ascii_whitespace()
+        || LINE_ENDINGS.iter().any(|le| le.as_bytes()[0] == b)
 }
 
 pub struct Lexer {
@@ -95,7 +97,12 @@ impl Lexer {
     fn parse_whitespace(&mut self) -> Option<Token> {
         let mut advanced = false;
         let start = self.index;
-        while self.current.is_ascii_whitespace() && LINE_ENDINGS.iter().any(|byte| byte.as_bytes()[0] != self.current) && !self.eof {
+        while self.current.is_ascii_whitespace()
+            && LINE_ENDINGS
+                .iter()
+                .all(|byte| byte.as_bytes()[0] != self.current)
+            && !self.eof
+        {
             advanced = true;
             self.advance();
         }
@@ -114,7 +121,9 @@ impl Lexer {
     fn parse_newline(&mut self) -> Option<Token> {
         let start = self.index;
         let mut token = None;
-        let ending: &&str = LINE_ENDINGS.iter().find(|s| s.as_bytes()[0] == self.current)?;
+        let ending: &str = LINE_ENDINGS
+            .iter()
+            .find(|s| s.as_bytes()[0] == self.current)?;
         for byte in ending.as_bytes() {
             if self.eof {
                 return token;
@@ -127,6 +136,8 @@ impl Lexer {
 
             if *byte == self.current {
                 self.advance();
+            } else {
+                break;
             }
         }
 

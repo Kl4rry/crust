@@ -1,5 +1,4 @@
 #![feature(impl_trait_in_assoc_type)]
-#![feature(arc_unwrap_or_clone)]
 #![feature(get_mut_unchecked)]
 use std::{
     env, fs, io,

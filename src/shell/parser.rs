@@ -1,4 +1,4 @@
-use std::{convert::TryInto, rc::Rc, sync::Arc};
+use std::{collections::VecDeque, convert::TryInto, rc::Rc, sync::Arc};
 
 use memchr::memchr;
 
@@ -63,24 +63,26 @@ bitflags::bitflags! {
 }
 
 pub struct Parser {
-    token: Option<Token>,
-    lexer: Lexer,
+    tokens: VecDeque<Token>,
+    source: Arc<Source>,
 }
 
 impl Parser {
     pub fn new(name: String, src: String) -> Self {
-        let mut lexer = Lexer::new(Source::new(name, src).into());
-        let token = lexer.next();
-        Self { lexer, token }
+        let lexer = Lexer::new(Source::new(name, src).into());
+        Self {
+            source: lexer.named_source(),
+            tokens: lexer.collect(),
+        }
     }
 
     pub fn named_source(&self) -> Arc<Source> {
-        self.lexer.named_source()
+        self.source.clone()
     }
 
     #[inline(always)]
     fn src(&self) -> &str {
-        self.lexer.src()
+        &self.source.code
     }
 
     #[inline(always)]
@@ -93,21 +95,26 @@ impl Parser {
     /// Returns reference to first token that is not a comment
     #[inline(always)]
     fn peek(&mut self) -> Result<&Token> {
+        let mut i = 1;
         loop {
-            match self.token {
+            let token = self.tokens.front();
+            match token {
                 Some(Token {
                     token_type: TokenType::Symbol(ref symbol),
                     ..
-                }) if symbol == "#" => {
-                    loop {
-                        let token = self.eat()?;
-                        if token.token_type == TokenType::NewLine {
-                            break;
+                }) if symbol == "#" => loop {
+                    let token = self.tokens.get(i);
+                    i += 1;
+                    match token {
+                        Some(token) => {
+                            if token.token_type == TokenType::NewLine {
+                                break;
+                            }
                         }
+                        None => return Err(SyntaxErrorKind::ExpectedToken),
                     }
-                    continue;
-                }
-                Some(ref token) => return Ok(token),
+                },
+                Some(token) => return Ok(token),
                 None => return Err(SyntaxErrorKind::ExpectedToken),
             }
         }
@@ -116,17 +123,21 @@ impl Parser {
     #[inline(always)]
     fn eat(&mut self) -> Result<Token> {
         loop {
-            let token = self.token.take();
-            self.token = self.lexer.next();
+            let token = self.tokens.pop_front();
             match token {
                 Some(Token {
                     token_type: TokenType::Symbol(ref symbol),
                     ..
                 }) if symbol == "#" => {
                     loop {
-                        let token = self.eat()?;
-                        if token.token_type == TokenType::NewLine {
-                            break;
+                        let token = self.tokens.pop_front();
+                        match token {
+                            Some(token) => {
+                                if token.token_type == TokenType::NewLine {
+                                    break;
+                                }
+                            }
+                            None => return Err(SyntaxErrorKind::ExpectedToken),
                         }
                     }
                     continue;
@@ -139,16 +150,15 @@ impl Parser {
 
     #[inline(always)]
     fn peek_with_comment(&self) -> Result<&Token> {
-        match self.token {
-            Some(ref token) => Ok(token),
+        match self.tokens.front() {
+            Some(token) => Ok(token),
             None => Err(SyntaxErrorKind::ExpectedToken),
         }
     }
 
     #[inline(always)]
     fn eat_with_comment(&mut self) -> Result<Token> {
-        let token = self.token.take();
-        self.token = self.lexer.next();
+        let token = self.tokens.pop_front();
         match token {
             Some(token) => Ok(token),
             None => Err(SyntaxErrorKind::ExpectedToken),
