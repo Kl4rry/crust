@@ -65,23 +65,25 @@ impl Shell {
         let handler_child = child_id.clone();
         let interrupt = Arc::new(AtomicBool::new(false));
         let handle = interrupt.clone();
-        ctrlc::set_handler(move || {
-            handle.store(true, Ordering::SeqCst);
-            let mut guard: MutexGuard<Option<u32>> = handler_child.lock().unwrap();
-            if let Some(id) = &*guard {
-                #[cfg(target_family = "windows")]
-                unsafe {
-                    winapi::um::wincon::GenerateConsoleCtrlEvent(0, *id);
+        if !cfg!(test) {
+            ctrlc::set_handler(move || {
+                handle.store(true, Ordering::SeqCst);
+                let mut guard: MutexGuard<Option<u32>> = handler_child.lock().unwrap();
+                if let Some(id) = &*guard {
+                    #[cfg(target_family = "windows")]
+                    unsafe {
+                        winapi::um::wincon::GenerateConsoleCtrlEvent(0, *id);
+                    }
+                    #[cfg(target_family = "unix")]
+                    {
+                        use nix::{sys::signal, unistd::Pid};
+                        signal::kill(Pid::from_raw(*id as i32), signal::Signal::SIGINT).unwrap();
+                    }
+                    *guard = None;
                 }
-                #[cfg(target_family = "unix")]
-                {
-                    use nix::{sys::signal, unistd::Pid};
-                    signal::kill(Pid::from_raw(*id as i32), signal::Signal::SIGINT).unwrap();
-                }
-                *guard = None;
-            }
-        })
-        .unwrap();
+            })
+            .unwrap();
+        }
 
         let project_dirs = ProjectDirs::from("", "", "crust").unwrap();
         let user_dirs = UserDirs::new().unwrap();

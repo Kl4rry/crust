@@ -20,6 +20,7 @@ use shell::{
     Shell,
 };
 mod argparse;
+mod test;
 
 pub type P<T> = Box<T>;
 

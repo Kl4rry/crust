@@ -1,6 +1,4 @@
 
-let void = (ls)
+$status = 1
+let void = (pwd)
 assert ($? == 0)
-
-#let void = (ls dirthatdoesnotexist)
-#assert ($? != 0)
