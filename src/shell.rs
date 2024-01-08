@@ -187,6 +187,16 @@ impl Shell {
         };
     }
 
+    pub fn validate_syntax(&mut self, name: String, src: String) -> bool {
+        match Parser::new(name, src).parse() {
+            Ok(_) => true,
+            Err(error) => {
+                report_error(*error);
+                false
+            }
+        }
+    }
+
     pub fn run(mut self) -> Result<i64, ShellErrorKind> {
         hello::hello();
         let mut term = io::stdout();

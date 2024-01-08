@@ -8,7 +8,7 @@ use std::{
     rc::Rc,
 };
 
-use argparse::{App, Arg, Opt, ParseResult};
+use argparse::{App, Arg, Flag, Opt, ParseResult};
 
 use crate::shell::value::Value;
 mod shell;
@@ -84,6 +84,11 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
                 .long("path")
                 .help("The working directory the shell will run in"),
         )
+        .flag(
+            Flag::new("CHECK")
+                .long("check")
+                .help("Check if syntax is correct"),
+        )
         .parse(args_iter.map(|s| Value::String(Rc::new(s)).spanned(Span::new(0, 0))));
 
     let matches = match matches {
@@ -111,28 +116,39 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
     shell.set_interactive(interactive);
     shell.init()?;
 
-    let status = if let Some(file) = matches.get_str("FILE") {
-        shell.run_src(
+    let check = matches.conatins("CHECK");
+
+    let (src_name, src) = if let Some(command) = matches.get_str("COMMAND") {
+        (String::from("shell"), command.to_string())
+    } else if let Some(file) = matches.get_str("FILE") {
+        (
             String::from(file),
             fs::read_to_string(file)
                 .map_err(|e| ShellErrorKind::Io(Some(PathBuf::from(file)), e))?,
-            &mut OutputStream::new_output(),
-            ValueStream::from_value(input_value),
-        );
-        shell.status()
-    } else if let Some(command) = matches.get_str("COMMAND") {
-        shell.run_src(
-            String::from("shell"),
-            command.to_string(),
-            &mut OutputStream::new_output(),
-            ValueStream::from_value(input_value),
-        );
-        shell.status()
+        )
+    } else if check {
+        eprintln!("Check must be used with a file or a command");
+        return Ok(ExitCode::FAILURE);
     } else {
-        shell.run()?
+        return Ok(ExitCode::from(
+            shell.run()?.clamp(u8::MIN as i64, u8::MAX as i64) as u8,
+        ));
     };
 
-    Ok(ExitCode::from(
-        num_traits::clamp(status, u8::MIN as i64, u8::MAX as i64) as u8,
-    ))
+    let status = if check {
+        match shell.validate_syntax(src_name, src) {
+            true => ExitCode::SUCCESS,
+            false => ExitCode::FAILURE,
+        }
+    } else {
+        shell.run_src(
+            src_name,
+            src,
+            &mut OutputStream::new_output(),
+            ValueStream::from_value(input_value),
+        );
+        ExitCode::from(shell.status().clamp(u8::MIN as i64, u8::MAX as i64) as u8)
+    };
+
+    Ok(status)
 }
