@@ -85,9 +85,9 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
                 .help("The working directory the shell will run in"),
         )
         .flag(
-            Flag::new("CHECK")
-                .long("check")
-                .help("Check if syntax is correct"),
+            Flag::new("LICENSE")
+                .long("license")
+                .help("View third party licenses"),
         )
         .parse(args_iter.map(|s| Value::String(Rc::new(s)).spanned(Span::new(0, 0))));
 
@@ -99,6 +99,19 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
         }
         Err(e) => return Err(e.into()),
     };
+
+    if matches.conatins("LICENSE") {
+        let licenes = include_str!(concat!(env!("OUT_DIR"), "/license.html"));
+        let temp = std::env::temp_dir();
+        let name = env!("CARGO_BIN_NAME");
+        fs::create_dir_all(temp.join(name))
+            .map_err(|e| ShellErrorKind::Io(Some(temp.join(name)), e))?;
+        let license_file = temp.join(name).join("license.html");
+        fs::write(&license_file, licenes.as_bytes())
+            .map_err(|e| ShellErrorKind::Io(Some(license_file.clone()), e))?;
+        opener::open_browser(&license_file)?;
+        return Ok(ExitCode::SUCCESS);
+    }
 
     if let Some(path) = matches.get_str("PATH") {
         std::env::set_current_dir(path)
