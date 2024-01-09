@@ -8,7 +8,7 @@ use std::{
     rc::Rc,
 };
 
-use argparse::{App, Arg, Flag, Opt, ParseResult};
+use argparse::{App, Arg, Opt, ParseResult};
 
 use crate::shell::value::Value;
 mod shell;
@@ -60,7 +60,7 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
     let mut args_iter = env::args();
     args_iter.next();
 
-    let matches = App::new(env!("CARGO_BIN_NAME"))
+    let app = App::new(env!("CARGO_BIN_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
         .about("An exotic shell")
@@ -83,13 +83,16 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
                 .short('p')
                 .long("path")
                 .help("The working directory the shell will run in"),
-        )
-        .flag(
-            Flag::new("LICENSE")
-                .long("license")
-                .help("View third party licenses"),
-        )
-        .parse(args_iter.map(|s| Value::String(Rc::new(s)).spanned(Span::new(0, 0))));
+        );
+
+    #[cfg(feature = "embed_licenses")]
+    let app = app.flag(
+        argparse::Flag::new("LICENSE")
+            .long("license")
+            .help("View third party licenses"),
+    );
+
+    let matches = app.parse(args_iter.map(|s| Value::String(Rc::new(s)).spanned(Span::new(0, 0))));
 
     let matches = match matches {
         Ok(ParseResult::Matches(m)) => m,
@@ -100,6 +103,7 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
         Err(e) => return Err(e.into()),
     };
 
+    #[cfg(feature = "embed_licenses")]
     if matches.conatins("LICENSE") {
         let licenes = include_str!(concat!(env!("OUT_DIR"), "/license.html"));
         let temp = std::env::temp_dir();
