@@ -119,7 +119,7 @@ impl Argument {
             let mut pattern = String::new();
             for (value, escape) in parts {
                 pattern.push_str(&if escape {
-                    glob::Pattern::escape(&value.value.unwrap_string())
+                    glob::Pattern::escape(&value.try_into_string()?)
                 } else {
                     value.try_into_string()?
                 });

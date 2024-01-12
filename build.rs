@@ -1,4 +1,3 @@
-
 fn main() -> std::io::Result<()> {
     #[cfg(feature = "embed_licenses")]
     {
