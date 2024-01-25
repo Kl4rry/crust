@@ -1,5 +1,4 @@
 fn main() -> std::io::Result<()> {
-    #[cfg(feature = "embed_licenses")]
     {
         use std::{env, process::Command};
         println!("cargo:rerun-if-changed=Cargo.toml");
@@ -7,7 +6,7 @@ fn main() -> std::io::Result<()> {
         Command::new("cargo").args(["about", "init"]).spawn()?;
 
         let out_dir = env::var("OUT_DIR").unwrap();
-        Command::new("cargo")
+        let child = Command::new("cargo")
             .args([
                 "about",
                 "generate",
@@ -16,6 +15,8 @@ fn main() -> std::io::Result<()> {
                 &format!("{out_dir}/license.html"),
             ])
             .spawn()?;
+        let exit_status = child.wait_with_output()?.status;
+        assert!(exit_status.success());
     }
 
     Ok(())

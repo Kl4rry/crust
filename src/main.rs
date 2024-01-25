@@ -85,7 +85,6 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
                 .help("The working directory the shell will run in"),
         );
 
-    #[cfg(feature = "embed_licenses")]
     let app = app.flag(
         argparse::Flag::new("LICENSE")
             .long("license")
@@ -103,15 +102,14 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
         Err(e) => return Err(e.into()),
     };
 
-    #[cfg(feature = "embed_licenses")]
     if matches.conatins("LICENSE") {
-        let licenes = include_str!(concat!(env!("OUT_DIR"), "/license.html"));
+        let licenses = include_str!(concat!(env!("OUT_DIR"), "/license.html"));
         let temp = std::env::temp_dir();
         let name = env!("CARGO_BIN_NAME");
         fs::create_dir_all(temp.join(name))
             .map_err(|e| ShellErrorKind::Io(Some(temp.join(name)), e))?;
         let license_file = temp.join(name).join("license.html");
-        fs::write(&license_file, licenes.as_bytes())
+        fs::write(&license_file, licenses.as_bytes())
             .map_err(|e| ShellErrorKind::Io(Some(license_file.clone()), e))?;
         opener::open_browser(&license_file)?;
         return Ok(ExitCode::SUCCESS);
