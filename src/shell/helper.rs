@@ -13,11 +13,6 @@ use yansi::Paint;
 mod completer;
 use completer::FilenameCompleter;
 
-use crate::parser::{
-    lexer::{token::TokenType, Lexer},
-    source::Source,
-};
-
 pub struct EditorHelper {
     filename_completer: FilenameCompleter,
     pub prompt: String,
@@ -65,21 +60,21 @@ impl highlight::Highlighter for EditorHelper {
         Cow::Borrowed(&self.prompt)
     }
 
-    fn highlight<'l>(&self, line: &'l str, _: usize) -> Cow<'l, str> {
+    /*fn highlight<'l>(&self, line: &'l str, _: usize) -> Cow<'l, str> {
         if line.is_empty() {
             Cow::Borrowed(line)
         } else {
             let highlighter = Highlighter::new(line);
             Cow::Owned(highlighter.highlight())
         }
-    }
+    }*/
 
     fn highlight_char(&self, _: &str, _: usize) -> bool {
         true
     }
 }
 
-pub struct Highlighter<'a> {
+/*pub struct Highlighter<'a> {
     lexer: Lexer,
     index: usize,
     line: &'a str,
@@ -128,7 +123,7 @@ impl<'a> Highlighter<'a> {
 
         self.output
     }
-}
+}*/
 
 impl Hinter for EditorHelper {
     type Hint = String;
