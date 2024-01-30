@@ -8,7 +8,7 @@ use std::{
     rc::Rc,
 };
 
-use argparse::{App, Arg, Opt, ParseResult};
+use argparse::{App, Arg, Flag, Opt, ParseResult};
 
 use crate::shell::value::Value;
 mod shell;
@@ -83,13 +83,13 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
                 .short('p')
                 .long("path")
                 .help("The working directory the shell will run in"),
-        );
-
-    let app = app.flag(
-        argparse::Flag::new("LICENSE")
-            .long("license")
-            .help("View third party licenses"),
-    );
+        )
+        .flag(
+            Flag::new("CHECK")
+                .long("check")
+                .help("Check for syntax errors"),
+        )
+        .sub_cmd(App::new("license").about("View third party licenses"));
 
     let matches = app.parse(args_iter.map(|s| Value::String(Rc::new(s)).spanned(Span::new(0, 0))));
 
@@ -102,9 +102,9 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
         Err(e) => return Err(e.into()),
     };
 
-    if matches.conatins("LICENSE") {
-        let licenses = include_str!(concat!(env!("OUT_DIR"), "/license.html"));
-        let temp = std::env::temp_dir();
+    if matches.sub_cmd() == Some("license") {
+        let licenses: &str = include_str!(concat!(env!("OUT_DIR"), "/license.html"));
+        let temp = env::temp_dir();
         let name = env!("CARGO_BIN_NAME");
         fs::create_dir_all(temp.join(name))
             .map_err(|e| ShellErrorKind::Io(Some(temp.join(name)), e))?;

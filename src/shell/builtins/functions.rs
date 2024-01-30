@@ -23,6 +23,7 @@ mod filter;
 mod first;
 mod glob;
 mod help;
+mod history;
 mod import;
 mod input;
 mod last;
@@ -69,6 +70,7 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "time" => time::time,
     "unalias" => unalias::unalias,
     "unique" => unique::unique,
+    "history" => history::history,
 };
 
 pub fn get_builtin(command: &str) -> Option<BulitinFn> {

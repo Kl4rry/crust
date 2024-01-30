@@ -9,7 +9,6 @@ use std::{
     mem,
 };
 
-use crossterm::style::Stylize;
 use unicode_width::UnicodeWidthStr;
 use yansi::Paint;
 
@@ -31,8 +30,10 @@ pub struct App {
     args: Vec<Arg>,
     options: Vec<Opt>,
     flags: Vec<Flag>,
+    subcommands: Vec<App>,
     author: Option<String>,
     version: Option<String>,
+    parent: Option<String>,
 }
 
 impl App {
@@ -45,8 +46,10 @@ impl App {
             args: Vec::new(),
             options: Vec::new(),
             flags: Vec::new(),
+            subcommands: Vec::new(),
             author: None,
             version: None,
+            parent: None,
         }
     }
 
@@ -98,6 +101,16 @@ impl App {
         self
     }
 
+    pub fn sub_cmd(mut self, mut cmd: App) -> Self {
+        if self.validate_naming(&self.name, Some(&cmd.name), None) {
+            panic!("invalid sub command");
+        }
+
+        cmd.parent = Some(self.name.clone());
+        self.subcommands.push(cmd);
+        self
+    }
+
     pub fn author(mut self, author: &str) -> Self {
         self.author = Some(author.to_string());
         self
@@ -133,6 +146,10 @@ impl App {
             return true;
         }
 
+        if self.subcommands.iter().any(|f| f.name == name) {
+            return true;
+        }
+
         if short == Some('h')
             || short == Some('-')
             || long == Some("help")
@@ -146,11 +163,12 @@ impl App {
 
     pub fn usage(&self) -> String {
         let mut output = String::new();
+        let name = self.parent.clone().unwrap_or_default() + " " + &self.name;
         write!(
             output,
             "{}\n    {}",
             Paint::yellow("Usage:"),
-            Paint::green(&self.name)
+            Paint::green(name)
         )
         .unwrap();
         write!(output, " [FLAGS]").unwrap();
@@ -182,6 +200,11 @@ impl App {
                 write!(output, " [ARGS]").unwrap();
             }
         }
+
+        if !self.subcommands.is_empty() {
+            write!(output, " [SUBCOMMAND]").unwrap();
+        }
+
         output
     }
 
@@ -189,7 +212,8 @@ impl App {
         let mut output = String::new();
 
         {
-            write!(output, "{}", self.name.clone().green()).unwrap();
+            let name = self.parent.clone().unwrap_or_default() + " " + &self.name;
+            write!(output, "{}", Paint::green(name)).unwrap();
             if let Some(ref version) = self.version {
                 write!(output, " {}", version).unwrap();
             }
@@ -312,6 +336,24 @@ impl App {
             }
         }
 
+        if !self.subcommands.is_empty() {
+            writeln!(output, "\n{}", Paint::yellow("Subcommands:")).unwrap();
+            let mut width: usize = 0;
+            for cmd in self.subcommands.iter() {
+                width = cmp::max(width, cmd.name.width());
+            }
+
+            for cmd in &self.subcommands {
+                writeln!(
+                    output,
+                    "   {:width$}    {}",
+                    Paint::green(&cmd.name),
+                    &cmd.about,
+                )
+                .unwrap();
+            }
+        }
+
         output
     }
 
@@ -421,7 +463,7 @@ where
     }
 
     fn parse(mut self) -> Result<ParseResult, ParseErrorKind> {
-        while let Some(arg) = self.args.peek() {
+        'arg_loop: while let Some(arg) = self.args.peek() {
             if let Value::String(arg) = &arg.value {
                 if arg.is_empty() {
                     if let Some(arg) = self.app.args.get(self.arg_index) {
@@ -432,6 +474,12 @@ where
                         }
                         continue;
                     }
+                } else if let Some(cmd) = self.app.subcommands.iter().find(|cmd| cmd.name == **arg)
+                {
+                    self.app = cmd;
+                    self.matches.name = Some(cmd.name.clone());
+                    self.args.next();
+                    continue;
                 }
             }
 
@@ -445,7 +493,9 @@ where
                                 Some(symbol) => {
                                     let mut bytes = vec![symbol];
                                     bytes.extend(arg_iter);
+                                    // Safe because all bytes came from a valid string that was sliced at a ascii char
                                     let long = unsafe { String::from_utf8_unchecked(bytes) };
+
                                     if long == "help" {
                                         return Ok(ParseResult::Info(Value::from(self.app.help())));
                                     } else if long == "version" && self.app.version.is_some() {
@@ -460,6 +510,7 @@ where
                                     {
                                         self.args.next();
                                         self.parse_option(opt)?;
+                                        continue 'arg_loop;
                                     } else if let Some(flag) = self
                                         .app
                                         .flags
@@ -468,12 +519,14 @@ where
                                     {
                                         self.args.next();
                                         self.parse_flag(flag);
+                                        continue 'arg_loop;
                                     } else {
                                         return Err(ParseErrorKind::InvalidInContext(long));
                                     }
                                     break;
                                 }
                                 None => {
+                                    // Is this really correct? Seems weird to have this here
                                     self.parse_arg()?;
                                     break;
                                 }
@@ -727,10 +780,15 @@ impl ArgMatch {
 
 #[derive(Default, Debug)]
 pub struct Matches {
+    name: Option<String>,
     args: HashMap<String, ArgMatch>,
 }
 
 impl Matches {
+    pub fn sub_cmd(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
     pub fn get(&self, key: &str) -> Option<&ArgMatch> {
         self.args.get(key)
     }
