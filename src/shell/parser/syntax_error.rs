@@ -38,7 +38,7 @@ impl fmt::Display for SyntaxErrorKind {
 #[derive(Debug, Error)]
 pub struct SyntaxError {
     pub error: SyntaxErrorKind,
-    pub src: NamedSource,
+    pub src: NamedSource<String>,
     pub len: usize,
 }
 

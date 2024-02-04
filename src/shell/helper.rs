@@ -74,7 +74,7 @@ impl highlight::Highlighter for EditorHelper {
         }
     }
 
-    fn highlight_char(&self, _: &str, _: usize) -> bool {
+    fn highlight_char(&self, _: &str, _: usize, _: bool) -> bool {
         true
     }
 }
