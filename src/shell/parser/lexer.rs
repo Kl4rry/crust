@@ -7,6 +7,7 @@ use memchr::memchr;
 use token::{span::Span, Token, TokenType};
 
 use super::source::Source;
+use crate::str_ext::StrExt;
 
 const LINE_ENDINGS: [&str; 8] = [
     "\u{000D}\u{000A}", // CarriageReturn followed by LineFeed
@@ -19,35 +20,23 @@ const LINE_ENDINGS: [&str; 8] = [
     "\u{2029}",         // U+2029 -- ParagraphSeparator
 ];
 
-fn is_word_break(b: u8) -> bool {
-    const DISALLOWED: &[u8] = b"\0#$\"\'(){}[]|;&,.:\\/=";
-    DISALLOWED.contains(&b)
-        || b.is_ascii_whitespace()
-        || LINE_ENDINGS.iter().any(|le| le.as_bytes()[0] == b)
+fn is_word_break(ch: char) -> bool {
+    const DISALLOWED: &str = "\0#$\"\'(){}[]|;&,.:\\/=";
+    DISALLOWED.contains(ch)
+        || ch.is_whitespace()
+        || LINE_ENDINGS
+            .iter()
+            .any(|le| unsafe { le.chars().next().unwrap_unchecked() } == ch)
 }
 
 pub struct Lexer {
     src: Arc<Source>,
-    current: u8,
     index: usize,
-    eof: bool,
 }
 
 impl Lexer {
     pub fn new(src: Arc<Source>) -> Self {
-        let (current, eof) = if src.code.is_empty() {
-            // this null byte should NEVER be read as the eof flag is set to true
-            (b'\0', true)
-        } else {
-            (src.code.as_bytes()[0], false)
-        };
-
-        Self {
-            current,
-            index: 0,
-            src,
-            eof,
-        }
+        Self { index: 0, src }
     }
 
     pub fn named_source(&self) -> Arc<Source> {
@@ -60,21 +49,24 @@ impl Lexer {
     }
 
     #[inline(always)]
-    fn peek(&self, offset: i32) -> Option<u8> {
+    fn peek(&self, offset: i64) -> Option<u8> {
         self.src()
             .as_bytes()
-            .get((self.index as i32 + offset) as usize)
+            .get((self.index as i64 + offset) as usize)
             .copied()
     }
 
     #[inline(always)]
     fn advance(&mut self) {
-        if (self.index < self.src().len() - 1) && !self.eof {
+        if self.index < self.src().len() {
             self.index += 1;
-            self.current = self.src().as_bytes()[self.index];
-        } else if !self.eof {
-            self.index += 1;
-            self.eof = true;
+        }
+    }
+
+    #[inline(always)]
+    fn advance_n(&mut self, steps: usize) {
+        if self.index < self.src().len() {
+            self.index += steps;
         }
     }
 
@@ -97,14 +89,19 @@ impl Lexer {
     fn parse_whitespace(&mut self) -> Option<Token> {
         let mut advanced = false;
         let start = self.index;
-        while self.current.is_ascii_whitespace()
-            && LINE_ENDINGS
-                .iter()
-                .all(|byte| byte.as_bytes()[0] != self.current)
-            && !self.eof
-        {
-            advanced = true;
-            self.advance();
+        loop {
+            if let Some(current) = self.src().get_char(self.index) {
+                if current.is_whitespace()
+                    && LINE_ENDINGS
+                        .iter()
+                        .all(|le| unsafe { le.chars().next().unwrap_unchecked() } != current)
+                {
+                    advanced = true;
+                    self.advance_n(current.len_utf8());
+                    continue;
+                }
+            }
+            break;
         }
         let end = self.index;
 
@@ -123,19 +120,14 @@ impl Lexer {
         let mut token = None;
         let ending: &str = LINE_ENDINGS
             .iter()
-            .find(|s| s.as_bytes()[0] == self.current)?;
+            .find(|le| le.chars().next() == self.src().get_char(self.index))?;
         for byte in ending.as_bytes() {
-            if self.eof {
-                return token;
-            }
-
-            token = Some(Token {
-                token_type: TokenType::NewLine,
-                span: Span::new(start, self.index),
-            });
-
-            if *byte == self.current {
+            if Some(byte) == self.src().as_bytes().get(self.index) {
                 self.advance();
+                token = Some(Token {
+                    token_type: TokenType::NewLine,
+                    span: Span::new(start, self.index),
+                });
             } else {
                 break;
             }
@@ -146,15 +138,19 @@ impl Lexer {
 
     fn parse_symbol(&mut self) -> Token {
         let start = self.index;
-        let mut value = Vec::new();
-        while !is_word_break(self.current) && !self.eof {
-            value.push(self.current);
-            self.advance();
+        let mut value = String::new();
+        loop {
+            if let Some(ch) = self.src().get_char(self.index) {
+                if !is_word_break(ch) {
+                    value.push(ch);
+                    self.advance_n(ch.len_utf8());
+                    continue;
+                }
+            }
+            break;
         }
         let end = self.index;
         let span = Span::new(start, end);
-
-        let value = String::from_utf8(value).unwrap();
 
         let token_type = match value.as_str() {
             "if" => TokenType::If,
@@ -184,33 +180,38 @@ impl Lexer {
 
     fn parse_number(&mut self) -> Token {
         let start = self.index;
-        let mut value = Vec::new();
+        let mut value = String::new();
         loop {
-            if self.eof || self.current == b'.' && self.peek(1) == Some(b'.') {
+            let Some(current) = self.src().get_char(self.index) else {
+                break;
+            };
+            if !current.is_ascii() {
                 break;
             }
-            if is_word_break(self.current) && self.current != b'.' {
+            if current == '.' && self.peek(1) == Some(b'.') {
                 break;
             }
-            if memchr(self.current, b"*<>%!").is_some() {
+            if is_word_break(self.src().get_char(self.index).unwrap()) && current != '.' {
                 break;
             }
-            if (value.get(..2) == Some(b"0x") || value.get(..2) == Some(b"0b"))
-                && memchr(self.current, b"+-").is_some()
+            if memchr(current as u8, b"*<>%!").is_some() {
+                break;
+            }
+            if (value.get(..2) == Some("0x") || value.get(..2) == Some("0b"))
+                && memchr(current as u8, b"+-").is_some()
             {
                 break;
             }
-            let last = value.last().copied();
-            if last != Some(b'e') && last != Some(b'E') && memchr(self.current, b"+-").is_some() {
+            let last = value.as_bytes().last().copied();
+            if last != Some(b'e') && last != Some(b'E') && memchr(current as u8, b"+-").is_some() {
                 break;
             }
-            if self.current != b'_' {
-                value.push(self.current);
+            if current != '_' {
+                value.push(current);
             }
             self.advance();
         }
         let end = self.index;
-        let value = String::from_utf8(value).unwrap();
         let string = self.src()[start..end].to_string();
 
         let bytes = value.as_bytes();
@@ -275,7 +276,7 @@ impl Iterator for Lexer {
     type Item = Token;
     #[inline]
     fn next(&mut self) -> Option<Token> {
-        if !self.eof {
+        if let Some(current) = self.peek(0) {
             if let Some(token) = self.parse_whitespace() {
                 return Some(token);
             }
@@ -284,11 +285,11 @@ impl Iterator for Lexer {
                 return Some(token);
             }
 
-            if self.current.is_ascii_digit() {
+            if current.is_ascii_digit() {
                 return Some(self.parse_number());
             }
 
-            let token = match self.current {
+            let token = match current {
                 b'\\' => self.advance_with(TokenType::Symbol(String::from("\\")), 1),
                 b'#' => self.advance_with(TokenType::Symbol(String::from("#")), 1),
                 b'$' => self.advance_with(TokenType::Dollar, 1),
