@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt::Write};
 
 use rustyline::{
     completion::{Completer, Pair},
@@ -12,6 +12,11 @@ use yansi::Paint;
 
 mod completer;
 use completer::FilenameCompleter;
+
+use crate::parser::{
+    lexer::{token::TokenType, Lexer},
+    source::Source,
+};
 
 pub struct EditorHelper {
     filename_completer: FilenameCompleter,
@@ -60,21 +65,21 @@ impl highlight::Highlighter for EditorHelper {
         Cow::Borrowed(&self.prompt)
     }
 
-    /*fn highlight<'l>(&self, line: &'l str, _: usize) -> Cow<'l, str> {
+    fn highlight<'l>(&self, line: &'l str, _: usize) -> Cow<'l, str> {
         if line.is_empty() {
             Cow::Borrowed(line)
         } else {
             let highlighter = Highlighter::new(line);
             Cow::Owned(highlighter.highlight())
         }
-    }*/
+    }
 
     fn highlight_char(&self, _: &str, _: usize) -> bool {
         true
     }
 }
 
-/*pub struct Highlighter<'a> {
+pub struct Highlighter<'a> {
     lexer: Lexer,
     index: usize,
     line: &'a str,
@@ -93,23 +98,24 @@ impl<'a> Highlighter<'a> {
 
     fn highlight(mut self) -> String {
         for token in self.lexer.by_ref() {
-            unsafe {
-                self.output
-                    .as_mut_vec()
-                    .extend_from_slice(&self.line.as_bytes()[self.index..token.span.start()])
-            }
+            self.output
+                .push_str(&self.line[self.index..token.span.start()]);
 
             match &token.token_type {
                 TokenType::Float(..) | TokenType::Int(..) | TokenType::True | TokenType::False => {
-                    let s =
-                        Paint::yellow(&self.line[token.span.start()..token.span.end()]).to_string();
-                    self.output.push_str(&s);
+                    let _ = write!(
+                        self.output,
+                        "{}",
+                        Paint::yellow(&self.line[token.span.start()..token.span.end()])
+                    );
                 }
                 token_type => {
                     if token_type.is_keyword() {
-                        let s = Paint::magenta(&self.line[token.span.start()..token.span.end()])
-                            .to_string();
-                        self.output.push_str(&s);
+                        let _ = write!(
+                            self.output,
+                            "{}",
+                            Paint::magenta(&self.line[token.span.start()..token.span.end()])
+                        );
                     } else {
                         self.output
                             .push_str(&self.line[token.span.start()..token.span.end()]);
@@ -119,11 +125,11 @@ impl<'a> Highlighter<'a> {
             self.index = token.span.end();
         }
         let end = &self.lexer.src()[self.index..];
-        self.output.push_str(&Paint::new(end).dimmed().to_string());
+        let _ = write!(&mut self.output, "{}", &Paint::new(end).dimmed());
 
         self.output
     }
-}*/
+}
 
 impl Hinter for EditorHelper {
     type Hint = String;
