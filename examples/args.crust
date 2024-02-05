@@ -1,6 +1,0 @@
-
-let $i = 0
-for $arg in $args {
-    echo "$i: $arg\n"
-    $i += 1
-}
