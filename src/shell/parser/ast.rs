@@ -31,8 +31,8 @@ use super::{lexer::token::span::Span, shell_error::ShellError, source::Source};
 
 #[derive(Debug)]
 pub struct Ast {
-    sequence: Vec<Compound>,
-    src: Arc<Source>,
+    pub sequence: Vec<Compound>,
+    pub src: Arc<Source>,
 }
 
 impl Ast {

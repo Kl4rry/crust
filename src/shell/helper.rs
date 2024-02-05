@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Write};
+use std::{borrow::Cow, fmt::Write, sync::Arc};
 
 use rustyline::{
     completion::{Completer, Pair},
@@ -13,10 +13,10 @@ use yansi::Paint;
 mod completer;
 use completer::FilenameCompleter;
 
-use crate::parser::{
-    lexer::{token::TokenType, Lexer},
-    source::Source,
-};
+mod highlighter;
+
+use self::highlighter::{ColorType, HighlightVisitor};
+use crate::parser::{ast::Ast, source::Source, Parser};
 
 pub struct EditorHelper {
     filename_completer: FilenameCompleter,
@@ -80,7 +80,7 @@ impl highlight::Highlighter for EditorHelper {
 }
 
 pub struct Highlighter<'a> {
-    lexer: Lexer,
+    ast: Ast,
     index: usize,
     line: &'a str,
     output: String,
@@ -89,7 +89,14 @@ pub struct Highlighter<'a> {
 impl<'a> Highlighter<'a> {
     fn new(line: &'a str) -> Self {
         Self {
-            lexer: Lexer::new(Source::new(String::new(), line.to_string()).into()),
+            ast: Parser::new(String::new(), line.to_string())
+                .parse()
+                .unwrap_or_else(|_| {
+                    Ast::new(
+                        Vec::new(),
+                        Arc::new(Source::new(String::new(), line.to_string())),
+                    )
+                }),
             index: 0,
             line,
             output: String::new(),
@@ -97,35 +104,29 @@ impl<'a> Highlighter<'a> {
     }
 
     fn highlight(mut self) -> String {
-        for token in self.lexer.by_ref() {
-            self.output
-                .push_str(&self.line[self.index..token.span.start()]);
-
-            match &token.token_type {
-                TokenType::Float(..) | TokenType::Int(..) | TokenType::True | TokenType::False => {
-                    let _ = write!(
-                        self.output,
-                        "{}",
-                        Paint::yellow(&self.line[token.span.start()..token.span.end()])
-                    );
-                }
-                token_type => {
-                    if token_type.is_keyword() {
-                        let _ = write!(
-                            self.output,
-                            "{}",
-                            Paint::magenta(&self.line[token.span.start()..token.span.end()])
-                        );
-                    } else {
-                        self.output
-                            .push_str(&self.line[token.span.start()..token.span.end()]);
-                    }
-                }
-            }
-            self.index = token.span.end();
+        let mut visitor = HighlightVisitor::default();
+        visitor.visit_ast(&self.ast);
+        for span in visitor.spans {
+            let _ = write!(
+                self.output,
+                "{}",
+                Paint::new(&self.line[self.index..span.span.start()])
+                    .fg(ColorType::Base.to_color()),
+            );
+            let _ = write!(
+                self.output,
+                "{}",
+                Paint::new(&self.line[span.span.start()..span.span.end()])
+                    .fg(span.inner.to_color())
+            );
+            self.index = span.span.end();
         }
-        let end = &self.lexer.src()[self.index..];
-        let _ = write!(&mut self.output, "{}", &Paint::new(end).dimmed());
+        let end = &self.line[self.index..];
+        let _ = write!(
+            &mut self.output,
+            "{}",
+            Paint::new(end).fg(ColorType::Base.to_color())
+        );
 
         self.output
     }

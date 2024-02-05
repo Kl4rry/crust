@@ -1147,6 +1147,8 @@ impl Parser {
             self.skip_whitespace();
         }
 
+        self.peek()?;
+
         let mut parts = Vec::new();
         while let Ok(token) = self.peek() {
             let part = match &token.token_type {
@@ -1173,6 +1175,7 @@ impl Parser {
             };
             parts.push(part);
         }
+
         Ok(parts)
     }
 
