@@ -74,6 +74,7 @@ impl HighlightVisitor {
                 self.visit_arguments(arguments);
             }
             ExprKind::Pipe(pipe) => {
+                // TODO highlight pipe
                 for expr in pipe {
                     self.visit_expr(expr);
                 }

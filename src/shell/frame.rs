@@ -1,5 +1,6 @@
 use std::{collections::HashMap, rc::Rc};
 
+use super::builtins::variables::get_builtin_variable_names;
 use crate::{
     parser::{ast::statement::function::Function, shell_error::ShellErrorKind},
     shell::value::Value,
@@ -125,14 +126,28 @@ impl Frame {
         vars.into_iter().collect()
     }
 
-    pub fn all_variables(&self) -> HashMap<Rc<str>, (bool, Value)> {
-        let mut output = HashMap::new();
+    /// may return duplicates
+    pub fn all_variable_names(&self) -> Vec<Rc<str>> {
+        let mut output = Vec::new();
         for frame in self.clone().into_iter() {
-            for (name, value) in &frame.0.variables {
-                let name = name.clone();
-                output.entry(name).or_insert(value.clone());
+            for name in frame.0.variables.keys() {
+                output.push(name.clone());
             }
         }
+
+        output.extend(get_builtin_variable_names().map(|s| s.into()));
+        output
+    }
+
+    /// may return duplicates
+    pub fn all_function_names(&self) -> Vec<Rc<str>> {
+        let mut output = Vec::new();
+        for frame in self.clone().into_iter() {
+            for name in frame.0.functions.keys() {
+                output.push(name.clone());
+            }
+        }
+
         output
     }
 }

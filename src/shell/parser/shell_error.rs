@@ -8,7 +8,6 @@ use std::{
 
 use glob::{GlobError, PatternError};
 use miette::{Diagnostic, LabeledSpan, SourceCode};
-use rayon::prelude::*;
 use subprocess::{CommunicateError, PopenError};
 use thiserror::Error;
 
@@ -96,7 +95,7 @@ pub enum ShellErrorKind {
     InvalidIterator(Type),
     InvalidEnvVar(Type),
     ReadOnlyVar(String, Span),
-    CommandNotFound(String),
+    CommandNotFound(String, Frame),
     CommandPermissionDenied(String),
     FileNotFound(String),
     FilePermissionDenied(String),
@@ -161,7 +160,7 @@ impl fmt::Display for ShellErrorKind {
             ArgParse(e) => write!(f, "{e}"),
             FileNotFound(path) => write!(f, "Cannot open `{path}` file not found"),
             FilePermissionDenied(path) => write!(f, "Cannot open `{path}` permission denied"),
-            CommandNotFound(name) => write!(f, "Command `{name}` not found"),
+            CommandNotFound(name, ..) => write!(f, "Command `{name}` not found"),
             CommandPermissionDenied(name) => {
                 write!(f, "Cannot run `{name}` permission denied")
             }
@@ -353,43 +352,32 @@ impl Diagnostic for ShellError {
 
     fn help<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
         match &self.error {
-            ShellErrorKind::CommandNotFound(cmd) => {
-                let exes = executable_finder::executables().ok()?;
-
-                let mut options: Vec<_> = exes
-                    .par_iter()
-                    .filter_map(|exec| {
-                        let distance = levenshtein_stripped(&exec.name, cmd);
-                        if distance < 8 {
-                            Some((exec, distance))
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-                options.sort_by_key(|(_, d)| *d);
-                let closest = options.first()?;
-                Some(P::new(format!("Did you mean {}?", closest.0.name)))
+            ShellErrorKind::CommandNotFound(cmd, frame) => {
+                let vec = frame.all_function_names();
+                let closest = get_closest(vec.iter().map(|s| &**s), cmd)?;
+                Some(P::new(format!("Did you mean {}?", closest,)))
             }
             ShellErrorKind::VariableNotFound(name, frame) => {
-                let variables = frame.all_variables();
-
-                let mut options: Vec<_> = variables
-                    .iter()
-                    .filter_map(|(variable, _)| {
-                        let distance = levenshtein_stripped(variable, name);
-                        if distance < 5 {
-                            Some((variable, distance))
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-                options.sort_by_key(|(_, d)| *d);
-                let closest = options.first()?;
-                Some(P::new(format!("Did you mean {}?", closest.0)))
+                let vec = frame.all_variable_names();
+                let closest = get_closest(vec.iter().map(|s| &**s), name)?;
+                Some(P::new(format!("Did you mean {}?", closest,)))
             }
             _ => None,
         }
     }
+}
+
+fn get_closest<'a>(iter: impl Iterator<Item = &'a str>, target: &str) -> Option<&'a str> {
+    let mut options: Vec<_> = iter
+        .filter_map(|option| {
+            let distance = levenshtein_stripped(option, target);
+            if distance < 5 {
+                Some((option, distance))
+            } else {
+                None
+            }
+        })
+        .collect();
+    options.sort_by_key(|(_, d)| *d);
+    options.first().map(|(s, _)| *s)
 }

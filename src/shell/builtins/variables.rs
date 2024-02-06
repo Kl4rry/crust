@@ -46,6 +46,10 @@ static BUILTIN_VARS: phf::Map<&'static str, Builtins> = phf_map! {
     "version" => Builtins(version, None),
 };
 
+pub fn get_builtin_variable_names() -> impl Iterator<Item = &'static str> {
+    BUILTIN_VARS.keys().copied()
+}
+
 pub fn is_builtin(name: &str) -> bool {
     BUILTIN_VARS.contains_key(name)
 }

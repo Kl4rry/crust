@@ -594,7 +594,9 @@ fn run_pipeline(
         };
         let exec = exec.stdin(stdin).env_clear().env_extend(&env);
 
-        let mut child = exec.popen().map_err(|e| popen_to_shell_err(e, name))?;
+        let mut child = exec
+            .popen()
+            .map_err(|e| popen_to_shell_err(e, name, ctx.frame.clone()))?;
         ctx.shell.set_child(child.pid());
         let res = if capture_output {
             let mut com = child.communicate_start(input_data);
@@ -733,10 +735,10 @@ pub enum CallType {
     External(P<Exec>, String, Span),
 }
 
-fn popen_to_shell_err(error: PopenError, name: String) -> ShellErrorKind {
+fn popen_to_shell_err(error: PopenError, name: String, frame: Frame) -> ShellErrorKind {
     match error {
         PopenError::IoError(err) => match err.kind() {
-            io::ErrorKind::NotFound => ShellErrorKind::CommandNotFound(name),
+            io::ErrorKind::NotFound => ShellErrorKind::CommandNotFound(name, frame),
             io::ErrorKind::PermissionDenied => ShellErrorKind::CommandPermissionDenied(name),
             _ => ShellErrorKind::Io(None, err),
         },

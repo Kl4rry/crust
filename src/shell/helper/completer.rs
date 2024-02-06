@@ -150,7 +150,8 @@ fn command_complete(start: &str) -> Vec<Pair> {
         .iter()
         .map(|exe| (exe.name.to_string(), Some(exe.path.clone())))
         .collect();
-    commands.extend(get_builtins().iter().map(|s| (s.to_string(), None)));
+    // TODO add user defined functions
+    commands.extend(get_builtins().map(|s| (s.to_string(), None)));
     commands.sort_by(|(lhs, _), (rhs, _)| lhs.cmp(rhs));
     let commands = Rc::new(commands);
 

@@ -577,32 +577,44 @@ impl Parser {
         }
 
         let token = self.eat()?;
+        let start = {
+            let mut start = token.span.start();
+            if has_prefix {
+                start -= 1;
+            }
+            Span::new(start, start + 1)
+        };
+
         match token.token_type {
             TokenType::LeftBrace if require_prefix => {
                 let token = self.eat()?;
-                let var = match token.token_type {
+                let mut var = match token.token_type {
                     TokenType::Gt => Variable {
                         name: ">".into(),
-                        span: token.span,
+                        span: start + token.span,
                     },
                     TokenType::QuestionMark => Variable {
                         name: "?".into(),
-                        span: token.span,
+                        span: start + token.span,
                     },
                     _ => Variable::try_from(token)?,
                 };
-                self.eat()?.expect(TokenType::RightBrace)?;
+                let end = self.eat()?.expect(TokenType::RightBrace)?.span;
+                var.span = start + end;
                 Ok(var)
             }
             TokenType::Gt if has_prefix => Ok(Variable {
                 name: ">".into(),
-                span: token.span,
+                span: start + token.span,
             }),
             TokenType::QuestionMark if has_prefix => Ok(Variable {
                 name: "?".into(),
-                span: token.span,
+                span: start + token.span,
             }),
-            _ => Variable::try_from(token),
+            _ => Variable::try_from(token).map(|mut var| {
+                var.span += start;
+                var
+            }),
         }
     }
 

@@ -140,16 +140,11 @@ impl Hinter for EditorHelper {
             return None;
         }
 
-        let search_result =
-            ctx.history()
-                .starts_with(line, ctx.history().len() - 1, SearchDirection::Reverse);
-
-        match search_result {
-            Ok(Some(search_result)) => {
-                Some(String::from(&search_result.entry[search_result.pos..]))
-            }
-            _ => None,
-        }
+        let search_result = ctx
+            .history()
+            .starts_with(line, ctx.history().len() - 1, SearchDirection::Reverse)
+            .ok()??;
+        Some(String::from(&search_result.entry[search_result.pos..]))
     }
 }
 

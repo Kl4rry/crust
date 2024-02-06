@@ -55,6 +55,7 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "first" => first::first,
     "glob" => glob::glob,
     "help" => help::help,
+    "history" => history::history,
     "import" => import::import,
     "input" => input::input,
     "last" => last::last,
@@ -70,15 +71,14 @@ static BUILTIN_FUNCTIONS: phf::Map<&'static str, BulitinFn> = phf_map! {
     "time" => time::time,
     "unalias" => unalias::unalias,
     "unique" => unique::unique,
-    "history" => history::history,
 };
 
 pub fn get_builtin(command: &str) -> Option<BulitinFn> {
     BUILTIN_FUNCTIONS.get(command).copied()
 }
 
-pub fn get_builtins() -> Vec<&'static str> {
-    BUILTIN_FUNCTIONS.keys().copied().collect()
+pub fn get_builtins() -> impl Iterator<Item = &'static str> {
+    BUILTIN_FUNCTIONS.keys().copied()
 }
 
 pub fn read_file(path: impl AsRef<Path>) -> Result<String, ShellErrorKind> {
