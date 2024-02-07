@@ -274,7 +274,6 @@ dependencies = [
  "ureq",
  "whoami",
  "winapi",
- "yansi",
 ]
 
 [[package]]
@@ -1646,12 +1645,6 @@ checksum = "a7cad8365489051ae9f054164e459304af2e7e9bb407c958076c8bf4aef52da5"
 dependencies = [
  "memchr",
 ]
-
-[[package]]
-name = "yansi"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09041cd90cf85f7f8b2df60c646f853b7f535ce68f85244eb6731cf89fa498ec"
 
 [[package]]
 name = "zeroize"

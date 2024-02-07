@@ -1,4 +1,4 @@
-use yansi::Color;
+use crossterm::style::Color;
 
 use crate::parser::{
     ast::{
@@ -33,7 +33,7 @@ pub enum ColorType {
 impl ColorType {
     pub fn to_color(self) -> Color {
         match self {
-            ColorType::Base => Color::Fixed(7), // Gray
+            ColorType::Base => Color::Grey,
             ColorType::String => Color::Green,
             ColorType::Literal => Color::Yellow,
             ColorType::Command => Color::Cyan,

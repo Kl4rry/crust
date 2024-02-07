@@ -5,9 +5,9 @@ use std::{
     rc::Rc,
 };
 
+use crossterm::style::{StyledContent, Stylize};
 use indexmap::IndexMap;
 use regex::Regex;
-use yansi::Paint;
 
 use crate::parser::{
     ast::expr::{binop::BinOpKind, closure::Closure},
@@ -650,7 +650,7 @@ impl fmt::Display for Value {
                 format::format_columns(f, (**range).clone().zip((**range).clone().map(Value::from)))
             }
             Self::Bool(boolean) => boolean.fmt(f),
-            Self::Regex(regex) => Paint::blue(format!("/{}/", &regex.1)).fmt(f),
+            Self::Regex(regex) => format!("/{}/", &regex.1).blue().fmt(f),
             Self::Binary(bytes) => {
                 struct Hex<T>(T);
                 impl fmt::Display for Hex<u8> {
@@ -690,20 +690,37 @@ impl fmt::Display for Value {
                         write!(f, "{}:   ", Hex((line * 16) as u16))?;
                     }
 
-                    const DARK_GREY: u8 = 8;
-                    const CYAN: u8 = 6;
-
                     for (i, byte) in slice.iter().copied().enumerate() {
                         if byte == 0 {
-                            write!(f, "{} ", Paint::fixed(DARK_GREY, Hex(byte)))?;
+                            write!(
+                                f,
+                                "{} ",
+                                StyledContent::new(Default::default(), Hex(byte)).dark_grey()
+                            )?;
                         } else if byte.is_ascii_graphic() {
-                            write!(f, "{} ", Paint::fixed(CYAN, Hex(byte)))?;
+                            write!(
+                                f,
+                                "{} ",
+                                StyledContent::new(Default::default(), Hex(byte)).cyan()
+                            )?;
                         } else if byte.is_ascii_whitespace() {
-                            write!(f, "{} ", Paint::green(Hex(byte)))?;
+                            write!(
+                                f,
+                                "{} ",
+                                StyledContent::new(Default::default(), Hex(byte)).green()
+                            )?;
                         } else if byte.is_ascii() {
-                            write!(f, "{} ", Paint::red(Hex(byte)))?;
+                            write!(
+                                f,
+                                "{} ",
+                                StyledContent::new(Default::default(), Hex(byte)).red()
+                            )?;
                         } else {
-                            write!(f, "{} ", Paint::yellow(Hex(byte)))?;
+                            write!(
+                                f,
+                                "{} ",
+                                StyledContent::new(Default::default(), Hex(byte)).yellow()
+                            )?;
                         }
 
                         if (i + 1) % 4 == 0 {
@@ -722,15 +739,31 @@ impl fmt::Display for Value {
                     f.write_str("  ")?;
                     for byte in slice.iter().copied() {
                         if byte == 0 {
-                            write!(f, "{}", Paint::fixed(DARK_GREY, '0'))?;
+                            write!(
+                                f,
+                                "{} ",
+                                StyledContent::new(Default::default(), '0').dark_grey()
+                            )?;
                         } else if byte.is_ascii_graphic() {
-                            write!(f, "{}", Paint::fixed(CYAN, byte as char))?;
+                            write!(
+                                f,
+                                "{} ",
+                                StyledContent::new(Default::default(), byte as char).cyan()
+                            )?;
                         } else if byte.is_ascii_whitespace() {
-                            write!(f, "{}", Paint::green(" "))?;
+                            write!(
+                                f,
+                                "{} ",
+                                StyledContent::new(Default::default(), ' ').green()
+                            )?;
                         } else if byte.is_ascii() {
-                            write!(f, "{}", Paint::red("•"))?;
+                            write!(f, "{} ", StyledContent::new(Default::default(), '•').red())?;
                         } else {
-                            write!(f, "{}", Paint::yellow("x"))?;
+                            write!(
+                                f,
+                                "{} ",
+                                StyledContent::new(Default::default(), 'x').yellow()
+                            )?;
                         }
                     }
 

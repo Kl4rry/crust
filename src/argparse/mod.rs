@@ -9,8 +9,8 @@ use std::{
     mem,
 };
 
+use crossterm::style::Stylize;
 use unicode_width::UnicodeWidthStr;
-use yansi::Paint;
 
 mod arg;
 pub use arg::Arg;
@@ -164,13 +164,7 @@ impl App {
     pub fn usage(&self) -> String {
         let mut output = String::new();
         let name = self.parent.clone().unwrap_or_default() + " " + &self.name;
-        write!(
-            output,
-            "{}\n    {}",
-            Paint::yellow("Usage:"),
-            Paint::green(name)
-        )
-        .unwrap();
+        write!(output, "{}\n    {}", "Usage:".yellow(), name.green(),).unwrap();
         write!(output, " [FLAGS]").unwrap();
 
         if !self.options.is_empty() && self.options.iter().any(|o| !o.required) {
@@ -213,7 +207,7 @@ impl App {
 
         {
             let name = self.parent.clone().unwrap_or_default() + " " + &self.name;
-            write!(output, "{}", Paint::green(name)).unwrap();
+            write!(output, "{}", name.green()).unwrap();
             if let Some(ref version) = self.version {
                 write!(output, " {}", version).unwrap();
             }
@@ -226,7 +220,7 @@ impl App {
             write!(output, "{}", self.usage()).unwrap();
             writeln!(output).unwrap();
 
-            writeln!(output, "\n{}", Paint::yellow("Flags:")).unwrap();
+            writeln!(output, "\n{}", "Flags:".yellow()).unwrap();
             let mut strs = Vec::new();
             let mut helps = Vec::new();
             let mut width: usize = 0;
@@ -267,7 +261,7 @@ impl App {
                 writeln!(
                     output,
                     "    {:width$}    {}",
-                    Paint::green(flag_str),
+                    flag_str.as_str().green(),
                     help,
                     width = width
                 )
@@ -276,7 +270,7 @@ impl App {
         }
 
         if !self.options.is_empty() {
-            writeln!(output, "\n{}", Paint::yellow("Options:")).unwrap();
+            writeln!(output, "\n{}", "Options:".yellow()).unwrap();
             let mut strs = Vec::new();
             let mut width: usize = 0;
             for option in self.options.iter() {
@@ -303,7 +297,7 @@ impl App {
                 writeln!(
                     output,
                     "    {:width$}    {}",
-                    Paint::green(option_str),
+                    option_str.as_str().green(),
                     option.help,
                     width = width
                 )
@@ -312,7 +306,7 @@ impl App {
         }
 
         if !self.args.is_empty() {
-            writeln!(output, "\n{}", Paint::yellow("Args:")).unwrap();
+            writeln!(output, "\n{}", "Args:".yellow()).unwrap();
             let mut strs = Vec::new();
             let mut width: usize = 0;
             for arg in self.args.iter() {
@@ -328,7 +322,7 @@ impl App {
                 writeln!(
                     output,
                     "   {:width$}    {}",
-                    Paint::green(s),
+                    s.as_str().green(),
                     p.help,
                     width = width
                 )
@@ -337,7 +331,7 @@ impl App {
         }
 
         if !self.subcommands.is_empty() {
-            writeln!(output, "\n{}", Paint::yellow("Subcommands:")).unwrap();
+            writeln!(output, "\n{}", "Subcommands:".yellow()).unwrap();
             let mut width: usize = 0;
             for cmd in self.subcommands.iter() {
                 width = cmp::max(width, cmd.name.width());
@@ -347,7 +341,7 @@ impl App {
                 writeln!(
                     output,
                     "   {:width$}    {}",
-                    Paint::green(&cmd.name),
+                    cmd.name.as_str().green(),
                     &cmd.about,
                 )
                 .unwrap();

@@ -10,11 +10,10 @@ use std::{
     },
 };
 
-use crossterm::terminal;
+use crossterm::{style::Stylize, terminal};
 use directories::{ProjectDirs, UserDirs};
 use miette::{Diagnostic, GraphicalReportHandler};
 use rustyline::{config::BellStyle, error::ReadlineError, history::DefaultHistory, Editor};
-use yansi::Paint;
 
 pub mod builtins;
 pub mod dir_history;
@@ -227,10 +226,10 @@ impl Shell {
                     self.run_src(String::from("shell"), line, &mut output, ValueStream::new());
                 }
                 Err(ReadlineError::Interrupted) => {
-                    println!("{}", Paint::red("^C"));
+                    println!("{}", "^C".red());
                 }
                 Err(ReadlineError::Eof) => {
-                    println!("{}", Paint::red("^D"));
+                    println!("{}", "^D".red());
                     self.running = false;
                 }
                 Err(err) => {

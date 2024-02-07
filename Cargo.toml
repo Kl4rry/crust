@@ -37,7 +37,6 @@ unicode-segmentation = "1.10.0"
 unicode-width = "0.1.9"
 ureq = { version = "2.4.0", features = ["brotli", "charset"] }
 whoami = "1.1.1"
-yansi = "0.5.0"
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.3.9"

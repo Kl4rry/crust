@@ -1,5 +1,6 @@
 use std::{borrow::Cow, fmt::Write, sync::Arc};
 
+use crossterm::style::Stylize;
 use rustyline::{
     completion::{Completer, Pair},
     highlight,
@@ -8,7 +9,6 @@ use rustyline::{
     validate::Validator,
     Changeset, Helper,
 };
-use yansi::Paint;
 
 mod completer;
 use completer::FilenameCompleter;
@@ -58,7 +58,7 @@ impl Completer for EditorHelper {
 
 impl highlight::Highlighter for EditorHelper {
     fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
-        Cow::Owned(Paint::new(hint).dimmed().to_string())
+        Cow::Owned(hint.dim().to_string())
     }
 
     fn highlight_prompt<'b, 's: 'b, 'p: 'b>(&'s self, _: &'p str, _: bool) -> Cow<'b, str> {
@@ -110,23 +110,17 @@ impl<'a> Highlighter<'a> {
             let _ = write!(
                 self.output,
                 "{}",
-                Paint::new(&self.line[self.index..span.span.start()])
-                    .fg(ColorType::Base.to_color()),
+                &self.line[self.index..span.span.start()].with(ColorType::Base.to_color()),
             );
             let _ = write!(
                 self.output,
                 "{}",
-                Paint::new(&self.line[span.span.start()..span.span.end()])
-                    .fg(span.inner.to_color())
+                &self.line[span.span.start()..span.span.end()].with(span.inner.to_color())
             );
             self.index = span.span.end();
         }
         let end = &self.line[self.index..];
-        let _ = write!(
-            &mut self.output,
-            "{}",
-            Paint::new(end).fg(ColorType::Base.to_color())
-        );
+        let _ = write!(&mut self.output, "{}", end.with(ColorType::Base.to_color()));
 
         self.output
     }

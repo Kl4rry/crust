@@ -42,10 +42,6 @@ fn main() -> ExitCode {
 }
 
 fn start() -> Result<ExitCode, ShellErrorKind> {
-    if !yansi::Paint::enable_windows_ascii() {
-        yansi::Paint::disable();
-    }
-
     let mut input_value = Value::Null;
     if !io::stdin().is_terminal() {
         let mut buf = Vec::new();
