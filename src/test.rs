@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use std::{fs, sync::Arc};
 
-    use crate::shell::{
+    use crate::{parser::{lexer::Lexer, source::Source, Parser}, shell::{
         stream::{OutputStream, ValueStream},
         Shell,
-    };
+    }};
     #[test]
     fn basic_test() {
         let mut shell = Shell::new(Vec::new());
@@ -34,5 +34,29 @@ mod tests {
                 assert_eq!(0, shell.status());
             }
         }
+    }
+
+    fn random_ascii_string(len: usize) -> String {
+        use rand::prelude::*;
+        let mut rng = rand::thread_rng();
+        let mut s = String::new();
+        for _ in 0..len {
+            let ch: u8 = rng.gen_range(0..=127);
+            s.push(ch as char);
+        }
+        s
+    }
+
+    #[test]
+    fn random_ascii_lex_test() {
+        let lexer = Lexer::new(Arc::new(Source::new("random ascii".into(), random_ascii_string(10_000))));
+        let tokens: Vec<_> = lexer.collect();
+        assert!(!tokens.is_empty());
+    }
+
+    #[test]
+    fn random_ascii_parse_test() {
+        let parser = Parser::new("random ascii".into(), random_ascii_string(10_000));
+        let _ = parser.parse();
     }
 }

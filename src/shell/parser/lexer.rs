@@ -21,7 +21,7 @@ const LINE_ENDINGS: [&str; 8] = [
 ];
 
 fn is_word_break(ch: char) -> bool {
-    const DISALLOWED: &str = "\0#$\"\'(){}[]|;&,.:\\/=";
+    const DISALLOWED: &str = "#$\"\'(){}[]|;&,.:\\/=";
     DISALLOWED.contains(ch)
         || ch.is_whitespace()
         || LINE_ENDINGS
