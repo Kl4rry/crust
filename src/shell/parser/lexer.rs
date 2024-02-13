@@ -5,6 +5,7 @@ use std::sync::Arc;
 use bigdecimal::{num_bigint::BigUint, BigDecimal};
 use memchr::memchr;
 use token::{span::Span, Token, TokenType};
+use tracing::instrument;
 
 use super::source::Source;
 use crate::str_ext::StrExt;
@@ -29,6 +30,7 @@ fn is_word_break(ch: char) -> bool {
             .any(|le| unsafe { le.chars().next().unwrap_unchecked() } == ch)
 }
 
+#[derive(Debug)]
 pub struct Lexer {
     src: Arc<Source>,
     index: usize,
@@ -49,6 +51,7 @@ impl Lexer {
     }
 
     #[inline(always)]
+    #[instrument(level = "trace")]
     fn peek(&self, offset: i64) -> Option<u8> {
         self.src()
             .as_bytes()
@@ -57,6 +60,7 @@ impl Lexer {
     }
 
     #[inline(always)]
+    #[instrument(level = "trace")]
     fn advance(&mut self) {
         if self.index < self.src().len() {
             self.index += 1;
@@ -64,6 +68,7 @@ impl Lexer {
     }
 
     #[inline(always)]
+    #[instrument(level = "trace")]
     fn advance_n(&mut self, steps: usize) {
         if self.index < self.src().len() {
             self.index += steps;
@@ -71,6 +76,7 @@ impl Lexer {
     }
 
     #[inline(always)]
+    #[instrument(level = "trace")]
     fn advance_with(&mut self, token_type: TokenType, length: usize) -> Token {
         assert!(length > 0);
 
@@ -86,6 +92,7 @@ impl Lexer {
         }
     }
 
+    #[instrument(level = "trace")]
     fn parse_whitespace(&mut self) -> Option<Token> {
         let mut advanced = false;
         let start = self.index;
@@ -115,6 +122,7 @@ impl Lexer {
         }
     }
 
+    #[instrument(level = "trace")]
     fn parse_newline(&mut self) -> Option<Token> {
         let start = self.index;
         let mut token = None;
@@ -136,6 +144,7 @@ impl Lexer {
         token
     }
 
+    #[instrument(level = "trace")]
     fn parse_symbol(&mut self) -> Token {
         let start = self.index;
         let mut value = String::new();
@@ -178,6 +187,7 @@ impl Lexer {
         Token { token_type, span }
     }
 
+    #[instrument(level = "trace")]
     fn parse_number(&mut self) -> Token {
         let start = self.index;
         let mut value = String::new();
@@ -275,8 +285,13 @@ impl Lexer {
 impl Iterator for Lexer {
     type Item = Token;
     #[inline]
+    #[instrument(level = "trace")]
     fn next(&mut self) -> Option<Token> {
         if let Some(current) = self.peek(0) {
+            if current.is_ascii_control() && current == b'\0' {
+                self.advance_with(TokenType::Control, 1);
+            }
+
             if let Some(token) = self.parse_whitespace() {
                 return Some(token);
             }

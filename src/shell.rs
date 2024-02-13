@@ -22,6 +22,7 @@ pub mod stream;
 pub mod value;
 use parser::{shell_error::ShellErrorKind, Parser};
 use subprocess::ExitStatus;
+use tracing::instrument;
 use value::Value;
 mod frame;
 use frame::Frame;
@@ -88,7 +89,7 @@ impl Shell {
         let user_dirs = UserDirs::new().unwrap();
 
         let config = rustyline::Config::builder()
-            .max_history_size(5000)
+            .max_history_size(usize::MAX)
             .unwrap()
             .color_mode(rustyline::ColorMode::Enabled)
             .bell_style(BellStyle::None)
@@ -159,6 +160,7 @@ impl Shell {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     pub fn run_src(
         &mut self,
         name: String,

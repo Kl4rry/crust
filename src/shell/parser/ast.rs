@@ -22,6 +22,7 @@ use expr::Expr;
 pub mod statement;
 
 pub mod variable;
+use tracing::instrument;
 use variable::Variable;
 
 pub mod context;
@@ -40,12 +41,14 @@ impl Ast {
         Self { sequence, src }
     }
 
+    #[instrument(skip(shell))]
     pub fn eval(
         &self,
         shell: &mut Shell,
         output: &mut OutputStream,
         input: ValueStream,
     ) -> Result<(), ShellError> {
+        std::thread::sleep(std::time::Duration::from_millis(1000));
         let res = self.eval_errorkind(shell, output, input);
         res.map_err(|err| ShellError::new(err, (*self.src).clone().into()))
     }

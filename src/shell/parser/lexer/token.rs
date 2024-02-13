@@ -30,6 +30,7 @@ pub enum TokenType {
     Symbol(String),
     Float(BigDecimal, String),
     Int(BigUint, String),
+    Control,
     DoubleQuote,
     Quote,
     NewLine,

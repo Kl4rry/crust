@@ -1,6 +1,8 @@
 use std::{collections::VecDeque, convert::TryInto, rc::Rc, sync::Arc};
 
 use memchr::memchr;
+use regex::Regex;
+use tracing::{instrument, trace_span};
 
 use crate::P;
 
@@ -27,7 +29,6 @@ use ast::{
 };
 
 pub mod syntax_error;
-use regex::Regex;
 use syntax_error::{SyntaxError, SyntaxErrorKind};
 
 use self::{
@@ -62,6 +63,7 @@ bitflags::bitflags! {
     }
 }
 
+#[derive(Debug)]
 pub struct Parser {
     tokens: VecDeque<Token>,
     source: Arc<Source>,
@@ -70,10 +72,11 @@ pub struct Parser {
 impl Parser {
     pub fn new(name: String, src: String) -> Self {
         let lexer = Lexer::new(Source::new(name, src).into());
-        Self {
-            source: lexer.named_source(),
-            tokens: lexer.collect(),
-        }
+        let source = lexer.named_source();
+        let span = trace_span!("lex");
+        let _lex = span.enter();
+        let tokens = lexer.collect();
+        Self { source, tokens }
     }
 
     pub fn named_source(&self) -> Arc<Source> {
@@ -86,6 +89,7 @@ impl Parser {
     }
 
     #[inline(always)]
+    #[instrument(level = "trace")]
     fn get_span_from_src(&self, span: Span) -> &str {
         let start = span.start();
         let end = span.end();
@@ -94,6 +98,7 @@ impl Parser {
 
     /// Returns reference to first token that is not a comment
     #[inline(always)]
+    #[instrument(level = "trace")]
     fn peek(&mut self) -> Result<&Token> {
         let mut i = 1;
         loop {
@@ -121,6 +126,7 @@ impl Parser {
     }
 
     #[inline(always)]
+    #[instrument(level = "trace")]
     fn eat(&mut self) -> Result<Token> {
         loop {
             let token = self.tokens.pop_front();
@@ -149,6 +155,7 @@ impl Parser {
     }
 
     #[inline(always)]
+    #[instrument(level = "trace")]
     fn peek_with_comment(&self) -> Result<&Token> {
         match self.tokens.front() {
             Some(token) => Ok(token),
@@ -157,6 +164,7 @@ impl Parser {
     }
 
     #[inline(always)]
+    #[instrument(level = "trace")]
     fn eat_with_comment(&mut self) -> Result<Token> {
         let token = self.tokens.pop_front();
         match token {
@@ -166,6 +174,7 @@ impl Parser {
     }
 
     #[inline(always)]
+    #[instrument(level = "trace")]
     pub fn skip_space(&mut self) -> Result<()> {
         while let Ok(token) = self.peek() {
             if !token.is_space() {
@@ -177,6 +186,7 @@ impl Parser {
     }
 
     #[inline(always)]
+    #[instrument(level = "trace")]
     pub fn skip_optional_space(&mut self) {
         while let Ok(token) = self.peek() {
             if !token.is_space() {
@@ -187,6 +197,7 @@ impl Parser {
     }
 
     #[inline(always)]
+    #[instrument(level = "trace")]
     pub fn skip_whitespace(&mut self) {
         while let Ok(token) = self.peek() {
             match token.token_type {
@@ -199,6 +210,7 @@ impl Parser {
     }
 
     #[inline(always)]
+    #[instrument(level = "trace")]
     pub fn skip_whitespace_and_semi(&mut self) {
         while let Ok(token) = self.peek() {
             match token.token_type {
@@ -210,6 +222,7 @@ impl Parser {
         }
     }
 
+    #[instrument(level = "trace")]
     pub fn parse(mut self) -> std::result::Result<Ast, P<SyntaxError>> {
         match self.parse_sequence(false, ParserContext::NOTHING) {
             Ok(sequence) => Ok(Ast::new(sequence, self.named_source())),
@@ -221,6 +234,7 @@ impl Parser {
         }
     }
 
+    #[instrument(level = "trace")]
     fn parse_sequence(&mut self, block: bool, ctx: ParserContext) -> Result<Vec<Compound>> {
         let mut sequence = Vec::new();
 
@@ -254,6 +268,7 @@ impl Parser {
         }
     }
 
+    #[instrument(level = "trace")]
     fn parse_block(&mut self, ctx: ParserContext, opening_brace: Option<Token>) -> Result<Block> {
         let start = match opening_brace {
             Some(token) => token,
@@ -269,6 +284,7 @@ impl Parser {
         })
     }
 
+    #[instrument(level = "trace")]
     fn parse_closure(&mut self, opening_brace: Option<Token>) -> Result<Expr> {
         let left_brace = match opening_brace {
             Some(token) => token,
@@ -324,6 +340,7 @@ impl Parser {
         .spanned(span))
     }
 
+    #[instrument(level = "trace")]
     fn parse_compound(&mut self, ctx: ParserContext) -> Result<Compound> {
         let token_type = &self.peek()?.token_type;
 
@@ -569,6 +586,7 @@ impl Parser {
         }
     }
 
+    #[instrument(level = "trace")]
     fn parse_variable(&mut self, require_prefix: bool) -> Result<Variable> {
         let mut has_prefix = false;
         if require_prefix || self.peek()?.token_type == TokenType::Dollar {
@@ -618,6 +636,7 @@ impl Parser {
         }
     }
 
+    #[instrument(level = "trace")]
     fn parse_string(&mut self) -> Result<Spanned<String>> {
         let mut span = self.eat()?.expect(TokenType::Quote)?.span;
         let mut string = String::new();
@@ -637,6 +656,7 @@ impl Parser {
         Ok(Spanned::new(string, span))
     }
 
+    #[instrument(level = "trace")]
     fn parse_expand(&mut self) -> Result<Expand> {
         let mut span = self.eat()?.expect(TokenType::DoubleQuote)?.span;
         let mut content = Vec::new();
@@ -719,6 +739,7 @@ impl Parser {
         Ok(Expand { content, span })
     }
 
+    #[instrument(level = "trace")]
     fn parse_if(&mut self, ctx: ParserContext) -> Result<Statement> {
         let start = self.eat()?.expect(TokenType::If)?.span;
         self.skip_optional_space();
@@ -755,6 +776,7 @@ impl Parser {
         Ok(StatementKind::If(expr, block, statement).spanned(start + end))
     }
 
+    #[instrument(level = "trace")]
     fn parse_declaration(&mut self, export: bool) -> Result<Statement> {
         let start = self.eat()?.span;
         self.skip_space()?;
@@ -779,6 +801,7 @@ impl Parser {
         }
     }
 
+    #[instrument(level = "trace")]
     fn parse_list(&mut self) -> Result<Expr> {
         let mut span = self.eat()?.expect(TokenType::LeftBracket)?.span;
         let mut list = Vec::new();
@@ -809,6 +832,7 @@ impl Parser {
         Ok(ExprKind::Literal(LiteralKind::List(list).spanned(span)).spanned(span))
     }
 
+    #[instrument(level = "trace")]
     fn parse_regex_or_map(&mut self) -> Result<Expr> {
         self.eat()?.expect(TokenType::At)?;
         match self.peek()?.token_type {
@@ -818,6 +842,7 @@ impl Parser {
         }
     }
 
+    #[instrument(level = "trace")]
     fn parse_map(&mut self, left_brace: Option<Token>) -> Result<Expr> {
         let left_brace = match left_brace {
             Some(token) => token,
@@ -856,6 +881,7 @@ impl Parser {
         Ok(ExprKind::Literal(LiteralKind::Map(exprs).spanned(span)).spanned(span))
     }
 
+    #[instrument(level = "trace")]
     fn parse_regex(&mut self) -> Result<Expr> {
         let span = self.peek()?.span; // TODO expect quote
         let Spanned {
@@ -875,6 +901,7 @@ impl Parser {
         )
     }
 
+    #[instrument(level = "trace")]
     fn parse_bare_word(&mut self) -> Result<Expr> {
         let token = self.eat()?;
         match token.token_type {
@@ -886,6 +913,7 @@ impl Parser {
         }
     }
 
+    #[instrument(level = "trace")]
     fn parse_error_check(&mut self) -> Result<Expr> {
         let start = self.eat()?.expect(TokenType::QuestionMark)?.span;
         self.eat()?.expect(TokenType::LeftParen)?;
@@ -896,6 +924,7 @@ impl Parser {
         Ok(ExprKind::ErrorCheck(P::new(expr)).spanned(start + end))
     }
 
+    #[instrument(level = "trace")]
     fn parse_sub_expr(&mut self) -> Result<Expr> {
         let start = self.eat()?.expect(TokenType::LeftParen)?.span;
         self.skip_whitespace();
@@ -905,6 +934,7 @@ impl Parser {
         Ok(ExprKind::SubExpr(P::new(expr)).spanned(start + end))
     }
 
+    #[instrument(level = "trace")]
     fn parse_primary(&mut self, unop: Option<UnOp>, parse_cmd: bool) -> Result<Expr> {
         let expr = match self.peek()?.token_type {
             TokenType::True | TokenType::False => {
@@ -978,6 +1008,7 @@ impl Parser {
         }
     }
 
+    #[instrument(level = "trace")]
     fn parse_column(&mut self, expr: Expr) -> Result<Expr> {
         let start = self.eat()?.expect(TokenType::Dot)?.span;
         let token = self.eat()?;
@@ -1001,6 +1032,7 @@ impl Parser {
         }
     }
 
+    #[instrument(level = "trace")]
     fn parse_index(&mut self, expr: Expr) -> Result<Expr> {
         let left = self.eat()?.expect(TokenType::LeftBracket)?.span;
         self.skip_whitespace();
@@ -1026,12 +1058,14 @@ impl Parser {
         }
     }
 
+    #[instrument(level = "trace")]
     fn parse_expr(&mut self, unop: Option<UnOp>, parse_cmd: bool) -> Result<Expr> {
         let primary = self.parse_primary(unop, parse_cmd)?;
         self.skip_optional_space();
         self.parse_expr_part(Some(primary), 0)
     }
 
+    #[instrument(level = "trace")]
     fn parse_expr_part(&mut self, lhs: Option<Expr>, min_precedence: u8) -> Result<Expr> {
         let mut lhs = match lhs {
             Some(expr) => expr,
@@ -1106,6 +1140,7 @@ impl Parser {
         Ok(lhs)
     }
 
+    #[instrument(level = "trace")]
     fn parse_pipe(&mut self, expr: Option<Expr>) -> Result<Expr> {
         let mut calls = match expr {
             Some(expr) => vec![expr],
@@ -1128,6 +1163,7 @@ impl Parser {
         Ok(ExprKind::Pipe(calls).spanned(span))
     }
 
+    #[instrument(level = "trace")]
     fn parse_call(&mut self) -> Result<Expr> {
         let command = self.parse_command()?;
         let mut span = command[0].span;
@@ -1153,6 +1189,7 @@ impl Parser {
         Ok(ExprKind::Call(command, args).spanned(span))
     }
 
+    #[instrument(level = "trace")]
     fn parse_command(&mut self) -> Result<Vec<CommandPart>> {
         if self.peek()?.token_type == TokenType::Exec {
             self.eat()?;
@@ -1191,6 +1228,7 @@ impl Parser {
         Ok(parts)
     }
 
+    #[instrument(level = "trace")]
     fn parse_argument(&mut self) -> Result<Argument> {
         let mut parts = Vec::new();
 

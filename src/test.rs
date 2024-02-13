@@ -2,10 +2,13 @@
 mod tests {
     use std::{fs, sync::Arc};
 
-    use crate::{parser::{lexer::Lexer, source::Source, Parser}, shell::{
-        stream::{OutputStream, ValueStream},
-        Shell,
-    }};
+    use crate::{
+        parser::{lexer::Lexer, source::Source, Parser},
+        shell::{
+            stream::{OutputStream, ValueStream},
+            Shell,
+        },
+    };
     #[test]
     fn basic_test() {
         let mut shell = Shell::new(Vec::new());
@@ -49,14 +52,21 @@ mod tests {
 
     #[test]
     fn random_ascii_lex_test() {
-        let lexer = Lexer::new(Arc::new(Source::new("random ascii".into(), random_ascii_string(10_000))));
-        let tokens: Vec<_> = lexer.collect();
-        assert!(!tokens.is_empty());
+        for _ in 0..100 {
+            let lexer = Lexer::new(Arc::new(Source::new(
+                "random ascii".into(),
+                random_ascii_string(1000),
+            )));
+            let tokens: Vec<_> = lexer.collect();
+            assert!(!tokens.is_empty());
+        }
     }
 
     #[test]
     fn random_ascii_parse_test() {
-        let parser = Parser::new("random ascii".into(), random_ascii_string(10_000));
-        let _ = parser.parse();
+        for _ in 0..100 {
+            let parser = Parser::new("random ascii".into(), random_ascii_string(1000));
+            let _ = parser.parse();
+        }
     }
 }

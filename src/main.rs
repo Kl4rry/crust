@@ -81,6 +81,11 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
                 .long("path")
                 .help("The working directory the shell will run in"),
         )
+        .opt(
+            Opt::new("PROFILE", Type::STRING)
+                .long("profile")
+                .help("Collect profiling data"),
+        )
         .flag(
             Flag::new("CHECK")
                 .long("check")
@@ -98,6 +103,10 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
         }
         Err(e) => return Err(e.into()),
     };
+
+    if let Some(path) = matches.get_str("PROFILE") {
+        setup_global_subscriber(path);
+    }
 
     if matches.sub_cmd() == Some("license") {
         let licenses: &str = include_str!(concat!(env!("OUT_DIR"), "/license.html"));
@@ -163,4 +172,17 @@ fn start() -> Result<ExitCode, ShellErrorKind> {
     };
 
     Ok(status)
+}
+
+fn setup_global_subscriber(path: impl AsRef<Path>) -> impl Drop {
+    use tracing_flame::FlameLayer;
+    use tracing_subscriber::{fmt, prelude::*, registry::Registry};
+    let fmt_layer = fmt::Layer::default();
+
+    let (flame_layer, _guard) = FlameLayer::with_file(path).unwrap();
+
+    let subscriber = Registry::default().with(fmt_layer).with(flame_layer);
+
+    tracing::subscriber::set_global_default(subscriber).expect("Could not set global default");
+    _guard
 }
