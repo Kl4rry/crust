@@ -48,7 +48,6 @@ impl Ast {
         output: &mut OutputStream,
         input: ValueStream,
     ) -> Result<(), ShellError> {
-        std::thread::sleep(std::time::Duration::from_millis(1000));
         let res = self.eval_errorkind(shell, output, input);
         res.map_err(|err| ShellError::new(err, (*self.src).clone().into()))
     }

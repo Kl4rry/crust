@@ -21,10 +21,13 @@ const LINE_ENDINGS: [&str; 8] = [
     "\u{2029}",         // U+2029 -- ParagraphSeparator
 ];
 
+#[inline(always)]
+#[instrument(level = "trace")]
 fn is_word_break(ch: char) -> bool {
     const DISALLOWED: &str = "#$\"\'(){}[]|;&,.:\\/=";
     DISALLOWED.contains(ch)
         || ch.is_whitespace()
+        || ch.is_ascii_control()
         || LINE_ENDINGS
             .iter()
             .any(|le| unsafe { le.chars().next().unwrap_unchecked() } == ch)
@@ -94,6 +97,7 @@ impl Lexer {
 
     #[instrument(level = "trace")]
     fn parse_whitespace(&mut self) -> Option<Token> {
+        //println!("white: {:?} {} {}", self.src().as_bytes().get(self.index), self.index, self.src.name);
         let mut advanced = false;
         let start = self.index;
         loop {
@@ -149,6 +153,7 @@ impl Lexer {
         let start = self.index;
         let mut value = String::new();
         loop {
+            //println!("symbol");
             if let Some(ch) = self.src().get_char(self.index) {
                 if !is_word_break(ch) {
                     value.push(ch);
@@ -192,6 +197,7 @@ impl Lexer {
         let start = self.index;
         let mut value = String::new();
         loop {
+            //println!("number");
             let Some(current) = self.src().get_char(self.index) else {
                 break;
             };
@@ -288,7 +294,7 @@ impl Iterator for Lexer {
     #[instrument(level = "trace")]
     fn next(&mut self) -> Option<Token> {
         if let Some(current) = self.peek(0) {
-            if current.is_ascii_control() && current == b'\0' {
+            if current.is_ascii_control() {
                 self.advance_with(TokenType::Control, 1);
             }
 
