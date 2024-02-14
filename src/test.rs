@@ -69,4 +69,14 @@ mod tests {
             let _ = parser.parse();
         }
     }
+
+    #[test]
+    fn control_char_fail_parse() {
+        let mut string = String::new();
+        for ch in 0u8..0x1F {
+            string.push(ch as char);
+        }
+        let parser = Parser::new("control chars".into(), string);
+        assert!(parser.parse().is_err());
+    }
 }
