@@ -127,6 +127,7 @@ pub enum ShellErrorKind {
     Json(#[from] serde_json::Error),
     TomlDe(#[from] toml::de::Error),
     TomlSer(#[from] toml::ser::Error),
+    Readline(#[from] rustyline::error::ReadlineError),
 }
 
 impl ShellErrorKind {
@@ -231,6 +232,7 @@ impl fmt::Display for ShellErrorKind {
             TomlDe(error) => error.fmt(f),
             TomlSer(error) => error.fmt(f),
             Open(error) => error.fmt(f),
+            Readline(error) => error.fmt(f),
             // these are not real errors and should always be handled and should therefore never be displayed
             Break => unreachable!("break should never be printed as an error"),
             Return(_) => unreachable!("return should never be printed as an error"),

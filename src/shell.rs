@@ -13,7 +13,7 @@ use std::{
 use crossterm::{style::Stylize, terminal};
 use directories::{ProjectDirs, UserDirs};
 use miette::{Diagnostic, GraphicalReportHandler};
-use rustyline::{config::BellStyle, error::ReadlineError, history::DefaultHistory, Editor};
+use rustyline::{config::BellStyle, error::ReadlineError, Editor};
 
 pub mod builtins;
 pub mod dir_history;
@@ -31,6 +31,7 @@ mod hello;
 use self::{
     dir_history::DirHistory,
     helper::EditorHelper,
+    history::JsonHistory,
     parser::{
         ast::{context::Context, expr::closure::Closure},
         shell_error::ShellError,
@@ -39,6 +40,7 @@ use self::{
 };
 
 mod helper;
+mod history;
 mod levenshtein;
 
 pub struct Shell {
@@ -52,7 +54,7 @@ pub struct Shell {
     recursion_limit: usize,
     interrupt: Arc<AtomicBool>,
     args: Vec<String>,
-    editor: Editor<EditorHelper, DefaultHistory>,
+    editor: Editor<EditorHelper, JsonHistory>,
     interactive: bool,
     pub dir_history: DirHistory,
     print_ast: bool,
@@ -95,7 +97,7 @@ impl Shell {
             .bell_style(BellStyle::None)
             .build();
 
-        let mut editor = Editor::with_config(config).unwrap();
+        let mut editor = Editor::with_history(config, JsonHistory::with_config(config)).unwrap();
         editor.set_helper(Some(helper::EditorHelper::new()));
         let _ = editor.load_history(&history_path(&project_dirs));
 
@@ -359,7 +361,7 @@ pub fn current_dir_str() -> String {
 }
 
 pub fn history_path(project_dirs: &ProjectDirs) -> PathBuf {
-    [project_dirs.data_dir(), Path::new(".crust_history")]
+    [project_dirs.data_dir(), Path::new("history.jsonl")]
         .iter()
         .collect::<PathBuf>()
 }

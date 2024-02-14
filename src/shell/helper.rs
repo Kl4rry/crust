@@ -5,7 +5,7 @@ use rustyline::{
     completion::{Completer, Pair},
     highlight,
     hint::Hinter,
-    history::SearchDirection,
+    history::History,
     validate::Validator,
     Changeset, Helper,
 };
@@ -16,6 +16,7 @@ use completer::FilenameCompleter;
 mod highlighter;
 
 use self::highlighter::{ColorType, HighlightVisitor};
+use super::history::JsonHistory;
 use crate::parser::{ast::Ast, source::Source, Parser};
 
 pub struct EditorHelper {
@@ -134,10 +135,13 @@ impl Hinter for EditorHelper {
             return None;
         }
 
-        let search_result = ctx
-            .history()
-            .starts_with(line, ctx.history().len() - 1, SearchDirection::Reverse)
-            .ok()??;
+        // This ugly mess assumes that History is a JsonHistory and does a maybe safe cast
+        let history = ctx.history() as *const dyn History;
+        let history_ptr = unsafe { history.byte_offset_from(std::ptr::null::<JsonHistory>()) }
+            as *const JsonHistory;
+        let history = unsafe { &*history_ptr };
+
+        let search_result = history.get_hint(line)?;
         Some(String::from(&search_result.entry[search_result.pos..]))
     }
 }

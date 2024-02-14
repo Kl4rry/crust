@@ -30,7 +30,7 @@ pub fn history(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellEr
         let history = ctx.shell.editor.history();
         let mut output = Vec::new();
         for entry in history {
-            output.push(Value::from(entry.as_str()));
+            output.push(Value::from(entry.entry.as_str()));
         }
         ctx.output.push(output.into());
     }
