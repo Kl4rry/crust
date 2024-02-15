@@ -2,8 +2,10 @@
 mod tests {
     use std::{fs, sync::Arc};
 
+    use miette::NamedSource;
+
     use crate::{
-        parser::{lexer::Lexer, source::Source, Parser},
+        parser::{lexer::Lexer, Parser},
         shell::{
             stream::{OutputStream, ValueStream},
             Shell,
@@ -53,8 +55,8 @@ mod tests {
     #[test]
     fn random_ascii_lex_test() {
         for _ in 0..100 {
-            let lexer = Lexer::new(Arc::new(Source::new(
-                "random ascii".into(),
+            let lexer = Lexer::new(Arc::new(NamedSource::new(
+                "random ascii",
                 random_ascii_string(1000),
             )));
             let tokens: Vec<_> = lexer.collect();
@@ -77,6 +79,6 @@ mod tests {
             string.push(ch as char);
         }
         let parser = Parser::new("control chars".into(), string);
-        assert!(parser.parse().is_err());
+        assert!(!parser.parse().1.is_empty());
     }
 }

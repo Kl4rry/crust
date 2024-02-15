@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, sync::Arc};
 
 use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
 use thiserror::Error;
@@ -38,7 +38,7 @@ impl fmt::Display for SyntaxErrorKind {
 #[derive(Debug, Error)]
 pub struct SyntaxError {
     pub error: SyntaxErrorKind,
-    pub src: NamedSource<String>,
+    pub src: Arc<NamedSource<String>>,
     pub len: usize,
 }
 
@@ -92,11 +92,11 @@ impl Diagnostic for SyntaxError {
 }
 
 impl SyntaxError {
-    pub fn new(error: SyntaxErrorKind, src: String, name: String) -> Self {
+    pub fn new(error: SyntaxErrorKind, src: Arc<NamedSource<String>>) -> Self {
         SyntaxError {
             error,
-            len: src.len(),
-            src: NamedSource::new(name, src),
+            len: src.inner().len(),
+            src,
         }
     }
 }

@@ -1,11 +1,12 @@
 use std::{collections::HashMap, sync::Arc};
 
+use miette::NamedSource;
+
 use crate::{
     parser::{
         ast::{context::Context, variable::Variable, Block},
         lexer::token::span::Span,
         shell_error::ShellErrorKind,
-        source::Source,
     },
     shell::value::Value,
 };
@@ -16,7 +17,7 @@ pub struct Closure {
     pub arg_span: Span,
     pub parameters: Vec<Variable>,
     pub block: Block,
-    pub src: Arc<Source>,
+    pub src: Arc<NamedSource<String>>,
 }
 
 impl Closure {

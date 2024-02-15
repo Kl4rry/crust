@@ -170,34 +170,37 @@ impl Shell {
         output: &mut OutputStream,
         input: ValueStream,
     ) {
-        match Parser::new(name, src).parse() {
-            Ok(ast) => {
-                if self.print_ast {
-                    println!("{:#?}", ast);
-                }
-                let res = ast.eval(self, output, input);
-                if let Err(error) = res {
-                    if !error.is_exit() {
-                        self.exit_status = error.error.exit_status();
-                        report_error(error)
-                    }
+        let (ast, errors) = Parser::new(name, src).parse();
+        if let (Some(ast), true) = (ast, errors.is_empty()) {
+            if self.print_ast {
+                println!("{:#?}", ast);
+            }
+            let res = ast.eval(self, output, input);
+            if let Err(error) = res {
+                if !error.is_exit() {
+                    self.exit_status = error.error.exit_status();
+                    report_error(error)
                 }
             }
-            Err(error) => {
-                self.set_status(ExitStatus::Exited(1));
-                report_error(*error)
+        } else {
+            self.set_status(ExitStatus::Exited(1));
+            for error in errors {
+                report_error(error)
             }
-        };
+        }
     }
 
     pub fn validate_syntax(&mut self, name: String, src: String) -> bool {
-        match Parser::new(name, src).parse() {
-            Ok(_) => true,
-            Err(error) => {
-                report_error(*error);
-                false
-            }
+        let (_, errors) = Parser::new(name, src).parse();
+        if errors.is_empty() {
+            return true;
         }
+
+        for error in errors {
+            report_error(error)
+        }
+
+        false
     }
 
     pub fn run(mut self) -> Result<i64, ShellErrorKind> {

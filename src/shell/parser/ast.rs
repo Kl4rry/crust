@@ -22,22 +22,23 @@ use expr::Expr;
 pub mod statement;
 
 pub mod variable;
+use miette::NamedSource;
 use tracing::instrument;
 use variable::Variable;
 
 pub mod context;
 
 use self::{context::Context, statement::Statement};
-use super::{lexer::token::span::Span, shell_error::ShellError, source::Source};
+use super::{lexer::token::span::Span, shell_error::ShellError};
 
 #[derive(Debug)]
 pub struct Ast {
     pub sequence: Vec<Compound>,
-    pub src: Arc<Source>,
+    pub src: Arc<NamedSource<String>>,
 }
 
 impl Ast {
-    pub fn new(sequence: Vec<Compound>, src: Arc<Source>) -> Self {
+    pub fn new(sequence: Vec<Compound>, src: Arc<NamedSource<String>>) -> Self {
         Self { sequence, src }
     }
 
@@ -49,7 +50,7 @@ impl Ast {
         input: ValueStream,
     ) -> Result<(), ShellError> {
         let res = self.eval_errorkind(shell, output, input);
-        res.map_err(|err| ShellError::new(err, (*self.src).clone().into()))
+        res.map_err(|err| ShellError::new(err, self.src.clone()))
     }
 
     pub fn eval_errorkind(

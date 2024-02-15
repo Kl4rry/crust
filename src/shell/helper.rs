@@ -1,6 +1,7 @@
 use std::{borrow::Cow, fmt::Write, sync::Arc};
 
 use crossterm::style::Stylize;
+use miette::NamedSource;
 use rustyline::{
     completion::{Completer, Pair},
     highlight,
@@ -17,7 +18,7 @@ mod highlighter;
 
 use self::highlighter::{ColorType, HighlightVisitor};
 use super::history::JsonHistory;
-use crate::parser::{ast::Ast, source::Source, Parser};
+use crate::parser::{ast::Ast, Parser};
 
 pub struct EditorHelper {
     filename_completer: FilenameCompleter,
@@ -89,15 +90,17 @@ pub struct Highlighter<'a> {
 
 impl<'a> Highlighter<'a> {
     fn new(line: &'a str) -> Self {
+        let ast = Parser::new(String::new(), line.to_string())
+            .parse()
+            .0
+            .unwrap_or_else(|| {
+                Ast::new(
+                    Vec::new(),
+                    Arc::new(NamedSource::new(String::new(), line.to_string())),
+                )
+            });
         Self {
-            ast: Parser::new(String::new(), line.to_string())
-                .parse()
-                .unwrap_or_else(|_| {
-                    Ast::new(
-                        Vec::new(),
-                        Arc::new(Source::new(String::new(), line.to_string())),
-                    )
-                }),
+            ast,
             index: 0,
             line,
             output: String::new(),

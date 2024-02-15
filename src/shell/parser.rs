@@ -1,6 +1,7 @@
 use std::{collections::VecDeque, convert::TryInto, rc::Rc, sync::Arc};
 
 use memchr::memchr;
+use miette::NamedSource;
 use regex::Regex;
 use tracing::{instrument, trace_span};
 
@@ -38,11 +39,9 @@ use self::{
         statement::{function::Function, Statement},
     },
     lexer::token::{is_valid_identifier, span::Spanned},
-    source::Source,
 };
 
 pub mod shell_error;
-pub mod source;
 
 pub type Result<T> = std::result::Result<T, SyntaxErrorKind>;
 
@@ -66,26 +65,31 @@ bitflags::bitflags! {
 #[derive(Debug)]
 pub struct Parser {
     tokens: VecDeque<Token>,
-    source: Arc<Source>,
+    source: Arc<NamedSource<String>>,
+    errors: Vec<SyntaxErrorKind>,
 }
 
 impl Parser {
     pub fn new(name: String, src: String) -> Self {
-        let lexer = Lexer::new(Source::new(name, src).into());
+        let lexer = Lexer::new(NamedSource::new(name, src).into());
         let source = lexer.named_source();
         let span = trace_span!("lex");
         let _lex = span.enter();
         let tokens = lexer.collect();
-        Self { source, tokens }
+        Self {
+            source,
+            tokens,
+            errors: Vec::new(),
+        }
     }
 
-    pub fn named_source(&self) -> Arc<Source> {
+    pub fn named_source(&self) -> Arc<NamedSource<String>> {
         self.source.clone()
     }
 
     #[inline(always)]
     fn src(&self) -> &str {
-        &self.source.code
+        self.source.inner()
     }
 
     #[inline(always)]
@@ -223,14 +227,31 @@ impl Parser {
     }
 
     #[instrument(level = "trace")]
-    pub fn parse(mut self) -> std::result::Result<Ast, P<SyntaxError>> {
+    pub fn parse(mut self) -> (Option<Ast>, Vec<SyntaxError>) {
         match self.parse_sequence(false, ParserContext::NOTHING) {
-            Ok(sequence) => Ok(Ast::new(sequence, self.named_source())),
-            Err(error) => Err(P::new(SyntaxError::new(
-                error,
-                self.src().to_string(),
-                self.named_source().name.clone(),
-            ))),
+            Ok(sequence) if self.errors.is_empty() => {
+                (Some(Ast::new(sequence, self.named_source())), Vec::new())
+            }
+            Ok(sequence) => {
+                let src = self.named_source();
+                (
+                    Some(Ast::new(sequence, src.clone())),
+                    self.errors
+                        .into_iter()
+                        .map(|error| SyntaxError::new(error, src.clone()))
+                        .collect(),
+                )
+            }
+            Err(error) => {
+                let src = self.named_source();
+                let mut errors = vec![SyntaxError::new(error, src.clone())];
+                errors.extend(
+                    self.errors
+                        .into_iter()
+                        .map(|error| SyntaxError::new(error, src.clone())),
+                );
+                (None, errors)
+            }
         }
     }
 
@@ -530,21 +551,22 @@ impl Parser {
             TokenType::Break => {
                 let span = self.eat()?.span;
                 if !ctx.contains(ParserContext::INSIDE_LOOP) {
-                    return Err(SyntaxErrorKind::BreakOutsideLoop(span));
+                    self.errors.push(SyntaxErrorKind::BreakOutsideLoop(span));
                 }
                 Ok(StatementKind::Break.spanned(span).into())
             }
             TokenType::Continue => {
                 let span = self.eat()?.span;
                 if !ctx.contains(ParserContext::INSIDE_LOOP) {
-                    return Err(SyntaxErrorKind::BreakOutsideLoop(span));
+                    self.errors.push(SyntaxErrorKind::ContinueOutsideLoop(span));
                 }
                 Ok(StatementKind::Continue.spanned(span).into())
             }
             TokenType::Return => {
                 let start = self.eat()?.span;
                 if !ctx.contains(ParserContext::INSIDE_FUNCTION) {
-                    return Err(SyntaxErrorKind::ReturnOutsideFunction(start));
+                    self.errors
+                        .push(SyntaxErrorKind::ReturnOutsideFunction(start));
                 }
                 self.skip_optional_space();
                 match self.peek() {

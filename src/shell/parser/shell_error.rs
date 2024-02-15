@@ -7,14 +7,13 @@ use std::{
 };
 
 use glob::{GlobError, PatternError};
-use miette::{Diagnostic, LabeledSpan, SourceCode};
+use miette::{Diagnostic, LabeledSpan, NamedSource, SourceCode};
 use subprocess::{CommunicateError, PopenError};
 use thiserror::Error;
 
 use super::{
     ast::expr::{binop::BinOp, unop::UnOp},
     lexer::token::span::Span,
-    source::Source,
 };
 use crate::{
     argparse::ParseError,
@@ -32,11 +31,11 @@ mod exit_status;
 #[derive(Debug, Error)]
 pub struct ShellError {
     pub error: ShellErrorKind,
-    pub src: Arc<Source>,
+    pub src: Arc<NamedSource<String>>,
 }
 
 impl ShellError {
-    pub fn new(error: ShellErrorKind, src: Arc<Source>) -> Self {
+    pub fn new(error: ShellErrorKind, src: Arc<NamedSource<String>>) -> Self {
         ShellError { error, src }
     }
 
@@ -104,7 +103,7 @@ pub enum ShellErrorKind {
         arg_span: Span,
         expected: usize,
         recived: usize,
-        src: Arc<Source>,
+        src: Arc<NamedSource<String>>,
     },
     IntegerOverFlow,
     InvalidPipelineInput {

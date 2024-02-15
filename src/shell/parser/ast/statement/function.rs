@@ -1,9 +1,10 @@
 use std::{rc::Rc, sync::Arc};
 
+use miette::NamedSource;
+
 use crate::parser::{
     ast::{variable::Variable, Block},
     lexer::token::span::Span,
-    source::Source,
 };
 
 #[derive(Debug)]
@@ -12,5 +13,5 @@ pub struct Function {
     pub arg_span: Span,
     pub parameters: Vec<Variable>,
     pub block: Block,
-    pub src: Arc<Source>,
+    pub src: Arc<NamedSource<String>>,
 }

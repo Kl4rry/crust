@@ -4,10 +4,10 @@ use std::sync::Arc;
 
 use bigdecimal::{num_bigint::BigUint, BigDecimal};
 use memchr::memchr;
+use miette::NamedSource;
 use token::{span::Span, Token, TokenType};
 use tracing::instrument;
 
-use super::source::Source;
 use crate::str_ext::StrExt;
 
 const LINE_ENDINGS: [&str; 8] = [
@@ -35,22 +35,22 @@ fn is_word_break(ch: char) -> bool {
 
 #[derive(Debug)]
 pub struct Lexer {
-    src: Arc<Source>,
+    src: Arc<NamedSource<String>>,
     index: usize,
 }
 
 impl Lexer {
-    pub fn new(src: Arc<Source>) -> Self {
+    pub fn new(src: Arc<NamedSource<String>>) -> Self {
         Self { index: 0, src }
     }
 
-    pub fn named_source(&self) -> Arc<Source> {
+    pub fn named_source(&self) -> Arc<NamedSource<String>> {
         self.src.clone()
     }
 
     #[inline(always)]
     pub fn src(&self) -> &str {
-        &self.src.code
+        self.src.inner()
     }
 
     #[inline(always)]
