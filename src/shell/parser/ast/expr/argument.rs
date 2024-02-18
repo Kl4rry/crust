@@ -147,4 +147,8 @@ impl Argument {
             })
         }
     }
+
+    pub fn span(&self) -> Span {
+        self.parts[0].span + self.parts.last().unwrap().span
+    }
 }

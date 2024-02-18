@@ -20,6 +20,7 @@ pub mod table;
 use table::Table;
 mod types;
 pub use types::Type;
+pub mod save;
 
 use self::hashable::HashableValue;
 use super::frame::Frame;
@@ -191,7 +192,11 @@ impl SpannedValue {
                 Ok(Value::String(new).spanned(span))
             }
             Value::List(mut list) => {
-                Rc::make_mut(&mut list).push(rhs);
+                let lhs = Rc::make_mut(&mut list);
+                match rhs {
+                    Value::List(rhs) => lhs.extend_from_slice(&rhs),
+                    rhs => lhs.push(rhs),
+                }
                 Ok(Value::List(list).spanned(span))
             }
             _ => Err(ShellErrorKind::InvalidBinaryOperand(

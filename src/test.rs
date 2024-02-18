@@ -55,10 +55,9 @@ mod tests {
     #[test]
     fn random_ascii_lex_test() {
         for _ in 0..100 {
-            let lexer = Lexer::new(Arc::new(NamedSource::new(
-                "random ascii",
-                random_ascii_string(1000),
-            )));
+            let string = random_ascii_string(1000);
+            eprintln!("{string}");
+            let lexer = Lexer::new(Arc::new(NamedSource::new("random ascii", string)));
             let tokens: Vec<_> = lexer.collect();
             assert!(!tokens.is_empty());
         }
@@ -67,7 +66,9 @@ mod tests {
     #[test]
     fn random_ascii_parse_test() {
         for _ in 0..100 {
-            let parser = Parser::new("random ascii".into(), random_ascii_string(1000));
+            let string = random_ascii_string(1000);
+            eprintln!("{string}");
+            let parser = Parser::new("random ascii".into(), string);
             let _ = parser.parse();
         }
     }

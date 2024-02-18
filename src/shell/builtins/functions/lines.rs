@@ -31,12 +31,14 @@ pub fn lines(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErro
 
     match input {
         Value::String(ref mut string) => {
+            let mut output: Vec<Value> = Vec::new();
             for line in string.lines() {
                 if skip && line.is_empty() {
                     continue;
                 }
-                ctx.output.push(String::from(line).into());
+                output.push(String::from(line).into());
             }
+            ctx.output.push(output.into());
         }
         _ => {
             return Err(ShellErrorKind::Basic(

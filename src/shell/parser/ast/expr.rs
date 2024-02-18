@@ -1,11 +1,14 @@
 use std::{
     collections::{HashMap, VecDeque},
-    io, mem,
+    fs::{File, OpenOptions},
+    io::{self},
+    mem,
+    path::PathBuf,
     rc::Rc,
     thread,
 };
 
-use subprocess::{CommunicateError, Exec, ExitStatus, Pipeline, PopenError, Redirection};
+use subprocess::{CommunicateError, Exec, ExitStatus, Popen, PopenError, Redirection};
 
 use crate::{
     parser::{
@@ -17,7 +20,7 @@ use crate::{
         builtins::{self, functions::BulitinFn},
         frame::Frame,
         stream::{OutputStream, ValueStream},
-        value::{SpannedValue, Type, Value},
+        value::{save::save_value, SpannedValue, Type, Value},
     },
     P,
 };
@@ -109,10 +112,21 @@ macro_rules! compare_impl {
     }};
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RedirectFd {
+    Stdout,
+    Stderr,
+}
+
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     Call(Vec<CommandPart>, Vec<Argument>),
     Pipe(Vec<Expr>),
+    Redirection {
+        arg: Argument,
+        append: bool,
+        fd: RedirectFd,
+    },
     Variable(Variable),
     Binary(BinOp, P<Expr>, P<Expr>),
     Unary(UnOp, P<Expr>),
@@ -120,7 +134,10 @@ pub enum ExprKind {
     SubExpr(P<Expr>),
     Column(P<Expr>, String),
     ErrorCheck(P<Expr>),
-    Index { expr: P<Expr>, index: P<Expr> },
+    Index {
+        expr: P<Expr>,
+        index: P<Expr>,
+    },
     Closure(Rc<Closure>),
 }
 
@@ -149,6 +166,9 @@ impl Expr {
         match &self.kind {
             ExprKind::Call(_, _) => {
                 unreachable!("calls must always be in a pipeline, bare calls are a bug")
+            }
+            ExprKind::Redirection { .. } => {
+                unreachable!("redirects must always be in a pipeline, bare redirects are a bug")
             }
             ExprKind::Closure(closure) => Ok(Value::Closure(Rc::new((
                 closure.clone(),
@@ -358,18 +378,28 @@ impl Expr {
                             let (cmd, args) = expand_call(ctx, cmd, args)?;
                             expanded_calls.push_back(get_call_type(ctx, cmd, args)?);
                         }
+                        ExprKind::Redirection { append, arg, fd } => {
+                            let last = expanded_calls.back_mut().unwrap();
+                            let file = arg.eval(ctx)?.try_into_string()?;
+                            last.add_redirect(PipelineRedirect {
+                                target: file,
+                                append: *append,
+                                fd: *fd,
+                            });
+                        }
                         _ => unreachable!(),
                     }
                 }
 
-                let mut execs: Vec<(Exec, String, Span)> = Vec::new();
+                let mut execs: Vec<(Exec, String, Span, Vec<PipelineRedirect>)> = Vec::new();
+                let mut first_cmd = true;
 
                 while let Some(call_type) = expanded_calls.pop_front() {
                     match call_type {
-                        CallType::External(exec, name, span) => {
-                            execs.push((*exec, name, span));
+                        CallType::External(exec, name, span, redirection) => {
+                            execs.push((*exec, name, span, redirection));
                         }
-                        CallType::Builtin(builtin, args, span) => {
+                        CallType::Builtin(builtin, args, span, redirections) => {
                             let mut stream = if execs.is_empty() {
                                 let mut stream = OutputStream::new_capture();
                                 mem::swap(&mut capture_output.inner, &mut stream);
@@ -383,6 +413,7 @@ impl Expr {
                                         capture_output.inner.into_value_stream(),
                                         capture_output.span,
                                     ),
+                                    first_cmd,
                                 )?
                                 .unwrap();
                                 capture_output.inner = OutputStream::new_capture();
@@ -390,25 +421,44 @@ impl Expr {
                                 execs = Vec::new();
                                 ValueStream::from_value(value)
                             };
+                            first_cmd = false;
 
-                            let temp_output_cap = if expanded_calls.is_empty() {
-                                &mut *ctx.output
-                            } else {
-                                capture_output.inner = OutputStream::new_capture();
-                                capture_output.span = span;
-                                &mut capture_output.inner
-                            };
-                            let mut ctx = Context {
-                                shell: ctx.shell,
-                                frame: ctx.frame.clone(),
-                                output: temp_output_cap,
-                                input: &mut stream,
-                                src: ctx.src.clone(),
-                            };
-                            builtin(&mut ctx, args)?;
+                            let temp_output_cap =
+                                if expanded_calls.is_empty() && redirections.is_empty() {
+                                    &mut *ctx.output
+                                } else {
+                                    capture_output.inner = OutputStream::new_capture();
+                                    capture_output.span = span;
+                                    &mut capture_output.inner
+                                };
+
+                            {
+                                let mut ctx = Context {
+                                    shell: ctx.shell,
+                                    frame: ctx.frame.clone(),
+                                    output: temp_output_cap,
+                                    input: &mut stream,
+                                    src: ctx.src.clone(),
+                                };
+                                builtin(&mut ctx, args)?;
+                            }
+
+                            for redirect in redirections {
+                                if redirect.fd == RedirectFd::Stdout {
+                                    let mut new = OutputStream::new_capture();
+                                    mem::swap(temp_output_cap, &mut new);
+                                    save_value(
+                                        redirect.target,
+                                        new.into_value_stream(),
+                                        redirect.append,
+                                        false,
+                                    )?;
+                                }
+                            }
+
                             ctx.shell.set_status(ExitStatus::Exited(0));
                         }
-                        CallType::Internal(func, args, span) => {
+                        CallType::Internal(func, args, span, redirections) => {
                             let mut stream = if execs.is_empty() {
                                 let mut stream = OutputStream::new_capture();
                                 mem::swap(&mut capture_output.inner, &mut stream);
@@ -422,6 +472,7 @@ impl Expr {
                                         capture_output.inner.into_value_stream(),
                                         capture_output.span,
                                     ),
+                                    first_cmd,
                                 )?
                                 .unwrap();
                                 capture_output.inner = OutputStream::new_capture();
@@ -429,6 +480,7 @@ impl Expr {
                                 execs = Vec::new();
                                 ValueStream::from_value(value)
                             };
+                            first_cmd = false;
 
                             let (function, frame) = &*func;
 
@@ -456,49 +508,58 @@ impl Expr {
                                 input_vars.insert(var.name.clone(), (false, arg.clone().value));
                             }
 
-                            let temp_output_cap = if expanded_calls.is_empty() {
-                                &mut *ctx.output
-                            } else {
-                                capture_output.inner = OutputStream::new_capture();
-                                capture_output.span = span;
-                                &mut capture_output.inner
-                            };
-                            let ctx = &mut Context {
-                                shell: ctx.shell,
-                                frame: frame.clone(),
-                                output: temp_output_cap,
-                                input: &mut stream,
-                                src: ctx.src.clone(),
-                            };
-                            block.eval(ctx, Some(input_vars))?;
+                            let temp_output_cap =
+                                if expanded_calls.is_empty() && redirections.is_empty() {
+                                    &mut *ctx.output
+                                } else {
+                                    capture_output.inner = OutputStream::new_capture();
+                                    capture_output.span = span;
+                                    &mut capture_output.inner
+                                };
+
+                            {
+                                let ctx = &mut Context {
+                                    shell: ctx.shell,
+                                    frame: frame.clone(),
+                                    output: temp_output_cap,
+                                    input: &mut stream,
+                                    src: ctx.src.clone(),
+                                };
+                                block.eval(ctx, Some(input_vars))?;
+                            }
+
+                            for redirect in redirections {
+                                if redirect.fd == RedirectFd::Stdout {
+                                    let mut new = OutputStream::new_capture();
+                                    mem::swap(temp_output_cap, &mut new);
+                                    save_value(
+                                        redirect.target,
+                                        new.into_value_stream(),
+                                        redirect.append,
+                                        false,
+                                    )?;
+                                }
+                            }
+
                             ctx.shell.set_status(ExitStatus::Exited(0));
                         }
                     }
                 }
 
                 if !execs.is_empty() {
-                    if ctx.output.is_capture() {
-                        let value = run_pipeline(
-                            ctx,
-                            execs,
-                            true,
-                            Spanned::new(
-                                capture_output.inner.into_value_stream(),
-                                capture_output.span,
-                            ),
-                        )?
-                        .unwrap();
+                    let value = run_pipeline(
+                        ctx,
+                        execs,
+                        ctx.output.is_capture(),
+                        Spanned::new(
+                            capture_output.inner.into_value_stream(),
+                            capture_output.span,
+                        ),
+                        first_cmd,
+                    )?;
+
+                    if let Some(value) = value {
                         ctx.output.push(value);
-                    } else {
-                        run_pipeline(
-                            ctx,
-                            execs,
-                            false,
-                            Spanned::new(
-                                capture_output.inner.into_value_stream(),
-                                capture_output.span,
-                            ),
-                        )?;
                     }
                 }
 
@@ -531,11 +592,21 @@ pub fn try_bytes_to_value(bytes: Vec<u8>) -> Value {
         .unwrap_or_else(|e| Value::from(e.into_bytes()))
 }
 
+fn open_redirect_file(redirect: &PipelineRedirect) -> Result<File, ShellErrorKind> {
+    OpenOptions::new()
+        .write(true)
+        .append(redirect.append)
+        .create(true)
+        .open(&redirect.target)
+        .map_err(|e| ShellErrorKind::Io(Some(PathBuf::from(&redirect.target)), e))
+}
+
 fn run_pipeline(
     ctx: &mut Context,
-    mut execs: Vec<(Exec, String, Span)>,
+    mut execs: Vec<(Exec, String, Span, Vec<PipelineRedirect>)>,
     capture_output: bool,
     input: Spanned<ValueStream>,
+    first_cmd: bool,
 ) -> Result<Option<Value>, ShellErrorKind> {
     let Spanned {
         inner: input,
@@ -572,25 +643,36 @@ fn run_pipeline(
         }
     }
 
-    let input_data: Option<Vec<u8>> = if input_data.is_empty() {
-        None
+    let (stdin, input_data) = if first_cmd {
+        (Redirection::None, None)
     } else {
-        Some(input_data)
-    };
-
-    let stdin = if input_data.is_some() {
-        Redirection::Pipe
-    } else {
-        Redirection::None
+        (Redirection::Pipe, Some(input_data))
     };
 
     let env = ctx.frame.env();
     if execs.len() == 1 {
-        let (exec, name) = if capture_output {
-            let (exec, name, _) = execs.pop().unwrap();
-            (exec.stdout(Redirection::Pipe), name)
-        } else {
-            execs.pop().map(|(exec, name, _)| (exec, name)).unwrap()
+        let (exec, name) = {
+            let (exec, name, _, redirections) = execs.pop().unwrap();
+            let mut stdout = Redirection::None;
+            let mut stderr = Redirection::None;
+            if capture_output {
+                stdout = Redirection::Pipe;
+            }
+
+            for redirect in redirections {
+                let file = open_redirect_file(&redirect)?;
+                if !redirect.append {
+                    file.set_len(0).map_err(|e| {
+                        ShellErrorKind::Io(Some(PathBuf::from(&redirect.target)), e)
+                    })?;
+                }
+
+                match redirect.fd {
+                    RedirectFd::Stdout => stdout = Redirection::File(file),
+                    RedirectFd::Stderr => stderr = Redirection::File(file),
+                }
+            }
+            (exec.stdout(stdout).stderr(stderr), name)
         };
         let exec = exec.stdin(stdin).env_clear().env_extend(&env);
 
@@ -624,18 +706,25 @@ fn run_pipeline(
         ctx.shell.set_child(None);
         res
     } else {
-        // TODO this also need to be turned into a command not found error
-        let execs = execs
+        let execs: Vec<_> = execs
             .into_iter()
-            .map(|(exec, _, _)| exec.env_clear().env_extend(&env));
-        let pipeline = Pipeline::from_exec_iter(execs)
-            .stdin(stdin)
-            .stdout(if capture_output {
+            .map(|mut exec| {
+                exec.0 = exec.0.env_clear().env_extend(&env);
+                exec
+            })
+            .collect();
+
+        let mut children = popen_pipeline(
+            execs,
+            stdin,
+            if capture_output {
                 Redirection::Pipe
             } else {
                 Redirection::None
-            });
-        let mut children: Vec<subprocess::Popen> = pipeline.popen()?;
+            },
+            ctx.frame.clone(),
+        )?;
+
         children
             .first_mut()
             .unwrap()
@@ -675,12 +764,12 @@ fn get_call_type(
 ) -> Result<CallType, ShellErrorKind> {
     let span = cmd.span;
     if let Some(builtin) = builtins::functions::get_builtin(&cmd.inner) {
-        return Ok(CallType::Builtin(builtin, args, span));
+        return Ok(CallType::Builtin(builtin, args, span, Vec::new()));
     }
 
     for frame in ctx.frame.clone() {
         if let Some(func) = frame.get_function(&cmd.inner) {
-            return Ok(CallType::Internal(func, args, span));
+            return Ok(CallType::Internal(func, args, span, Vec::new()));
         }
     }
 
@@ -698,6 +787,7 @@ fn get_call_type(
         P::new(Exec::cmd(cmd.clone()).args(&str_args)),
         cmd,
         span,
+        Vec::new(),
     ))
 }
 
@@ -729,10 +819,32 @@ fn expand_call(
     Ok((Spanned::new(command, cmd_span), expanded_args))
 }
 
+#[derive(Debug)]
+pub struct PipelineRedirect {
+    target: String,
+    append: bool,
+    fd: RedirectFd,
+}
+
 pub enum CallType {
-    Builtin(BulitinFn, Vec<SpannedValue>, Span),
-    Internal(Rc<(Rc<Function>, Frame)>, Vec<SpannedValue>, Span),
-    External(P<Exec>, String, Span),
+    Builtin(BulitinFn, Vec<SpannedValue>, Span, Vec<PipelineRedirect>),
+    Internal(
+        Rc<(Rc<Function>, Frame)>,
+        Vec<SpannedValue>,
+        Span,
+        Vec<PipelineRedirect>,
+    ),
+    External(P<Exec>, String, Span, Vec<PipelineRedirect>),
+}
+
+impl CallType {
+    pub fn add_redirect(&mut self, redirect: PipelineRedirect) {
+        match self {
+            CallType::Builtin(_, _, _, redirects) => redirects.push(redirect),
+            CallType::Internal(_, _, _, redirects) => redirects.push(redirect),
+            CallType::External(_, _, _, redirects) => redirects.push(redirect),
+        }
+    }
 }
 
 fn popen_to_shell_err(error: PopenError, name: String, frame: Frame) -> ShellErrorKind {
@@ -744,4 +856,67 @@ fn popen_to_shell_err(error: PopenError, name: String, frame: Frame) -> ShellErr
         },
         error => ShellErrorKind::Popen(error),
     }
+}
+
+pub fn popen_pipeline(
+    mut pipeline: Vec<(Exec, String, Span, Vec<PipelineRedirect>)>,
+    stdin: Redirection,
+    stdout: Redirection,
+    frame: Frame,
+) -> Result<Vec<Popen>, ShellErrorKind> {
+    assert!(!pipeline.is_empty());
+    let mut first_cmd = pipeline.drain(..1).next().unwrap();
+    first_cmd.0 = first_cmd.0.stdin(stdin);
+    pipeline.insert(0, first_cmd);
+
+    let mut last_cmd = pipeline.drain(pipeline.len() - 1..).next().unwrap();
+    last_cmd.0 = last_cmd.0.stdout(stdout);
+    pipeline.push(last_cmd);
+
+    let mut ret = Vec::<Popen>::new();
+    let cnt = pipeline.len();
+
+    for (idx, (mut runner, name, _span, redirects)) in pipeline.into_iter().enumerate() {
+        let mut stdin_bytes = false;
+        if idx != 0 {
+            match ret[idx - 1].stdout.take() {
+                Some(prev_stdout) => {
+                    runner = runner.stdin(prev_stdout);
+                }
+                None => {
+                    runner = runner.stdin(Redirection::Pipe);
+                    stdin_bytes = true;
+                }
+            }
+        }
+
+        let mut stdout_set = false;
+        for redirect in redirects {
+            let file = open_redirect_file(&redirect)?;
+            match redirect.fd {
+                RedirectFd::Stdout => {
+                    runner = runner.stdout(Redirection::File(file));
+                    stdout_set = true;
+                }
+                RedirectFd::Stderr => {
+                    runner = runner.stderr(Redirection::File(file));
+                }
+            }
+        }
+
+        if idx != cnt - 1 && !stdout_set {
+            runner = runner.stdout(Redirection::Pipe);
+        }
+
+        let mut popen = runner
+            .popen()
+            .map_err(|err| popen_to_shell_err(err, name, frame.clone()))?;
+
+        if stdin_bytes {
+            let _ = popen.communicate_start(Some(Vec::new()));
+        }
+
+        ret.push(popen);
+    }
+    Ok(ret)
 }

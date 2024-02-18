@@ -7,7 +7,7 @@ use super::save_file;
 use crate::{
     argparse::{App, Arg, Flag, ParseResult},
     parser::{ast::context::Context, shell_error::ShellErrorKind},
-    shell::value::{SpannedValue, Type, Value},
+    shell::value::{save::save_value, SpannedValue, Type, Value},
 };
 
 static APP: Lazy<App> = Lazy::new(|| {
@@ -116,50 +116,7 @@ pub fn save(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellError
         };
         save_file(path, &data, append)?;
     } else {
-        let ext = path.extension();
-        if let Some(ext) = ext {
-            let ext = ext.to_string_lossy().to_string();
-            match ext.as_str() {
-                "json" => {
-                    let data = if pretty {
-                        serde_json::to_string_pretty(&input.unpack())?
-                    } else {
-                        serde_json::to_string(&input.unpack())?
-                    };
-                    save_file(path, data.as_bytes(), append)?;
-                }
-                "toml" => {
-                    let data = if pretty {
-                        toml::to_string_pretty(&input.unpack())?
-                    } else {
-                        toml::to_string(&input.unpack())?
-                    };
-                    save_file(path, data.as_bytes(), append)?;
-                }
-                "txt" => {
-                    let input = input.unpack();
-                    let data: Rc<String> = match &input {
-                        Value::Int(int) => int.to_string().into(),
-                        Value::Float(float) => float.to_string().into(),
-                        Value::Bool(boolean) => boolean.to_string().into(),
-                        Value::String(string) => string.clone(),
-                        _ => {
-                            return Err(ShellErrorKind::Basic(
-                                "TypeError",
-                                format!("Cannot cast a {} to a `string`", input.to_type()),
-                            ))
-                        }
-                    };
-                    save_file(path, data.as_bytes(), append)?;
-                }
-                _ => return Err(ShellErrorKind::UnknownFileType(ext)),
-            }
-        } else {
-            return Err(ShellErrorKind::Basic(
-                "Serialization Error",
-                "Cannot serialize without a format".into(),
-            ));
-        }
+        save_value(path, input, append, pretty)?;
     }
 
     Ok(())

@@ -193,7 +193,6 @@ impl TokenType {
                 | Le
                 | Ne
                 | Ge
-                | Gt
                 | Lt
                 | Not
                 | Match

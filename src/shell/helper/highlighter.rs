@@ -79,6 +79,10 @@ impl HighlightVisitor {
                     self.visit_expr(expr);
                 }
             }
+            ExprKind::Redirection { arg, .. } => {
+                // TODO highlight >
+                self.visit_argument(arg);
+            }
             ExprKind::Variable(variable) => self.visit_variable(variable),
             ExprKind::Binary(op, lhs, rhs) => {
                 self.visit_expr(lhs);
@@ -133,28 +137,32 @@ impl HighlightVisitor {
 
     pub fn visit_arguments(&mut self, arguments: &[Argument]) {
         for argument in arguments {
-            for part in &argument.parts {
-                match &part.kind {
-                    ArgumentPartKind::Variable(variable) => self.visit_variable(variable),
-                    ArgumentPartKind::Expand(expand) => self.visit_expand(expand),
-                    ArgumentPartKind::Bare(string) => {
-                        if string.starts_with('-') {
-                            self.spans.push(Spanned::new(ColorType::Flag, part.span))
-                        } else {
-                            self.spans.push(Spanned::new(ColorType::String, part.span))
-                        }
-                    }
-                    ArgumentPartKind::Float(_) => {
-                        self.spans.push(Spanned::new(ColorType::Literal, part.span))
-                    }
-                    ArgumentPartKind::Int(_) => {
-                        self.spans.push(Spanned::new(ColorType::Literal, part.span))
-                    }
-                    ArgumentPartKind::Quoted(_) => {
+            self.visit_argument(argument);
+        }
+    }
+
+    pub fn visit_argument(&mut self, argument: &Argument) {
+        for part in &argument.parts {
+            match &part.kind {
+                ArgumentPartKind::Variable(variable) => self.visit_variable(variable),
+                ArgumentPartKind::Expand(expand) => self.visit_expand(expand),
+                ArgumentPartKind::Bare(string) => {
+                    if string.starts_with('-') {
+                        self.spans.push(Spanned::new(ColorType::Flag, part.span))
+                    } else {
                         self.spans.push(Spanned::new(ColorType::String, part.span))
                     }
-                    ArgumentPartKind::Expr(expr) => self.visit_expr(expr),
                 }
+                ArgumentPartKind::Float(_) => {
+                    self.spans.push(Spanned::new(ColorType::Literal, part.span))
+                }
+                ArgumentPartKind::Int(_) => {
+                    self.spans.push(Spanned::new(ColorType::Literal, part.span))
+                }
+                ArgumentPartKind::Quoted(_) => {
+                    self.spans.push(Spanned::new(ColorType::String, part.span))
+                }
+                ArgumentPartKind::Expr(expr) => self.visit_expr(expr),
             }
         }
     }

@@ -100,6 +100,10 @@ pub fn save_file(path: impl AsRef<Path>, data: &[u8], append: bool) -> Result<()
         .append(append)
         .open(path)
         .map_err(|e| file_err_to_shell_err(e, path.to_string_lossy().to_string()))?;
+    if !append {
+        file.set_len(0)
+            .map_err(|e| file_err_to_shell_err(e, path.to_string_lossy().to_string()))?;
+    }
     file.write_all(data)
         .map_err(|e| file_err_to_shell_err(e, path.to_string_lossy().to_string()))
 }

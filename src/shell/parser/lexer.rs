@@ -24,7 +24,7 @@ const LINE_ENDINGS: [&str; 8] = [
 #[inline(always)]
 #[instrument(level = "trace")]
 fn is_word_break(ch: char) -> bool {
-    const DISALLOWED: &str = "#$\"\'(){}[]|;&,.:\\/=";
+    const DISALLOWED: &str = "#$\"\'(){}[]|;&,.:\\/=>";
     DISALLOWED.contains(ch)
         || ch.is_whitespace()
         || ch.is_ascii_control()

@@ -34,7 +34,10 @@ use syntax_error::{SyntaxError, SyntaxErrorKind};
 
 use self::{
     ast::{
-        expr::{argument::ArgumentPartKind, closure::Closure, command::CommandPartKind, ExprKind},
+        expr::{
+            argument::ArgumentPartKind, closure::Closure, command::CommandPartKind, ExprKind,
+            RedirectFd,
+        },
         literal::{Literal, LiteralKind},
         statement::{function::Function, Statement},
     },
@@ -1172,17 +1175,62 @@ impl Parser {
 
         self.skip_optional_space();
         while let Ok(token) = self.peek() {
-            if token.token_type == TokenType::Pipe {
-                self.eat()?;
-                self.skip_whitespace();
-                let expr = self.parse_call()?;
-                span += expr.span;
-                calls.push(expr);
-            } else {
-                break;
+            match token.token_type {
+                TokenType::Pipe => {
+                    self.eat()?;
+                    self.skip_whitespace();
+                    let expr = self.parse_call()?;
+                    span += expr.span;
+                    calls.push(expr);
+                }
+                TokenType::Gt => {
+                    let redirect = self.parse_redirect()?;
+                    span += redirect.span;
+                    calls.push(redirect);
+
+                    loop {
+                        self.skip_optional_space();
+                        if let Ok(token) = self.peek() {
+                            match token.token_type {
+                                TokenType::Gt => {
+                                    let redirect = self.parse_redirect()?;
+                                    span += redirect.span;
+                                    calls.push(redirect);
+                                }
+                                _ => break,
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                _ => {
+                    break;
+                }
             }
         }
         Ok(ExprKind::Pipe(calls).spanned(span))
+    }
+
+    fn parse_redirect(&mut self) -> Result<Expr> {
+        self.eat()?;
+        let mut append = false;
+        if let Ok(token) = self.peek() {
+            if token.token_type == TokenType::Gt {
+                self.eat()?;
+                append = true;
+            }
+        }
+
+        self.skip_whitespace();
+        let arg = self.parse_argument()?;
+        let arg_span = arg.span();
+        Ok(ExprKind::Redirection {
+            arg,
+            append,
+            fd: RedirectFd::Stdout,
+        }
+        .spanned(arg_span))
     }
 
     #[instrument(level = "trace")]
@@ -1233,6 +1281,7 @@ impl Parser {
                     let span = var.span;
                     CommandPartKind::Variable(var).spanned(span)
                 },
+                // TODO this check should be possible to remove and just have the is_valid_argpart
                 TokenType::Space
                 | TokenType::NewLine
                 | TokenType::SemiColon
@@ -1242,7 +1291,13 @@ impl Parser {
                 | TokenType::RightParen
                 | TokenType::RightBracket
                 | TokenType::Comma => break,
-                _ => self.eat()?.try_into()?,
+                _ => {
+                    if token.token_type.is_valid_argpart() {
+                        self.eat()?.try_into()?
+                    } else  {
+                        break
+                    }
+                },
             };
             parts.push(part);
         }
@@ -1274,7 +1329,6 @@ impl Parser {
                 let span = expr.span;
                 (ArgumentPartKind::Expr(expr).spanned(span), false)
             }
-            // TODO map should maybe be parsed below
             TokenType::At => {
                 let expr = self.parse_regex_or_map()?;
                 let span = expr.span;
