@@ -684,7 +684,7 @@ impl Parser {
     #[instrument(level = "trace")]
     fn parse_expand(&mut self) -> Result<Expand> {
         let mut span = self.eat()?.expect(TokenType::DoubleQuote)?.span;
-        let mut content = Vec::new();
+        let mut content: Vec<Spanned<ExpandKind>> = Vec::new();
 
         // TODO add spans not just at the end
         let mut backslash = false;
@@ -692,10 +692,14 @@ impl Parser {
             let token = self.peek_with_comment()?;
             match token.token_type {
                 TokenType::LeftParen if !backslash => {
-                    content.push(ExpandKind::Expr(self.parse_sub_expr()?));
+                    let expr = self.parse_sub_expr()?;
+                    let span = expr.span;
+                    content.push(Spanned::new(ExpandKind::Expr(expr), span));
                 }
                 TokenType::Dollar if !backslash => {
-                    content.push(ExpandKind::Variable(self.parse_variable(true)?));
+                    let variable = self.parse_variable(true)?;
+                    let span = variable.span;
+                    content.push(Spanned::new(ExpandKind::Variable(variable), span));
                 }
                 TokenType::DoubleQuote if !backslash => {
                     span += self.eat()?.span;
@@ -706,8 +710,14 @@ impl Parser {
                     backslash = true;
                 }
                 _ => {
+                    // TODO add list of spans for escapes ExpandKind::String(String, Vec<Span>)
                     let token = self.eat_with_comment()?;
                     let mut new = self.get_span_from_src(token.span).to_string();
+
+                    let span = Span::new(
+                        token.span.start().saturating_sub(backslash as usize),
+                        token.span.end(),
+                    );
 
                     if backslash {
                         let first = new.as_bytes()[0];
@@ -753,9 +763,12 @@ impl Parser {
                         backslash = false;
                     }
 
-                    match content.last_mut() {
+                    match content.last_mut().map(|s| {
+                        s.span += span;
+                        &mut s.inner
+                    }) {
                         Some(ExpandKind::String(string)) => string.push_str(&new),
-                        _ => content.push(ExpandKind::String(new)),
+                        _ => content.push(Spanned::new(ExpandKind::String(new), span)),
                     }
                 }
             }

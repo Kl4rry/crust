@@ -213,31 +213,27 @@ impl HighlightVisitor {
     }
 
     pub fn visit_expand(&mut self, expand: &Expand) {
-        let mut index = expand.span.start();
+        let start = expand.span.start();
         self.spans
-            .push(Spanned::new(ColorType::String, Span::new(index, index + 1)));
-        index += 1;
+            .push(Spanned::new(ColorType::String, Span::new(start, start + 1)));
         for kind in &expand.content {
-            match kind {
-                ExpandKind::String(string) => {
-                    self.spans.push(Spanned::new(
-                        ColorType::String,
-                        Span::new(index, index + string.len()),
-                    ));
-                    index += string.len()
+            match &kind.inner {
+                ExpandKind::String(_) => {
+                    self.spans.push(Spanned::new(ColorType::String, kind.span));
                 }
                 ExpandKind::Expr(expr) => {
                     self.visit_expr(expr);
-                    index = expr.span.end();
                 }
                 ExpandKind::Variable(variable) => {
                     self.visit_variable(variable);
-                    index = variable.span.end();
                 }
             }
         }
-        self.spans
-            .push(Spanned::new(ColorType::String, Span::new(index, index + 1)));
+        let last_span = self.spans.last().unwrap().span;
+        self.spans.push(Spanned::new(
+            ColorType::String,
+            Span::new(last_span.end(), last_span.end() + 1),
+        ));
     }
 
     pub fn visit_variable(&mut self, variable: &Variable) {

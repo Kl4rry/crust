@@ -94,6 +94,7 @@ pub enum ShellErrorKind {
     InvalidIterator(Type),
     InvalidEnvVar(Type),
     ReadOnlyVar(String, Span),
+    OverrideBuiltin(String, Span),
     CommandNotFound(String, Frame),
     CommandPermissionDenied(String),
     FileNotFound(String),
@@ -174,6 +175,7 @@ impl fmt::Display for ShellErrorKind {
             AssertionFailed(..) => write!(f, "Assertion failed"),
             InvalidEnvVar(t) => write!(f, "Cannot assign type {t} to an environment variable"),
             ReadOnlyVar(name, ..) => write!(f, "Cannot write to read-only variable `{name}`"),
+            OverrideBuiltin(name, ..) => write!(f, "Cannot override builtin variable `{name}`"),
             IncorrectArgumentCount {
                 name,
                 expected,
@@ -271,6 +273,13 @@ impl Diagnostic for ShellError {
                 )]
                 .into_iter(),
             )),
+            ShellErrorKind::OverrideBuiltin(ref name, span) => Some(P::new(
+                [LabeledSpan::new_with_span(
+                    Some(format!("`{name}` is a builtin variable")),
+                    span,
+                )]
+                .into_iter(),
+            )),
             ShellErrorKind::AssertionFailed(span) => Some(P::new(
                 [LabeledSpan::new_with_span(
                     Some("Expected this to be true".to_string()),
@@ -354,7 +363,10 @@ impl Diagnostic for ShellError {
     fn help<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
         match &self.error {
             ShellErrorKind::CommandNotFound(cmd, frame) => {
-                let vec = frame.all_function_names();
+                let mut vec = frame.all_function_names();
+                if let Ok(exes) = executable_finder::executables() {
+                    vec.extend(exes.into_iter().map(|exe| exe.name.into()));
+                }
                 let closest = get_closest(vec.iter().map(|s| &**s), cmd)?;
                 Some(P::new(format!("Did you mean {}?", closest,)))
             }

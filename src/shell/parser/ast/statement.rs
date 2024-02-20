@@ -67,21 +67,7 @@ impl Statement {
                 }
                 Ok(())
             }
-            StatementKind::Declaration(var, expr) => {
-                if is_builtin(&var.name) {
-                    return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string(), var.span));
-                }
-
-                let value = expr.eval(ctx)?;
-                ctx.frame.add_var(var.name.clone(), value.into());
-
-                Ok(())
-            }
             StatementKind::AssignOp(var, op, expr) => {
-                if is_builtin(&var.name) {
-                    return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string(), var.span));
-                }
-
                 let current = var.eval(ctx)?;
                 let res = match op.kind {
                     AssignOpKind::Expo => current.try_expo(expr.eval(ctx)?, op.span),
@@ -95,9 +81,24 @@ impl Statement {
                 ctx.frame.update_var(&var.name, res.value)?;
                 Ok(())
             }
+            StatementKind::Declaration(var, expr) => {
+                if is_builtin(&var.name) {
+                    return Err(ShellErrorKind::OverrideBuiltin(
+                        var.name.to_string(),
+                        var.span,
+                    ));
+                }
+
+                let value = expr.eval(ctx)?;
+                ctx.frame.add_var(var.name.clone(), value.into());
+                Ok(())
+            }
             StatementKind::Export(var, expr) => {
                 if is_builtin(&var.name) {
-                    return Err(ShellErrorKind::ReadOnlyVar(var.name.to_string(), var.span));
+                    return Err(ShellErrorKind::OverrideBuiltin(
+                        var.name.to_string(),
+                        var.span,
+                    ));
                 }
 
                 let value = expr.eval(ctx)?;

@@ -3,8 +3,10 @@ use memchr::memchr2;
 
 use crate::{
     parser::{
-        ast::context::Context, lexer::token::span::Span, shell_error::ShellErrorKind, Expr,
-        Variable,
+        ast::context::Context,
+        lexer::token::span::{Span, Spanned},
+        shell_error::ShellErrorKind,
+        Expr, Variable,
     },
     shell::value::{SpannedValue, Value},
 };
@@ -54,7 +56,7 @@ impl ArgumentPartKind {
 
 #[derive(Debug, Clone)]
 pub struct Expand {
-    pub content: Vec<ExpandKind>,
+    pub content: Vec<Spanned<ExpandKind>>,
     pub span: Span,
 }
 
@@ -62,7 +64,7 @@ impl Expand {
     pub fn eval(&self, ctx: &mut Context) -> Result<String, ShellErrorKind> {
         let mut value = String::new();
         for item in self.content.iter() {
-            match item {
+            match &item.inner {
                 ExpandKind::String(string) => value.push_str(string),
                 ExpandKind::Expr(expr) => value.push_str(&expr.eval(ctx)?.try_into_string()?),
                 ExpandKind::Variable(var) => value.push_str(&var.eval(ctx)?.try_into_string()?),

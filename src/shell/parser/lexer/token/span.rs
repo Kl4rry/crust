@@ -70,7 +70,7 @@ impl std::ops::AddAssign for Span {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Spanned<T> {
     pub inner: T,
     pub span: Span,
