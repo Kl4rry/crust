@@ -1285,6 +1285,7 @@ impl Parser {
         let mut parts = Vec::new();
         while let Ok(token) = self.peek() {
             let part = match &token.token_type {
+                TokenType::Control => return Err(SyntaxErrorKind::UnexpectedToken(self.eat()?)),
                 TokenType::DoubleQuote => {
                     let expand = self.parse_expand()?;
                     let span = expand.span;

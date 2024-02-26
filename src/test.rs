@@ -63,7 +63,7 @@ mod tests {
         }
     }
 
-    /*#[test]
+    #[test]
     fn random_ascii_parse_test() {
         for _ in 0..100 {
             let string = random_ascii_string(1000);
@@ -71,7 +71,7 @@ mod tests {
             let parser = Parser::new("random ascii".into(), string);
             let _ = parser.parse();
         }
-    }*/
+    }
 
     #[test]
     fn control_char_fail_parse() {
