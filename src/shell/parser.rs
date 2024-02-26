@@ -763,10 +763,11 @@ impl Parser {
                         backslash = false;
                     }
 
-                    match content.last_mut().map(|s| {
+                    let expr = content.last_mut().map(|s| {
                         s.span += span;
                         &mut s.inner
-                    }) {
+                    });
+                    match expr {
                         Some(ExpandKind::String(string)) => string.push_str(&new),
                         _ => content.push(Spanned::new(ExpandKind::String(new), span)),
                     }

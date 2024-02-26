@@ -603,7 +603,7 @@ fn open_redirect_file(redirect: &PipelineRedirect) -> Result<File, ShellErrorKin
 
 fn run_pipeline(
     ctx: &mut Context,
-    mut execs: Vec<(Exec, String, Span, Vec<PipelineRedirect>)>,
+    execs: Vec<(Exec, String, Span, Vec<PipelineRedirect>)>,
     capture_output: bool,
     input: Spanned<ValueStream>,
     first_cmd: bool,
@@ -650,110 +650,52 @@ fn run_pipeline(
     };
 
     let env = ctx.frame.env();
-    if execs.len() == 1 {
-        let (exec, name) = {
-            let (exec, name, _, redirections) = execs.pop().unwrap();
-            let mut stdout = Redirection::None;
-            let mut stderr = Redirection::None;
-            if capture_output {
-                stdout = Redirection::Pipe;
-            }
+    let execs: Vec<_> = execs
+        .into_iter()
+        .map(|mut exec| {
+            exec.0 = exec.0.env_clear().env_extend(&env);
+            exec
+        })
+        .collect();
 
-            for redirect in redirections {
-                let file = open_redirect_file(&redirect)?;
-                if !redirect.append {
-                    file.set_len(0).map_err(|e| {
-                        ShellErrorKind::Io(Some(PathBuf::from(&redirect.target)), e)
-                    })?;
-                }
-
-                match redirect.fd {
-                    RedirectFd::Stdout => stdout = Redirection::File(file),
-                    RedirectFd::Stderr => stderr = Redirection::File(file),
-                }
-            }
-            (exec.stdout(stdout).stderr(stderr), name)
-        };
-        let exec = exec.stdin(stdin).env_clear().env_extend(&env);
-
-        let mut child = exec
-            .popen()
-            .map_err(|e| popen_to_shell_err(e, name, ctx.frame.clone()))?;
-        ctx.shell.set_child(child.pid());
-        let res = if capture_output {
-            let mut com = child.communicate_start(input_data);
-            let t = thread::spawn::<_, Result<Option<Vec<u8>>, CommunicateError>>(move || {
-                let (out, _) = com.read()?;
-                Ok(out)
-            });
-
-            let status = child.wait()?;
-            let output = t.join().unwrap()?.map(try_bytes_to_value);
-            if !status.success() {
-                return Err(ShellErrorKind::ExternalExitCode(status));
-            }
-            ctx.shell.set_status(status);
-            Ok(output)
+    let mut children = popen_pipeline(
+        execs,
+        stdin,
+        if capture_output {
+            Redirection::Pipe
         } else {
-            let _ = child.communicate_start(input_data);
-            let status = child.wait()?;
-            if !status.success() {
-                return Err(ShellErrorKind::ExternalExitCode(status));
-            }
-            ctx.shell.set_status(status);
-            Ok(None)
-        };
+            Redirection::None
+        },
+        ctx.frame.clone(),
+    )?;
+
+    ctx.shell.set_child(children.last_mut().unwrap().pid());
+
+    if capture_output {
+        let mut com = children.last_mut().unwrap().communicate_start(input_data);
+        let t = thread::spawn::<_, Result<Option<Vec<u8>>, CommunicateError>>(move || {
+            Ok(com.read()?.0)
+        });
+        let status = children.last_mut().unwrap().wait()?;
         ctx.shell.set_child(None);
-        res
+        if !status.success() {
+            return Err(ShellErrorKind::ExternalExitCode(status));
+        }
+        ctx.shell.set_status(status);
+        Ok(t.join().unwrap()?.map(try_bytes_to_value))
     } else {
-        let execs: Vec<_> = execs
-            .into_iter()
-            .map(|mut exec| {
-                exec.0 = exec.0.env_clear().env_extend(&env);
-                exec
-            })
-            .collect();
-
-        let mut children = popen_pipeline(
-            execs,
-            stdin,
-            if capture_output {
-                Redirection::Pipe
-            } else {
-                Redirection::None
-            },
-            ctx.frame.clone(),
-        )?;
-
         children
             .first_mut()
             .unwrap()
             .communicate_bytes(input_data.as_deref())
             .map_err(|err| ShellErrorKind::Io(None, err))?;
-        ctx.shell.set_child(children.last_mut().unwrap().pid());
-
-        if capture_output {
-            let mut com = children.last_mut().unwrap().communicate_start(None);
-            let t = thread::spawn::<_, Result<Option<Vec<u8>>, CommunicateError>>(move || {
-                let (out, _) = com.read()?;
-                Ok(out)
-            });
-            let status = children.last_mut().unwrap().wait()?;
-            ctx.shell.set_child(None);
-            if !status.success() {
-                return Err(ShellErrorKind::ExternalExitCode(status));
-            }
-            ctx.shell.set_status(status);
-            Ok(t.join().unwrap()?.map(try_bytes_to_value))
-        } else {
-            let status = children.last_mut().unwrap().wait()?;
-            ctx.shell.set_child(None);
-            if !status.success() {
-                return Err(ShellErrorKind::ExternalExitCode(status));
-            }
-            ctx.shell.set_status(status);
-            Ok(None)
+        let status = children.last_mut().unwrap().wait()?;
+        ctx.shell.set_child(None);
+        if !status.success() {
+            return Err(ShellErrorKind::ExternalExitCode(status));
         }
+        ctx.shell.set_status(status);
+        Ok(None)
     }
 }
 
@@ -865,11 +807,11 @@ pub fn popen_pipeline(
     frame: Frame,
 ) -> Result<Vec<Popen>, ShellErrorKind> {
     assert!(!pipeline.is_empty());
-    let mut first_cmd = pipeline.drain(..1).next().unwrap();
+    let mut first_cmd = pipeline.remove(0);
     first_cmd.0 = first_cmd.0.stdin(stdin);
     pipeline.insert(0, first_cmd);
 
-    let mut last_cmd = pipeline.drain(pipeline.len() - 1..).next().unwrap();
+    let mut last_cmd = pipeline.pop().unwrap();
     last_cmd.0 = last_cmd.0.stdout(stdout);
     pipeline.push(last_cmd);
 
