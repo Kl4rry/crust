@@ -133,13 +133,13 @@ impl OutputStream {
                 *outputs = true;
                 let mut stdout = stdout();
                 if stdout.is_terminal() {
-                    for value in iter {
+                    for value in iter.into_iter().filter(|v| !v.is_null()) {
                         writeln!(stdout, "{}", value).map_err(|e| ShellErrorKind::Io(None, e))?;
                     }
                     stdout.flush().map_err(|e| ShellErrorKind::Io(None, e))?;
                 } else {
                     let mut buffer = Vec::new();
-                    for value in iter {
+                    for value in iter.into_iter().filter(|v| !v.is_null()) {
                         value.try_expand_to_strings_no_span(&mut buffer)?;
                         for s in &buffer {
                             writeln!(stdout, "{}", s).map_err(|e| ShellErrorKind::Io(None, e))?;
