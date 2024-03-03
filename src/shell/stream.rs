@@ -126,7 +126,9 @@ impl OutputStream {
     #[inline]
     pub fn extend<T: IntoIterator<Item = Value>>(&mut self, iter: T) -> Result<(), ShellErrorKind> {
         match &mut self.inner {
-            InnerStream::Capture(values) => values.extend(iter),
+            InnerStream::Capture(values) => {
+                values.extend(iter.into_iter().filter(|v| !v.is_null()))
+            }
             InnerStream::Output(outputs) => {
                 *outputs = true;
                 let mut stdout = stdout();

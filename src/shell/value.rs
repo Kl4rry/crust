@@ -1059,6 +1059,10 @@ impl Value {
             _ => false,
         }
     }
+
+    pub fn is_null(&self) -> bool {
+        matches!(self, Value::Null)
+    }
 }
 
 impl From<&str> for Value {
