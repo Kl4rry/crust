@@ -18,7 +18,7 @@ pub fn cd(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErrorKi
     let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            ctx.output.push(info);
+            ctx.output.push(info)?;
             return Ok(());
         }
         Err(e) => return Err(e.into()),

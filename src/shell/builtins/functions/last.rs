@@ -18,7 +18,7 @@ pub fn last(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellError
     let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            ctx.output.push(info);
+            ctx.output.push(info)?;
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -41,7 +41,7 @@ pub fn last(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellError
                 let removed = list.len().saturating_sub(count);
                 list.drain(..removed);
             }
-            ctx.output.push(Value::List(list));
+            ctx.output.push(Value::List(list))?;
         }
         Value::String(ref string) => {
             let mut buffer = VecDeque::new();
@@ -52,11 +52,11 @@ pub fn last(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellError
                 }
             }
             ctx.output
-                .push(Value::from(buffer.into_iter().collect::<String>()));
+                .push(Value::from(buffer.into_iter().collect::<String>()))?;
         }
         Value::Table(mut table) => {
             Rc::make_mut(&mut table).last(count);
-            ctx.output.push(Value::Table(table));
+            ctx.output.push(Value::Table(table))?;
         }
         Value::Range(ref range) => {
             let mut buffer = VecDeque::new();
@@ -66,7 +66,7 @@ pub fn last(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellError
                     buffer.pop_front();
                 }
             }
-            ctx.output.push(Value::from(Vec::from(buffer)));
+            ctx.output.push(Value::from(Vec::from(buffer)))?;
         }
         Value::Binary(mut data) => {
             {
@@ -74,7 +74,7 @@ pub fn last(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellError
                 let removed = data.len().saturating_sub(count);
                 data.drain(..removed);
             }
-            ctx.output.push(Value::Binary(data));
+            ctx.output.push(Value::Binary(data))?;
         }
         _ => {
             return Err(ShellErrorKind::Basic(

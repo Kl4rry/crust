@@ -368,7 +368,7 @@ impl Expr {
                 if !matches!(calls.peek().unwrap().kind, ExprKind::Call(..)) {
                     let first = calls.next().unwrap();
                     capture_output.span = first.span;
-                    capture_output.inner.push(first.eval(ctx)?.into());
+                    capture_output.inner.push(first.eval(ctx)?.into())?;
                 }
 
                 let mut expanded_calls = VecDeque::new();
@@ -559,7 +559,7 @@ impl Expr {
                     )?;
 
                     if let Some(value) = value {
-                        ctx.output.push(value);
+                        ctx.output.push(value)?;
                     }
                 }
 

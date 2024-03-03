@@ -17,7 +17,7 @@ pub fn history(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellEr
     let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            ctx.output.push(info);
+            ctx.output.push(info)?;
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -32,7 +32,7 @@ pub fn history(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellEr
         for entry in history {
             output.push(Value::from(entry.entry.as_str()));
         }
-        ctx.output.push(output.into());
+        ctx.output.push(output.into())?;
     }
 
     Ok(())

@@ -30,7 +30,7 @@ pub fn filter(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErr
     let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            ctx.output.push(info);
+            ctx.output.push(info)?;
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -127,7 +127,7 @@ pub fn filter(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErr
         }
     };
 
-    ctx.output.push(value);
+    ctx.output.push(value)?;
     Ok(())
 }
 

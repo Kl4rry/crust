@@ -84,7 +84,7 @@ pub enum ShellErrorKind {
     InvalidConversionContains {
         from: Type,
         to: Type,
-        span: Span,
+        span: Option<Span>,
     },
     NoColumns(Type),
     NotIndexable(Type, Span),
@@ -262,7 +262,7 @@ impl Diagnostic for ShellError {
             ShellErrorKind::InvalidConversionContains { span, from, .. } => Some(P::new(
                 [LabeledSpan::new_with_span(
                     Some(format!("Because this contains a {}", from)),
-                    span,
+                    span?,
                 )]
                 .into_iter(),
             )),

@@ -20,7 +20,7 @@ pub fn alias(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErro
     let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            ctx.output.push(info);
+            ctx.output.push(info)?;
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -65,7 +65,7 @@ pub fn alias(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErro
                 .aliases
                 .insert(Rc::unwrap_or_clone(name), Rc::unwrap_or_clone(command));
         } else if let Some(command) = ctx.shell.aliases.get(&*name) {
-            ctx.output.push(Value::from(command.clone()));
+            ctx.output.push(Value::from(command.clone()))?;
         } else {
             return Err(ShellErrorKind::Basic(
                 "Alias Error",
@@ -82,7 +82,7 @@ pub fn alias(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErro
                 (command_header.clone(), Value::from(command.clone())),
             ]));
         }
-        ctx.output.push(table.into());
+        ctx.output.push(table.into())?;
     }
 
     Ok(())

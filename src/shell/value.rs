@@ -84,6 +84,7 @@ impl SpannedValue {
         }
     }
 
+    // TODO make this not allocate a bunch of strings and use std::Write
     pub fn try_expand_to_strings(self, output: &mut Vec<String>) -> Result<(), ShellErrorKind> {
         let (value, span) = self.into();
         match value {
@@ -106,7 +107,7 @@ impl SpannedValue {
                 return Err(ShellErrorKind::InvalidConversionContains {
                     from: value.to_type(),
                     to: Type::STRING,
-                    span,
+                    span: Some(span),
                 })
             }
         }
@@ -858,6 +859,37 @@ impl PartialEq for Value {
 }
 
 impl Value {
+    pub fn try_expand_to_strings_no_span(
+        self,
+        output: &mut Vec<String>,
+    ) -> Result<(), ShellErrorKind> {
+        match self {
+            Value::Int(number) => output.push(number.to_string()),
+            Value::Float(number) => output.push(number.to_string()),
+            Value::String(string) => output.push(string.to_string()),
+            Value::Bool(boolean) => output.push(boolean.to_string()),
+            Value::Range(range) => {
+                for i in (*range).clone() {
+                    output.push(i.to_string());
+                }
+            }
+            Value::List(list) => {
+                let list = Rc::try_unwrap(list).unwrap_or_else(|list| (*list).clone());
+                for value in list {
+                    value.try_expand_to_strings_no_span(output)?;
+                }
+            }
+            _ => {
+                return Err(ShellErrorKind::InvalidConversionContains {
+                    from: self.to_type(),
+                    to: Type::STRING,
+                    span: None,
+                })
+            }
+        }
+        Ok(())
+    }
+
     // this function should only be used for displaying values
     // only the display trait should ever call it
     // it should never be used just to convert a value to a string

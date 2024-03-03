@@ -20,7 +20,7 @@ pub fn clear(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErro
     let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            ctx.output.push(info);
+            ctx.output.push(info)?;
             return Ok(());
         }
         Err(e) => return Err(e.into()),

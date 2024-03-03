@@ -21,7 +21,7 @@ pub fn glob(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellError
     let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            ctx.output.push(info);
+            ctx.output.push(info)?;
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -32,7 +32,7 @@ pub fn glob(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellError
     for path in glob::glob(&pattern)? {
         let path = path?;
         let string = path.to_string_lossy();
-        ctx.output.push((&*string).into());
+        ctx.output.push((&*string).into())?;
     }
 
     Ok(())

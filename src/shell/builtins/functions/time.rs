@@ -23,7 +23,7 @@ pub fn time(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellError
     let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            ctx.output.push(info);
+            ctx.output.push(info)?;
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -45,7 +45,7 @@ pub fn time(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellError
     let before = Instant::now();
     closure.eval(&mut ctx, iter::empty())?;
     let duration = Instant::now().duration_since(before);
-    ctx.output.push(Value::from(format!("{:?}", duration)));
+    ctx.output.push(Value::from(format!("{:?}", duration)))?;
 
     Ok(())
 }

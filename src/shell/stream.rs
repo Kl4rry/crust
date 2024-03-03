@@ -1,12 +1,13 @@
 use std::{
     fmt,
-    io::{stdout, Write},
+    io::{stdout, IsTerminal, Write},
     mem,
     rc::Rc,
     slice,
 };
 
 use super::value::Value;
+use crate::parser::shell_error::ShellErrorKind;
 
 #[derive(Debug, Default, Clone)]
 pub struct ValueStream {
@@ -112,56 +113,57 @@ impl OutputStream {
         }
     }
 
-    pub fn push(&mut self, value: Value) {
-        match value {
-            Value::Null => (),
-            value => match &mut self.inner {
-                InnerStream::Capture(values) => values.push(value),
-                InnerStream::Output(outputs) => {
-                    *outputs = true;
-                    println!("{}", value);
-                    let _ = stdout().flush();
-                }
-            },
-        }
+    #[inline]
+    pub fn push(&mut self, value: Value) -> Result<(), ShellErrorKind> {
+        self.extend([value])
     }
 
-    pub fn push_value_stream(&mut self, stream: ValueStream) {
-        match &mut self.inner {
-            InnerStream::Capture(values) => values.extend(stream),
-            InnerStream::Output(outputs) => {
-                *outputs = true;
-                println!("{}", stream);
-                stdout().flush().unwrap();
-            }
-        }
+    #[inline]
+    pub fn push_value_stream(&mut self, stream: ValueStream) -> Result<(), ShellErrorKind> {
+        self.extend(stream)
     }
 
-    pub fn extend<T: IntoIterator<Item = Value>>(&mut self, iter: T) {
+    #[inline]
+    pub fn extend<T: IntoIterator<Item = Value>>(&mut self, iter: T) -> Result<(), ShellErrorKind> {
         match &mut self.inner {
             InnerStream::Capture(values) => values.extend(iter),
             InnerStream::Output(outputs) => {
                 *outputs = true;
-                for value in iter {
-                    println!("{}", value);
+                let mut stdout = stdout();
+                if stdout.is_terminal() {
+                    for value in iter {
+                        writeln!(stdout, "{}", value).map_err(|e| ShellErrorKind::Io(None, e))?;
+                    }
+                    stdout.flush().map_err(|e| ShellErrorKind::Io(None, e))?;
+                } else {
+                    let mut buffer = Vec::new();
+                    for value in iter {
+                        value.try_expand_to_strings_no_span(&mut buffer)?;
+                        for s in &buffer {
+                            writeln!(stdout, "{}", s).map_err(|e| ShellErrorKind::Io(None, e))?;
+                        }
+                        buffer.clear();
+                    }
                 }
-                stdout().flush().unwrap();
             }
         }
+        Ok(())
     }
 
     pub fn end(&mut self) {
         match &mut self.inner {
             InnerStream::Capture(_) => panic!("cannot end capture stream"),
             InnerStream::Output(output) => {
-                if *output {
-                    if let Ok((x, _)) = crossterm::cursor::position() {
-                        if x != 0 {
-                            println!();
+                if stdout().is_terminal() {
+                    if *output {
+                        if let Ok((x, _)) = crossterm::cursor::position() {
+                            if x != 0 {
+                                println!();
+                            }
                         }
                     }
+                    *output = false;
                 }
-                *output = false;
             }
         }
     }

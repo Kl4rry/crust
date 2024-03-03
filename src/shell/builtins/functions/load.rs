@@ -37,7 +37,7 @@ pub fn load(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellError
     let mut matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            ctx.output.push(info);
+            ctx.output.push(info)?;
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -54,10 +54,10 @@ pub fn load(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellError
 
     if matches.conatins("STR") {
         let file = read_file(&path)?;
-        ctx.output.push(Value::String(Rc::new(file)));
+        ctx.output.push(Value::String(Rc::new(file)))?;
     } else if matches.conatins("RAW") {
         let file = read_file_raw(&path)?;
-        ctx.output.push(Value::Binary(Rc::new(file)));
+        ctx.output.push(Value::Binary(Rc::new(file)))?;
     } else {
         let ext = path.extension();
         if let Some(ext) = ext {
@@ -65,24 +65,24 @@ pub fn load(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellError
             match ext.as_str() {
                 "json" => {
                     let file = read_file(&path)?;
-                    ctx.output.push(serde_json::from_str(&file)?);
+                    ctx.output.push(serde_json::from_str(&file)?)?;
                 }
                 "toml" => {
                     let file = read_file(&path)?;
-                    ctx.output.push(toml::from_str(&file)?);
+                    ctx.output.push(toml::from_str(&file)?)?;
                 }
                 "txt" => {
                     let file = read_file(&path)?;
-                    ctx.output.push(file.into());
+                    ctx.output.push(file.into())?;
                 }
                 _ => return Err(ShellErrorKind::UnknownFileType(ext)),
             }
         } else {
             let file = read_file_raw(&path)?;
             match String::from_utf8(file) {
-                Ok(string) => ctx.output.push(string.into()),
-                Err(e) => ctx.output.push(e.into_bytes().into()),
-            }
+                Ok(string) => ctx.output.push(string.into())?,
+                Err(e) => ctx.output.push(e.into_bytes().into())?,
+            };
         }
     }
 

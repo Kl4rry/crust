@@ -16,7 +16,7 @@ pub fn pwd(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErrorK
     let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            ctx.output.push(info);
+            ctx.output.push(info)?;
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -25,11 +25,11 @@ pub fn pwd(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErrorK
     if matches.conatins("PHYSICAL") {
         if let Ok(path) = std::fs::read_link(current_dir_str()) {
             ctx.output
-                .push(Value::from(path.to_string_lossy().to_string()));
+                .push(Value::from(path.to_string_lossy().to_string()))?;
             return Ok(());
         }
     }
 
-    ctx.output.push(Value::from(current_dir_str()));
+    ctx.output.push(Value::from(current_dir_str()))?;
     Ok(())
 }

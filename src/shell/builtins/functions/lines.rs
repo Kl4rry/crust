@@ -19,7 +19,7 @@ pub fn lines(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErro
     let matches = match APP.parse(args) {
         Ok(ParseResult::Matches(m)) => m,
         Ok(ParseResult::Info(info)) => {
-            ctx.output.push(info);
+            ctx.output.push(info)?;
             return Ok(());
         }
         Err(e) => return Err(e.into()),
@@ -38,7 +38,7 @@ pub fn lines(ctx: &mut Context, args: Vec<SpannedValue>) -> Result<(), ShellErro
                 }
                 output.push(String::from(line).into());
             }
-            ctx.output.push(output.into());
+            ctx.output.push(output.into())?;
         }
         _ => {
             return Err(ShellErrorKind::Basic(
